@@ -11,9 +11,10 @@ import { Plus } from "lucide-react";
 
 interface ConversationListProps {
   onConversationSelect?: () => void;
+  collapsed?: boolean;
 }
 
-export function ConversationList({ onConversationSelect }: ConversationListProps) {
+export function ConversationList({ onConversationSelect, collapsed = false }: ConversationListProps) {
   const {
     conversations,
     isInitialLoading,
@@ -52,20 +53,23 @@ export function ConversationList({ onConversationSelect }: ConversationListProps
     <div className="h-full overflow-y-auto scroll-smooth">
       {conversations.length === 0 ? (
         <div className="flex h-full items-center justify-center p-4">
-          <div className="text-center">
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">
-              No conversations yet
-            </p>
+          <div className={`text-center ${collapsed ? "px-1" : ""}`}>
+            {!collapsed && (
+              <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                No conversations yet
+              </p>
+            )}
           </div>
         </div>
       ) : (
-        <div className="p-2 space-y-1">
+        <div className={`p-2 space-y-1 ${collapsed ? "px-1.5" : ""}`}>
           {conversations.map((conversation) => (
             <ConversationItem
               key={conversation.conversation_id}
               conversation={conversation}
               isSelected={selectedConversationId === conversation.conversation_id}
               onClick={() => handleConversationClick(conversation.conversation_id)}
+              collapsed={collapsed}
             />
           ))}
         </div>

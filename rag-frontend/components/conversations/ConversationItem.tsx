@@ -4,17 +4,38 @@ import { formatDate } from "@/lib/utils/formatDate";
 import type { ConversationListItem } from "@/types";
 import { cn } from "@/lib/utils";
 
+import { MessageSquare } from "lucide-react";
+
 interface ConversationItemProps {
   conversation: ConversationListItem;
   isSelected: boolean;
   onClick: () => void;
+  collapsed?: boolean;
 }
 
 export function ConversationItem({
   conversation,
   isSelected,
   onClick,
+  collapsed = false,
 }: ConversationItemProps) {
+  if (collapsed) {
+    return (
+      <button
+        className={cn(
+          "w-full cursor-pointer rounded-lg p-2 flex items-center justify-center transition-colors",
+          "hover:bg-neutral-100 dark:hover:bg-neutral-800",
+          "active:scale-[0.98]",
+          isSelected && "bg-neutral-200 dark:bg-neutral-800"
+        )}
+        onClick={onClick}
+        title={conversation.title || "New Conversation"}
+      >
+        <MessageSquare className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
+      </button>
+    );
+  }
+
   return (
     <button
       className={cn(
