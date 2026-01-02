@@ -49,7 +49,7 @@ export function ConversationList({ onConversationSelect }: ConversationListProps
   }
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full overflow-y-auto scroll-smooth">
       {conversations.length === 0 ? (
         <div className="flex h-full items-center justify-center p-4">
           <div className="text-center">
@@ -59,7 +59,7 @@ export function ConversationList({ onConversationSelect }: ConversationListProps
           </div>
         </div>
       ) : (
-        <div className="p-2">
+        <div className="p-2 space-y-1">
           {conversations.map((conversation) => (
             <ConversationItem
               key={conversation.conversation_id}

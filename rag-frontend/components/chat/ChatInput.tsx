@@ -84,7 +84,7 @@ export function ChatInput() {
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 z-10 bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800 lg:left-64">
+      <div className="fixed bottom-0 left-0 right-0 z-10 bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800">
         <div className="mx-auto max-w-4xl px-3 py-3 sm:px-4 sm:py-4 md:px-6">
           {/* File preview chips */}
           {selectedFiles.length > 0 && (

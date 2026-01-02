@@ -13,43 +13,55 @@ export default function ConversationsPage() {
   const router = useRouter();
   const { selectedConversationId, selectConversation } = useConversationStore();
   const { clearChat } = useChatStore();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  // Initialize sidebar state from localStorage, default to false (closed)
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("sidebarOpen");
+      return saved === "true";
+    }
+    return false;
+  });
+
+  // Persist sidebar state to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sidebarOpen", String(sidebarOpen));
+    }
+  }, [sidebarOpen]);
 
   const handleNewConversation = () => {
     // Immediately clear chat state
     clearChat();
     selectConversation("");
-    // Close sidebar on mobile
-    setSidebarOpen(false);
     // Navigate to new conversation
     router.push("/conversations/new");
   };
 
   const handleConversationSelect = () => {
     // Close sidebar on mobile when conversation is selected
-    setSidebarOpen(false);
-  };
-
-  // Close sidebar when conversation is selected on mobile
-  useEffect(() => {
-    if (selectedConversationId) {
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
       setSidebarOpen(false);
     }
-  }, [selectedConversationId]);
+  };
+
+  const toggleSidebar = () => {
+    setSidebarOpen((prev) => !prev);
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-white dark:bg-neutral-900">
-      {/* Mobile Overlay */}
+      {/* Overlay - shown when sidebar is open on all screen sizes */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-30 transition-opacity duration-300"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - always overlay, never pushes content */}
       <div
-        className={`fixed left-0 top-0 bottom-0 w-64 shrink-0 border-r border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 flex flex-col z-40 transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed left-0 top-0 bottom-0 w-64 shrink-0 border-r border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 flex flex-col z-40 transition-transform duration-300 ease-in-out shadow-lg ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -59,18 +71,18 @@ export default function ConversationsPage() {
               onClick={() => setSidebarOpen(false)}
               variant="ghost"
               size="icon"
-              className="lg:hidden h-8 w-8"
+              className="h-8 w-8 shrink-0"
             >
               <X className="h-4 w-4" />
             </Button>
             <Button 
               onClick={handleNewConversation} 
-              className="flex-1 text-sm" 
+              className="flex-1 text-sm min-w-0" 
               size="sm"
               variant="default"
             >
-              <Plus className="mr-2 h-4 w-4" />
-              New chat
+              <Plus className="mr-2 h-4 w-4 shrink-0" />
+              <span className="truncate">New chat</span>
             </Button>
           </div>
         </div>
@@ -79,25 +91,25 @@ export default function ConversationsPage() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 min-w-0 flex flex-col lg:ml-64">
-        {/* Mobile Header */}
-        <div className="lg:hidden border-b border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900 p-3 shrink-0 flex items-center gap-2">
+      {/* Main Content - always full width, never shifted */}
+      <div className="flex-1 min-w-0 flex flex-col w-full">
+        {/* Header with toggle button - shown on all screen sizes */}
+        <div className="border-b border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900 p-3 shrink-0 flex items-center gap-3">
           <Button
-            onClick={() => setSidebarOpen(true)}
+            onClick={toggleSidebar}
             variant="ghost"
             size="icon"
-            className="h-9 w-9"
+            className="h-9 w-9 shrink-0"
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+          <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50 truncate">
             Heritage App
           </h1>
         </div>
 
         {selectedConversationId ? (
-          <ChatWindow conversationId={selectedConversationId} />
+          <ChatWindow conversationId={selectedConversationId} sidebarOpen={sidebarOpen} />
         ) : (
           <div className="flex h-full items-center justify-center p-4">
             <div className="text-center max-w-md">

@@ -8,9 +8,10 @@ import { Spinner } from "@/components/ui/spinner";
 
 interface ChatWindowProps {
   conversationId?: string;
+  sidebarOpen?: boolean;
 }
 
-export function ChatWindow({ conversationId }: ChatWindowProps) {
+export function ChatWindow({ conversationId, sidebarOpen = false }: ChatWindowProps) {
   const { loadConversation, setConversationId, clearChat, isLoading, messages, currentConversationId } = useChatStore();
   const prevConversationIdRef = useRef<string | undefined>(undefined);
   const normalizedConversationId = conversationId === "new" ? undefined : conversationId;
@@ -58,8 +59,8 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
   // CRITICAL: Use key prop to force re-render when conversationId changes
   // This ensures the component tree resets when switching conversations
   return (
-    <div key={normalizedConversationId || "new"} className="flex min-h-full flex-col bg-white dark:bg-neutral-900 pb-20 pt-4 sm:pb-24 sm:pt-6 md:pb-28 md:pt-10">
-      <div className="flex-1 overflow-hidden">
+    <div key={normalizedConversationId || "new"} className="flex min-h-full flex-col bg-white dark:bg-neutral-900 pb-20 sm:pb-24 md:pb-28">
+      <div className="flex-1 overflow-hidden min-h-0">
         {isRestoringConversation ? (
           <div className="flex h-full items-center justify-center">
             <Spinner className="h-6 w-6 text-neutral-400" />
