@@ -105,8 +105,8 @@ export default function ConversationDetailPage() {
 
       {/* Main Content - always full width, never shifted */}
       <div className="flex-1 min-w-0 flex flex-col w-full">
-        {/* Header with toggle button - shown on all screen sizes */}
-        <div className="border-b border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900 px-4 py-3 shrink-0 flex items-center gap-3 sm:px-6">
+        {/* Header with toggle button - fixed on mobile, sticky on desktop */}
+        <div className="sticky top-0 z-20 border-b border-neutral-200 bg-white/95 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/95 px-4 py-3 shrink-0 flex items-center gap-3 sm:px-6 lg:relative lg:z-auto lg:bg-white lg:dark:bg-neutral-900">
           <Button
             onClick={toggleSidebar}
             variant="ghost"
