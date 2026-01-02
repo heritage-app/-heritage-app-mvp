@@ -84,15 +84,15 @@ export function ChatInput() {
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 z-10 bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800">
-        <div className="mx-auto max-w-4xl px-3 py-3 sm:px-4 sm:py-4 md:px-6">
+      <div className="fixed bottom-0 left-0 right-0 z-10 bg-white/80 backdrop-blur-md dark:bg-neutral-900/80 border-t border-neutral-200/50 dark:border-neutral-800/50">
+        <div className="mx-auto max-w-4xl px-4 py-4 sm:px-6 sm:py-5 md:px-8">
           {/* File preview chips */}
           {selectedFiles.length > 0 && (
-            <div className="mb-2 flex flex-wrap gap-2">
+            <div className="mb-3 flex flex-wrap gap-2">
               {selectedFiles.map((preview) => (
                 <div
                   key={preview.id}
-                  className="flex items-center gap-2 rounded-lg bg-neutral-100 px-3 py-1.5 text-sm dark:bg-neutral-800"
+                  className="flex items-center gap-2 rounded-full bg-neutral-100 px-3 py-1.5 text-xs shadow-sm dark:bg-neutral-800"
                 >
                   <span className="truncate max-w-[200px] text-neutral-700 dark:text-neutral-300">
                     {preview.file.name}
@@ -100,9 +100,9 @@ export function ChatInput() {
                   <button
                     type="button"
                     onClick={() => removeFile(preview.id)}
-                    className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
+                    className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ))}
@@ -111,38 +111,27 @@ export function ChatInput() {
 
           <form
             onSubmit={handleSubmit(onSubmit)}
-            className="flex items-end gap-2"
+            className="relative flex items-end gap-2"
           >
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setUploadModalOpen(true)}
-              className="h-9 w-9 shrink-0 rounded-lg sm:h-10 sm:w-10"
-              disabled={isDisabled}
-            >
-              <Paperclip className="h-4 w-4 sm:h-5 sm:w-5" />
-            </Button>
-            <div className="relative flex-1">
+            <div className="relative flex-1 rounded-2xl border border-neutral-200 bg-white shadow-sm transition-all focus-within:border-neutral-400 focus-within:shadow-md dark:border-neutral-700 dark:bg-neutral-800 dark:focus-within:border-neutral-600">
               <textarea
                 {...registerProps}
                 ref={(e) => {
                   ref(e);
                   textareaRef.current = e;
                 }}
-                placeholder="Ask about Ga language..."
+                placeholder="Message Heritage App..."
                 disabled={isDisabled}
                 rows={1}
                 className={cn(
-                  "w-full resize-none rounded-2xl border border-neutral-200 bg-white px-3 py-2.5 pr-10 text-sm",
+                  "w-full resize-none rounded-2xl bg-transparent px-4 py-3 pr-20 text-sm leading-6",
                   "placeholder:text-neutral-400",
-                  "focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-0",
+                  "focus:outline-none",
                   "disabled:cursor-not-allowed disabled:opacity-50",
-                  "dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100",
+                  "dark:text-neutral-100",
                   "dark:placeholder:text-neutral-500",
-                  "dark:focus:ring-neutral-600",
                   "transition-all",
-                  "sm:px-4 sm:py-3 sm:pr-12"
+                  "sm:px-5 sm:py-3.5 sm:pr-24"
                 )}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -153,25 +142,36 @@ export function ChatInput() {
                   }
                 }}
               />
-              <Button
-                type="submit"
-                disabled={isDisabled}
-                size="icon"
-                className={cn(
-                  "absolute bottom-1.5 right-1.5 h-7 w-7 rounded-lg",
-                  "bg-neutral-900 text-white hover:bg-neutral-800",
-                  "disabled:opacity-50 disabled:cursor-not-allowed",
-                  "dark:bg-neutral-700 dark:hover:bg-neutral-600",
-                  "transition-opacity",
-                  "sm:bottom-2 sm:right-2 sm:h-8 sm:w-8"
-                )}
-              >
-                <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              </Button>
+              <div className="absolute bottom-2 right-2 flex items-center gap-1 sm:bottom-2.5 sm:right-2.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setUploadModalOpen(true)}
+                  className="h-8 w-8 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 sm:h-9 sm:w-9"
+                  disabled={isDisabled}
+                >
+                  <Paperclip className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isDisabled}
+                  size="icon"
+                  className={cn(
+                    "h-8 w-8 rounded-lg shadow-sm transition-all",
+                    "bg-neutral-900 text-white hover:bg-neutral-800 hover:shadow-md",
+                    "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-sm",
+                    "dark:bg-neutral-700 dark:hover:bg-neutral-600",
+                    "sm:h-9 sm:w-9"
+                  )}
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </form>
           {errors.query && (
-            <p className="mt-1 text-xs text-destructive">
+            <p className="mt-2 text-xs text-red-600 dark:text-red-400 px-1">
               {errors.query.message}
             </p>
           )}

@@ -106,14 +106,15 @@ export default function ConversationDetailPage() {
       {/* Main Content - always full width, never shifted */}
       <div className="flex-1 min-w-0 flex flex-col w-full">
         {/* Header with toggle button - shown on all screen sizes */}
-        <div className="border-b border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900 p-3 shrink-0 flex items-center gap-3">
+        <div className="border-b border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900 px-4 py-3 shrink-0 flex items-center gap-3 sm:px-6">
           <Button
             onClick={toggleSidebar}
             variant="ghost"
             size="icon"
-            className="h-9 w-9 shrink-0"
+            className="h-9 w-9 shrink-0 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all active:scale-95"
+            aria-label="Toggle sidebar"
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-5 w-5 text-neutral-700 dark:text-neutral-300" />
           </Button>
           <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50 truncate">
             Heritage App
