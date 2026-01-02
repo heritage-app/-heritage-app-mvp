@@ -4,7 +4,7 @@ API routes for the RAG system.
 
 import uuid
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
@@ -27,6 +27,60 @@ from app.schemas.responses import (
 
 
 router = APIRouter(prefix="/api/v1", tags=["rag"])
+
+
+def humanize_timestamp(timestamp_str: str | None) -> str:
+    """
+    Convert a timestamp string to a human-readable format.
+    
+    Args:
+        timestamp_str: ISO format timestamp string or None
+        
+    Returns:
+        Human-readable time string (e.g., "Just now", "2 hours ago", "Yesterday")
+    """
+    if not timestamp_str:
+        return "Unknown"
+    
+    try:
+        # Parse the timestamp
+        if isinstance(timestamp_str, str):
+            if timestamp_str.endswith("Z"):
+                timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+            else:
+                timestamp = datetime.fromisoformat(timestamp_str)
+        else:
+            timestamp = timestamp_str
+        
+        # Ensure timezone-aware
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=timezone.utc)
+        
+        now = datetime.now(timezone.utc)
+        diff = now - timestamp
+        
+        # Calculate time differences
+        if diff < timedelta(seconds=60):
+            return "Just now"
+        elif diff < timedelta(minutes=60):
+            minutes = int(diff.total_seconds() / 60)
+            return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
+        elif diff < timedelta(hours=24):
+            hours = int(diff.total_seconds() / 3600)
+            return f"{hours} hour{'s' if hours != 1 else ''} ago"
+        elif diff < timedelta(days=7):
+            days = int(diff.total_seconds() / 86400)
+            if days == 1:
+                return "Yesterday"
+            return f"{days} days ago"
+        elif diff < timedelta(days=30):
+            weeks = int(diff.total_seconds() / 604800)
+            return f"{weeks} week{'s' if weeks != 1 else ''} ago"
+        else:
+            # Return formatted date for older messages
+            return timestamp.strftime("%B %d, %Y")
+    except Exception:
+        return "Unknown"
 
 
 @router.post("/upload", response_model=UploadResponse)
@@ -366,14 +420,17 @@ async def list_conversations_endpoint(
         ConversationListItem(
             conversation_id=conv.get("conversation_id", ""),
             title=conv.get("title"),
-            last_message_at=conv.get("last_message_at")
+            last_activity=humanize_timestamp(conv.get("last_message_at"))
         )
         for conv in conversations
     ]
     
+    total_count = len(conversation_items)
+    total_str = f"{total_count} conversation{'s' if total_count != 1 else ''}"
+    
     return ConversationsListResponse(
         conversations=conversation_items,
-        total=len(conversation_items)
+        total=total_str
     )
 
 
