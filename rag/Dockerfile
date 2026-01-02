@@ -50,16 +50,17 @@ USER appuser
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+# Health check - check if the API is responding
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8080/api/v1/health || exit 1
 
 # Run the application
 # Bind to 0.0.0.0 for Coolify (or use 127.0.0.1 for manual reverse proxy setups)
 # Coolify will handle reverse proxy, so binding to 0.0.0.0 is safe
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "4", "--log-level", "info"]
+# Using 1 worker initially for faster startup and easier debugging
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1", "--log-level", "info"]
 
 
 
