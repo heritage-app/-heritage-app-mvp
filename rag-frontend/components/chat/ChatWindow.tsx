@@ -59,8 +59,8 @@ export function ChatWindow({ conversationId, sidebarOpen = false }: ChatWindowPr
   // CRITICAL: Use key prop to force re-render when conversationId changes
   // This ensures the component tree resets when switching conversations
   return (
-    <div key={normalizedConversationId || "new"} className="flex min-h-full flex-col bg-white dark:bg-neutral-900 pb-20 sm:pb-24 md:pb-28">
-      <div className="flex-1 overflow-hidden min-h-0">
+    <div key={normalizedConversationId || "new"} className="flex min-h-full flex-col bg-white dark:bg-neutral-900 pb-16">
+      <div className="flex-1 overflow-hidden min-h-0 relative">
         {isRestoringConversation ? (
           <div className="flex h-full items-center justify-center">
             <Spinner className="h-6 w-6 text-neutral-400" />

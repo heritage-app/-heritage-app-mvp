@@ -76,7 +76,7 @@ export function MessageList({ conversationId }: MessageListProps) {
 
   return (
     <div ref={containerRef} className="h-full overflow-y-auto scroll-smooth">
-      <div className="mx-auto flex max-w-4xl flex-col px-3 py-4 sm:px-4 sm:py-6 md:px-6 md:py-8">
+      <div className="mx-auto flex max-w-4xl flex-col px-3 py-4 pb-32 sm:px-4 sm:py-6 sm:pb-36 md:px-6 md:py-8 md:pb-40">
         {filteredMessages.map((message) => (
           <ChatMessage key={message.id} message={message} />
         ))}
