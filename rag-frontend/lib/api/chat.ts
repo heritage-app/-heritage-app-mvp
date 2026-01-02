@@ -1,7 +1,7 @@
 import { AskRequestSchema } from "@/lib/schemas/requests";
 import type { Message, AskRequest } from "@/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://heritage-backend.ekowlabs.space/api/v1";
 
 export interface StreamingOptions {
   onChunk?: (chunk: string) => void;
