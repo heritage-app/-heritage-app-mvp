@@ -1,0 +1,50 @@
+# Caddy configuration for Heritage RAG System
+# Caddy automatically handles HTTPS with Let's Encrypt
+
+${DOMAIN} www.${DOMAIN} {
+    # Reverse proxy to FastAPI application
+    reverse_proxy 127.0.0.1:8000 {
+        # Headers
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        
+        # Timeouts (for long-running requests)
+        transport http {
+            dial_timeout 60s
+            response_header_timeout 300s
+        }
+        
+        # WebSocket support
+        header_up Connection {>Connection}
+        header_up Upgrade {>Upgrade}
+    }
+    
+    # File upload size limit (100MB)
+    request_body_max_size 100MB
+    
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Frame-Options "SAMEORIGIN"
+        X-Content-Type-Options "nosniff"
+        X-XSS-Protection "1; mode=block"
+    }
+    
+    # Logging
+    log {
+        output file /var/log/caddy/heritage-rag-access.log
+        format console
+    }
+    
+    # Health check endpoint (skip logging)
+    handle /api/v1/health {
+        reverse_proxy 127.0.0.1:8000
+        log {
+            output discard
+        }
+    }
+}
+
+
