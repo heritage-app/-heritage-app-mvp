@@ -8,7 +8,7 @@ export default function Home() {
   const router = useRouter();
 
   return (
-    <div className="min-h-full bg-gradient-to-br from-neutral-50 via-white to-neutral-100 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+    <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-neutral-100 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       {/* Hero Section */}
       <div className="relative overflow-visible">
         {/* Background Pattern */}
