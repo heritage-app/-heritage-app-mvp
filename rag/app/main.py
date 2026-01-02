@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.rag.indexer import initial_index_if_needed
 from app.api.routes import router
 from app.workers.index_worker import run_periodic_indexer
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -59,12 +60,16 @@ app = FastAPI(
 )
 
 # CORS middleware
+# Note: When allow_credentials=True, you cannot use allow_origins=["*"]
+# Must specify exact origins
+cors_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Include API routes

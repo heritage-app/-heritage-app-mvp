@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     qdrant_api_key: Optional[str] = None
     
+    # CORS Configuration
+    cors_origins: str = Field(
+        default="https://heritage.ekowlabs.space,http://localhost:3000,http://localhost:5173,http://localhost:8080",
+        description="Comma-separated list of allowed CORS origins"
+    )
+    
     
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE.absolute()),
