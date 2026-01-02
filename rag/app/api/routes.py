@@ -29,12 +29,12 @@ from app.schemas.responses import (
 router = APIRouter(prefix="/api/v1", tags=["rag"])
 
 
-def humanize_timestamp(timestamp_str: str | None) -> str:
+def humanize_timestamp(timestamp_str: str | datetime | None) -> str:
     """
-    Convert a timestamp string to a human-readable format.
+    Convert a timestamp string or datetime object to a human-readable format.
     
     Args:
-        timestamp_str: ISO format timestamp string or None
+        timestamp_str: ISO format timestamp string, datetime object, or None
         
     Returns:
         Human-readable time string (e.g., "Just now", "2 hours ago", "Yesterday")
@@ -44,13 +44,15 @@ def humanize_timestamp(timestamp_str: str | None) -> str:
     
     try:
         # Parse the timestamp
-        if isinstance(timestamp_str, str):
+        if isinstance(timestamp_str, datetime):
+            timestamp = timestamp_str
+        elif isinstance(timestamp_str, str):
             if timestamp_str.endswith("Z"):
                 timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
             else:
                 timestamp = datetime.fromisoformat(timestamp_str)
         else:
-            timestamp = timestamp_str
+            return "Unknown"
         
         # Ensure timezone-aware
         if timestamp.tzinfo is None:
@@ -266,7 +268,8 @@ async def new_chat_endpoint(
         return AskResponse(
             conversation_id=conversation_id,
             response="".join(response_chunks),
-            query=request.query
+            query=request.query,
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
 
 
@@ -339,7 +342,8 @@ async def continue_chat_endpoint(
         return AskResponse(
             conversation_id=conversation_id,
             response="".join(response_chunks),
-            query=request.query
+            query=request.query,
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
 
 
@@ -382,12 +386,16 @@ async def get_conversation_messages(
         else:
             created_at = datetime.now(timezone.utc)
         
+        # Humanize timestamp for sent_at field
+        sent_at_str = humanize_timestamp(created_at)
+        
         message_responses.append(
             MessageResponse(
                 id=str(msg.get("id", "")),
                 conversation_id=msg.get("conversation_id", ""),
                 role=msg.get("role", ""),
                 content=msg.get("content", ""),
+                sent_at=sent_at_str,
                 metadata=msg.get("metadata", {}),
                 created_at=created_at
             )
@@ -396,11 +404,18 @@ async def get_conversation_messages(
     total_count = len(message_responses)
     total_str = f"{total_count} message{'s' if total_count != 1 else ''}"
     
+    # Get last activity time from the most recent message
+    last_activity = None
+    if message_responses:
+        last_message = message_responses[-1]
+        last_activity = last_message.sent_at
+    
     return ConversationResponse(
         conversation_id=conversation_id,
         title=title,
         messages=message_responses,
-        total=total_str
+        total=total_str,
+        last_activity=last_activity
     )
 
 
@@ -419,14 +434,36 @@ async def list_conversations_endpoint(
     """
     conversations = await list_conversations(limit=limit)
     
-    conversation_items = [
-        ConversationListItem(
-            conversation_id=conv.get("conversation_id", ""),
-            title=conv.get("title"),
-            last_activity=humanize_timestamp(conv.get("last_message_at"))
+    # Fetch additional data for each conversation (message count and last message)
+    conversation_items = []
+    for conv in conversations:
+        conv_id = conv.get("conversation_id", "")
+        
+        # Get messages to get count and last message in one query
+        messages = await get_messages(conv_id)
+        message_count = len(messages)
+        
+        last_message = None
+        if messages:
+            last_msg = messages[-1]
+            content = last_msg.get("content", "")
+            # Truncate if too long
+            if len(content) > 100:
+                last_message = content[:100] + "..."
+            else:
+                last_message = content
+        
+        message_count_str = f"{message_count} message{'s' if message_count != 1 else ''}" if message_count > 0 else None
+        
+        conversation_items.append(
+            ConversationListItem(
+                conversation_id=conv_id,
+                title=conv.get("title"),
+                last_message=last_message,
+                last_activity=humanize_timestamp(conv.get("last_message_at")),
+                message_count=message_count_str
+            )
         )
-        for conv in conversations
-    ]
     
     total_count = len(conversation_items)
     total_str = f"{total_count} conversation{'s' if total_count != 1 else ''}"
@@ -451,6 +488,8 @@ async def root():
     """Root endpoint with API information."""
     return APIInfoResponse(
         message="Heritage RAG System API",
+        description="Production-ready RAG system using LlamaIndex, LangChain, Qdrant, Supabase, and OpenRouter",
+        version="1.0.0",
         endpoints={
             "upload": "/api/v1/upload",
             "new_chat": "/api/v1/chat/new",
