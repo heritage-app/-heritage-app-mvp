@@ -62,14 +62,25 @@ app = FastAPI(
 # CORS middleware
 # Note: When allow_credentials=True, you cannot use allow_origins=["*"]
 # Must specify exact origins
-cors_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
+try:
+    cors_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
+    if not cors_origins:
+        # Fallback to default if empty
+        cors_origins = ["https://heritage.ekowlabs.space", "http://localhost:3000", "http://localhost:5173", "http://localhost:8080"]
+except Exception as e:
+    logger.warning(f"Error parsing CORS origins, using defaults: {e}")
+    cors_origins = ["https://heritage.ekowlabs.space", "http://localhost:3000", "http://localhost:5173", "http://localhost:8080"]
+
+logger.info(f"CORS origins configured: {cors_origins}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
     expose_headers=["*"],
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 # Include API routes

@@ -393,11 +393,14 @@ async def get_conversation_messages(
             )
         )
     
+    total_count = len(message_responses)
+    total_str = f"{total_count} message{'s' if total_count != 1 else ''}"
+    
     return ConversationResponse(
         conversation_id=conversation_id,
         title=title,
         messages=message_responses,
-        total=len(message_responses)
+        total=total_str
     )
 
 
