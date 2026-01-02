@@ -1,4 +1,6 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Heritage App
+
+A Ga language learning application built with [Next.js](https://nextjs.org) to help preserve and teach the Ga language through interactive conversations and cultural heritage resources.
 
 ## Getting Started
 

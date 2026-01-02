@@ -71,7 +71,7 @@ export function UploadModal({ open, onOpenChange, onFileSelect }: UploadModalPro
 
     try {
       await uploadFile(selectedFile);
-      toast.success("Document uploaded successfully!");
+      toast.success("Learning material uploaded successfully!");
       onFileSelect(selectedFile);
       setSelectedFile(null);
       if (fileInputRef.current) {
@@ -87,9 +87,9 @@ export function UploadModal({ open, onOpenChange, onFileSelect }: UploadModalPro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md" showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>Upload Document</DialogTitle>
+          <DialogTitle>Upload Learning Material</DialogTitle>
           <DialogDescription>
-            Upload a PDF file (max 10MB)
+            Upload Ga language learning resources as PDF (max 10MB)
           </DialogDescription>
         </DialogHeader>
         

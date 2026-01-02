@@ -130,7 +130,7 @@ export function ChatInput() {
                   ref(e);
                   textareaRef.current = e;
                 }}
-                placeholder="Message Heritage RAG..."
+                placeholder="Ask about Ga language or start a conversation..."
                 disabled={isDisabled}
                 rows={1}
                 className={cn(

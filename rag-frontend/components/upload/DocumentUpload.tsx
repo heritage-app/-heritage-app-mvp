@@ -70,7 +70,7 @@ export function DocumentUpload() {
 
     try {
       await uploadFile(selectedFile);
-      toast.success("Document uploaded successfully!");
+      toast.success("Learning material uploaded successfully!");
       setSelectedFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -87,7 +87,7 @@ export function DocumentUpload() {
   return (
     <div className="flex h-full flex-col items-center justify-center p-8">
       <Card className="w-full max-w-2xl p-8">
-        <h2 className="mb-6 text-2xl font-semibold">Upload Document</h2>
+        <h2 className="mb-6 text-2xl font-semibold">Upload Learning Material</h2>
 
         <div
           className={cn(
@@ -190,7 +190,7 @@ export function DocumentUpload() {
             ) : (
               <>
                 <Upload className="mr-2 h-4 w-4" />
-                Upload Document
+                Upload Material
               </>
             )}
           </Button>

@@ -59,7 +59,7 @@ export function MessageList({ conversationId }: MessageListProps) {
             How can I help you today?
           </h2>
           <p className="text-sm text-neutral-500 dark:text-neutral-400">
-            Ask a question about heritage documents
+            Ask a question about Ga language or start learning
           </p>
         </div>
       </div>

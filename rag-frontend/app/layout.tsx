@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Heritage RAG System",
-  description: "Ask questions about heritage documents and get intelligent answers",
+  title: "Heritage App - Learn Ga Language",
+  description: "Master the Ga language with Heritage App. Interactive learning, conversations, and cultural heritage preservation for Ga speakers and learners.",
 };
 
 export default function RootLayout({

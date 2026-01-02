@@ -12,9 +12,9 @@ export default function Home() {
     <div className="flex min-h-screen items-center justify-center bg-background p-8">
       <Card className="w-full max-w-2xl p-12">
         <div className="text-center">
-          <h1 className="mb-4 text-4xl font-bold">Heritage RAG System</h1>
+          <h1 className="mb-4 text-4xl font-bold">Heritage App</h1>
           <p className="mb-8 text-lg text-muted-foreground">
-            Ask questions about heritage documents and get intelligent answers powered by RAG.
+            Learn and preserve the Ga language through interactive conversations and cultural heritage.
           </p>
 
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
@@ -33,7 +33,7 @@ export default function Home() {
               className="w-full sm:w-auto"
             >
               <Upload className="mr-2 h-5 w-5" />
-              Upload Document
+              Upload Material
             </Button>
           </div>
         </div>
