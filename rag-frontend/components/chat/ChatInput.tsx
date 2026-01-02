@@ -84,8 +84,8 @@ export function ChatInput() {
 
   return (
     <>
-      <div className="fixed bottom-0 left-64 right-0 z-10 bg-white dark:bg-neutral-900">
-        <div className="mx-auto max-w-4xl px-6 py-4">
+      <div className="fixed bottom-0 left-0 right-0 z-10 bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800 lg:left-64">
+        <div className="mx-auto max-w-4xl px-3 py-3 sm:px-4 sm:py-4 md:px-6">
           {/* File preview chips */}
           {selectedFiles.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-2">
@@ -118,10 +118,10 @@ export function ChatInput() {
               variant="ghost"
               size="icon"
               onClick={() => setUploadModalOpen(true)}
-              className="h-10 w-10 shrink-0 rounded-lg"
+              className="h-9 w-9 shrink-0 rounded-lg sm:h-10 sm:w-10"
               disabled={isDisabled}
             >
-              <Paperclip className="h-5 w-5" />
+              <Paperclip className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
             <div className="relative flex-1">
               <textarea
@@ -130,18 +130,19 @@ export function ChatInput() {
                   ref(e);
                   textareaRef.current = e;
                 }}
-                placeholder="Ask about Ga language or start a conversation..."
+                placeholder="Ask about Ga language..."
                 disabled={isDisabled}
                 rows={1}
                 className={cn(
-                  "w-full resize-none rounded-2xl border border-neutral-200 bg-white px-4 py-3 pr-12 text-sm",
+                  "w-full resize-none rounded-2xl border border-neutral-200 bg-white px-3 py-2.5 pr-10 text-sm",
                   "placeholder:text-neutral-400",
                   "focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-0",
                   "disabled:cursor-not-allowed disabled:opacity-50",
                   "dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100",
                   "dark:placeholder:text-neutral-500",
                   "dark:focus:ring-neutral-600",
-                  "transition-all"
+                  "transition-all",
+                  "sm:px-4 sm:py-3 sm:pr-12"
                 )}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -157,14 +158,15 @@ export function ChatInput() {
                 disabled={isDisabled}
                 size="icon"
                 className={cn(
-                  "absolute bottom-2 right-2 h-8 w-8 rounded-lg",
+                  "absolute bottom-1.5 right-1.5 h-7 w-7 rounded-lg",
                   "bg-neutral-900 text-white hover:bg-neutral-800",
                   "disabled:opacity-50 disabled:cursor-not-allowed",
                   "dark:bg-neutral-700 dark:hover:bg-neutral-600",
-                  "transition-opacity"
+                  "transition-opacity",
+                  "sm:bottom-2 sm:right-2 sm:h-8 sm:w-8"
                 )}
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </Button>
             </div>
           </form>

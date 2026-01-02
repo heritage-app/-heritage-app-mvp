@@ -85,17 +85,17 @@ export function UploadModal({ open, onOpenChange, onFileSelect }: UploadModalPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md" showCloseButton={false}>
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-md sm:max-w-md" showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>Upload Learning Material</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg sm:text-xl">Upload Learning Material</DialogTitle>
+          <DialogDescription className="text-sm">
             Upload Ga language learning resources as PDF (max 10MB)
           </DialogDescription>
         </DialogHeader>
         
         <div
           className={cn(
-            "relative flex min-h-[200px] flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors cursor-pointer",
+            "relative flex min-h-[160px] flex-col items-center justify-center rounded-lg border-2 border-dashed p-4 transition-colors cursor-pointer sm:min-h-[200px] sm:p-6 md:p-8",
             dragActive
               ? "border-neutral-400 bg-neutral-50 dark:bg-neutral-800"
               : "border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600",
@@ -116,13 +116,13 @@ export function UploadModal({ open, onOpenChange, onFileSelect }: UploadModalPro
           />
 
           {selectedFile ? (
-            <div className="flex flex-col items-center gap-4">
-              <File className="h-12 w-12 text-neutral-600 dark:text-neutral-400" />
-              <div className="text-center">
-                <p className="font-medium text-neutral-900 dark:text-neutral-100">
+            <div className="flex flex-col items-center gap-3 sm:gap-4">
+              <File className="h-10 w-10 text-neutral-600 dark:text-neutral-400 sm:h-12 sm:w-12" />
+              <div className="text-center max-w-full px-2">
+                <p className="font-medium text-sm text-neutral-900 dark:text-neutral-100 break-words sm:text-base">
                   {selectedFile.name}
                 </p>
-                <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400 sm:text-sm">
                   {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
                 </p>
               </div>
@@ -136,19 +136,20 @@ export function UploadModal({ open, onOpenChange, onFileSelect }: UploadModalPro
                     fileInputRef.current.value = "";
                   }
                 }}
+                className="text-xs sm:text-sm"
               >
-                <X className="mr-2 h-4 w-4" />
+                <X className="mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 Remove
               </Button>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-4 text-center">
-              <Upload className="h-12 w-12 text-neutral-400 dark:text-neutral-500" />
+            <div className="flex flex-col items-center gap-3 text-center px-2 sm:gap-4">
+              <Upload className="h-10 w-10 text-neutral-400 dark:text-neutral-500 sm:h-12 sm:w-12" />
               <div>
-                <p className="font-medium text-neutral-900 dark:text-neutral-100">
+                <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100 sm:text-base">
                   Drag and drop your document here, or click to browse
                 </p>
-                <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+                <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400 sm:text-sm">
                   PDF files only (max 10MB)
                 </p>
               </div>

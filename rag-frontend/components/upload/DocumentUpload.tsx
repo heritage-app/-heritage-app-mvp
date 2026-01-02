@@ -85,13 +85,13 @@ export function DocumentUpload() {
   };
 
   return (
-    <div className="flex h-full flex-col items-center justify-center p-8">
-      <Card className="w-full max-w-2xl p-8">
-        <h2 className="mb-6 text-2xl font-semibold">Upload Learning Material</h2>
+    <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 md:p-8">
+      <Card className="w-full max-w-2xl p-4 sm:p-6 md:p-8">
+        <h2 className="mb-4 text-xl font-semibold sm:mb-6 sm:text-2xl">Upload Learning Material</h2>
 
         <div
           className={cn(
-            "relative mb-4 flex min-h-[200px] flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors",
+            "relative mb-4 flex min-h-[180px] flex-col items-center justify-center rounded-lg border-2 border-dashed p-4 transition-colors sm:min-h-[200px] sm:p-6 md:p-8",
             dragActive
               ? "border-primary bg-primary/5"
               : "border-muted-foreground/25 hover:border-primary/50",

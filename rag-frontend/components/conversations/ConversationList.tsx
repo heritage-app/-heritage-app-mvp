@@ -9,7 +9,11 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
-export function ConversationList() {
+interface ConversationListProps {
+  onConversationSelect?: () => void;
+}
+
+export function ConversationList({ onConversationSelect }: ConversationListProps) {
   const {
     conversations,
     isInitialLoading,
@@ -33,6 +37,7 @@ export function ConversationList() {
   const handleConversationClick = (id: string) => {
     selectConversation(id);
     router.push(`/conversations/${id}`);
+    onConversationSelect?.();
   };
 
   if (isInitialLoading) {

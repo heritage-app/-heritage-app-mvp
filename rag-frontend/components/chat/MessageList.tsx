@@ -53,12 +53,12 @@ export function MessageList({ conversationId }: MessageListProps) {
   // Empty state - only show if not loading, no conversation, and no messages
   if (filteredMessages.length === 0 && !isStreaming && !isLoading && !conversationId) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-center">
-          <h2 className="mb-2 text-xl font-semibold text-neutral-700 dark:text-neutral-300">
+      <div className="flex h-full items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <h2 className="mb-2 text-lg font-semibold text-neutral-700 dark:text-neutral-300 sm:text-xl">
             How can I help you today?
           </h2>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 sm:text-sm">
             Ask a question about Ga language or start learning
           </p>
         </div>
@@ -76,7 +76,7 @@ export function MessageList({ conversationId }: MessageListProps) {
 
   return (
     <div ref={containerRef} className="h-full overflow-y-auto">
-      <div className="mx-auto flex max-w-4xl flex-col px-6 py-8">
+      <div className="mx-auto flex max-w-4xl flex-col px-3 py-4 sm:px-4 sm:py-6 md:px-6 md:py-8">
         {filteredMessages.map((message) => (
           <ChatMessage key={message.id} message={message} />
         ))}
@@ -90,16 +90,16 @@ export function MessageList({ conversationId }: MessageListProps) {
         
         {/* Show streaming content */}
         {isStreaming && currentStreamingContent && (
-          <div className="flex w-full justify-start gap-5 py-6">
-            <Avatar className="h-8 w-8 shrink-0 mt-1">
+          <div className="flex w-full justify-start gap-2 py-4 sm:gap-4 sm:py-5 md:gap-5 md:py-6">
+            <Avatar className="h-7 w-7 shrink-0 mt-1 sm:h-8 sm:w-8">
               <AvatarFallback className="bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                <Bot className="h-4 w-4" />
+                <Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </AvatarFallback>
             </Avatar>
-            <div className="max-w-[85%] rounded-2xl bg-neutral-100 px-6 py-[18px] text-sm leading-7 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100">
+            <div className="max-w-[90%] rounded-xl bg-neutral-100 px-3 py-2.5 text-xs leading-6 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 sm:max-w-[85%] sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm sm:leading-7 md:px-6 md:py-[18px]">
               <div className="relative">
                 <MarkdownContent content={currentStreamingContent} />
-                <span className="ml-1 inline-block h-4 w-0.5 animate-pulse bg-current" />
+                <span className="ml-1 inline-block h-3 w-0.5 animate-pulse bg-current sm:h-4" />
               </div>
             </div>
           </div>
