@@ -382,7 +382,7 @@ async def health_check():
     """Health check endpoint."""
     return HealthResponse(
         status="healthy",
-        timestamp=datetime.now(timezone.utc)
+        timestamp=datetime.now(timezone.utc).isoformat()
     )
 
 
