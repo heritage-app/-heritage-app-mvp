@@ -10,11 +10,7 @@ from llama_index.core.schema import NodeWithScore
 
 from app.rag.embeddings import get_embeddings
 from app.rag.vector_store import get_vector_store
-
-
-COLLECTION_NAME = "heritage_documents"
-DEFAULT_TOP_K = 5
-MIN_RELEVANCE_SCORE = 0.3  # Minimum similarity score to consider a result relevant
+from app.rag.constants import COLLECTION_NAME, DEFAULT_TOP_K, MIN_RELEVANCE_SCORE
 
 
 def get_retriever(top_k: int = DEFAULT_TOP_K) -> VectorIndexRetriever:

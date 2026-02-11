@@ -3,22 +3,16 @@ Document indexing module using LlamaIndex.
 Handles one-time indexing and document processing.
 """
 
-import os
-from io import BytesIO
 from pathlib import Path
 from typing import List, Optional
 from llama_index.core import VectorStoreIndex, Document
 from llama_index.core.node_parser import SentenceSplitter
-from llama_index.readers.file import FlatReader
 import fitz  # PyMuPDF for PDF files
 
 from app.rag.embeddings import get_embeddings
 from app.rag.vector_store import get_vector_store, collection_exists
 from app.storage.supabase import download_document
-
-
-DATA_DIR = Path("data")
-COLLECTION_NAME = "heritage_documents"
+from app.rag.constants import COLLECTION_NAME
 
 
 async def index_document_from_storage(file_path: str, metadata: Optional[dict] = None) -> None:

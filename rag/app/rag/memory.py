@@ -15,9 +15,8 @@ from app.storage.supabase import (
     save_conversation_title,
     get_conversation_title
 )
-
-
-MEMORY_WINDOW_SIZE = 10  # Number of recent messages to keep in memory
+from app.rag.constants import MEMORY_WINDOW_SIZE
+from app.rag.prompts import SUMMARIZATION_PROMPT, TITLE_GENERATION_PROMPT
 
 
 async def get_memory_window(conversation_id: str, window_size: int = MEMORY_WINDOW_SIZE) -> List[BaseMessage]:
@@ -83,23 +82,17 @@ async def summarize_conversation_messages(conversation_id: str) -> str | None:
         for msg in all_messages[-10:]  # Use last 10 messages for summary
     )
     
-    # Create summarization prompt using latest LangChain syntax
-    prompt_template = ChatPromptTemplate.from_messages([
-        ("system", "You are a helpful assistant that summarizes conversations in one short sentence."),
-        ("human", """Provide a ONE SENTENCE summary (maximum 1 sentence) of the following conversation.
-Focus on the main message meaning and intent.
-
-Conversation:
-{conversation_text}
-
-Summary (one sentence only):""")
-    ])
+    # Create summarization prompt using externalized prompt
+    existing_summary = await get_conversation_summary(conversation_id) or "No existing summary."
+    
+    prompt_template = ChatPromptTemplate.from_template(SUMMARIZATION_PROMPT)
     
     llm = get_llm(temperature=0.3, streaming=False)
     chain = prompt_template | llm
     
     summary_input = {
-        "conversation_text": conversation_text
+        "summary": existing_summary,
+        "messages": conversation_text
     }
     
     response = chain.invoke(summary_input)

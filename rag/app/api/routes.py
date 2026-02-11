@@ -9,11 +9,12 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from app.rag.service import ask
-from app.storage.supabase import upload_document, get_messages, list_conversations, get_conversation_title, conversation_exists, file_exists_in_storage, get_supabase_client
-from app.rag.indexer import index_document_from_storage
+from app.storage.supabase import upload_document, get_messages, list_conversations, get_conversation_title, conversation_exists, file_exists_in_storage, get_supabase_client, save_message
+from app.schemas.requests import AskRequest
+from app.rag.indexer import index_document_from_storage, is_document_indexed
 from app.rag.vector_store import collection_exists
 from app.core.config import settings
-from app.schemas.requests import AskRequest, UploadRequest
+from app.rag.constants import DEFAULT_TOP_K
 from app.schemas.responses import (
     UploadResponse,
     AskResponse,
@@ -131,7 +132,6 @@ async def upload_document_endpoint(
                 pass
             
             # Check if file is indexed, if not, index it
-            from app.rag.indexer import is_document_indexed
             is_indexed = await is_document_indexed(file_path)
             
             if not is_indexed:
@@ -209,7 +209,7 @@ async def upload_document_endpoint(
 @router.post("/chat/new")
 async def new_chat_endpoint(
     request: AskRequest,
-    top_k: int = Query(5, description="Number of context chunks to retrieve", ge=1, le=20),
+    top_k: int = Query(DEFAULT_TOP_K, description="Number of context chunks to retrieve", ge=1, le=20),
     stream: bool = Query(True, description="Whether to stream the response")
 ):
     """
@@ -244,7 +244,6 @@ async def new_chat_endpoint(
     if stream:
         # For streaming: save user message first to get conversation_id
         # Then return it in response headers
-        from app.storage.supabase import save_message
         saved_message = await save_message(conversation_id, "user", request.query)
         conversation_id = saved_message.get("conversation_id")
         
@@ -256,7 +255,6 @@ async def new_chat_endpoint(
         )
     else:
         # For non-streaming: save user message first to get conversation_id
-        from app.storage.supabase import save_message
         saved_message = await save_message(conversation_id, "user", request.query)
         conversation_id = saved_message.get("conversation_id")
         
@@ -277,7 +275,7 @@ async def new_chat_endpoint(
 async def continue_chat_endpoint(
     conversation_id: str,
     request: AskRequest,
-    top_k: int = Query(5, description="Number of context chunks to retrieve", ge=1, le=20),
+    top_k: int = Query(DEFAULT_TOP_K, description="Number of context chunks to retrieve", ge=1, le=20),
     stream: bool = Query(True, description="Whether to stream the response")
 ):
     """
@@ -318,7 +316,6 @@ async def continue_chat_endpoint(
     if stream:
         # For streaming: save user message first
         # Then return it in response headers
-        from app.storage.supabase import save_message
         saved_message = await save_message(conversation_id, "user", request.query)
         conversation_id = saved_message.get("conversation_id")
         
@@ -330,7 +327,6 @@ async def continue_chat_endpoint(
         )
     else:
         # For non-streaming: save user message first
-        from app.storage.supabase import save_message
         saved_message = await save_message(conversation_id, "user", request.query)
         conversation_id = saved_message.get("conversation_id")
         

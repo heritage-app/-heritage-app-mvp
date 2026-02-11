@@ -1,0 +1,9 @@
+"""
+Constants for the RAG system.
+"""
+
+COLLECTION_NAME = "heritage_documents"
+DEFAULT_TOP_K = 5
+MIN_RELEVANCE_SCORE = 0.3
+MEMORY_WINDOW_SIZE = 10
+INDEXER_INTERVAL_HOURS = 1

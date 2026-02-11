@@ -3,6 +3,7 @@ Qdrant vector store setup using LlamaIndex.
 Handles collection creation and vector store initialization.
 """
 
+from functools import lru_cache
 from typing import Optional
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
@@ -10,11 +11,10 @@ from qdrant_client.models import Distance, VectorParams
 
 from app.core.config import settings
 from app.rag.embeddings import get_embeddings
+from app.rag.constants import COLLECTION_NAME
 
 
-COLLECTION_NAME = "heritage_documents"
-
-
+@lru_cache()
 def get_qdrant_client() -> QdrantClient:
     """
     Get Qdrant client instance.

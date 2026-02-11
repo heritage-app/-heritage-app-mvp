@@ -7,7 +7,7 @@ Runs every hour by default.
 import asyncio
 import logging
 from typing import List
-from app.storage.supabase import list_storage_files, get_supabase_client
+from app.storage.supabase import list_storage_files
 from app.rag.indexer import index_document_from_storage, is_document_indexed
 from app.rag.vector_store import collection_exists
 
@@ -98,27 +98,4 @@ async def run_periodic_indexer(interval_hours: int = 1):
             await asyncio.sleep(60)  # Wait 1 minute before retrying on error
 
 
-# Legacy function for backward compatibility
-async def process_pending_documents(limit: int = 10) -> int:
-    """
-    Legacy function - redirects to check_and_index_storage_files.
-    Kept for backward compatibility.
-    """
-    return await check_and_index_storage_files()
-
-
-async def run_worker(interval_seconds: int = 3600):
-    """
-    Run the indexing worker in a loop (legacy function).
-    
-    Args:
-        interval_seconds: Seconds to wait between processing cycles (default: 3600 = 1 hour)
-    """
-    interval_hours = interval_seconds / 3600
-    await run_periodic_indexer(interval_hours=interval_hours)
-
-
-if __name__ == "__main__":
-    # Run worker
-    asyncio.run(run_worker())
 

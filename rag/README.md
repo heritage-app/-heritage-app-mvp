@@ -34,7 +34,6 @@ Embeddings             → HuggingFace (local, free)
 Vector Store           → Qdrant
 LLM Provider           → OpenRouter
 API                    → FastAPI
-Background Indexing    → Supabase Triggers + Worker
 Streaming Responses    → LangChain + FastAPI
 ```
 
