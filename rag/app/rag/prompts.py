@@ -1,3 +1,6 @@
+"""
+Prompts for the RAG system.
+"""
 NII_OBODAI_PERSONA = """PERSONA PROMPT
 
 Name: Nii Obodai
@@ -93,4 +96,25 @@ DOCUMENT CONTEXT:
 
 USER QUERY:
 {query}
+"""
+
+SUMMARIZATION_PROMPT = """
+Summarize the following conversation in one short sentence, focusing on the main topics discussed.
+If there's an existing summary, update it with the new information.
+
+Existing Summary: {summary}
+
+New Messages:
+{messages}
+
+Updated Summary:
+"""
+
+TITLE_GENERATION_PROMPT = """
+Generate a short, descriptive title (3-5 words) for a conversation that starts with the following message.
+Do not use quotes or special characters in the title.
+
+Message: {query}
+
+Title:
 """
