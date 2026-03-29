@@ -5,7 +5,8 @@ API routes for the RAG system.
 import uuid
 import json
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, UploadFile, File, HTTPException, Query
+from pathlib import Path
+from fastapi import APIRouter, UploadFile, File, HTTPException, Query, Form
 from fastapi.responses import StreamingResponse
 
 from app.rag.service import ask
@@ -89,7 +90,7 @@ def humanize_timestamp(timestamp_str: str | datetime | None) -> str:
 @router.post("/upload", response_model=UploadResponse)
 async def upload_document_endpoint(
     file: UploadFile = File(..., description="Document file to upload"),
-    metadata: str | None = Query(None, description="Optional JSON string metadata")
+    metadata: str | None = Form(None, description="Optional JSON string metadata")
 ):
     """
     Upload a document to Supabase Storage and index it as a new version.

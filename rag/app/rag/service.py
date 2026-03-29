@@ -75,7 +75,7 @@ async def ask(
     
     # Prepare input
     prompt_input: dict[str, Any] = {
-        "question": query,
+        "query": query,
         "summary": summary,
         "context_text": context_text if context_text.strip() else no_context_msg,
         "chat_history": formatted_history
