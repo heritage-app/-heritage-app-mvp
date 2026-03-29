@@ -59,7 +59,7 @@ async def ask(
     prompt_parts: list[tuple[str, str] | MessagesPlaceholder] = [
         ("system", NII_OBODAI_PERSONA),
         MessagesPlaceholder(variable_name="chat_history"),
-        ("human", "{question}")
+        ("human", "{query}")
     ]
     
     prompt_template = ChatPromptTemplate.from_messages(prompt_parts)

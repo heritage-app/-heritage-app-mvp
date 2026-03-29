@@ -94,8 +94,6 @@ Conversation Summary:
 DOCUMENT CONTEXT:
 {context_text}
 
-USER QUERY:
-{query}
 """
 
 SUMMARIZATION_PROMPT = """
