@@ -51,8 +51,13 @@ async def ask(
     summary = conv_context.get("summary", "No previous conversation.")
     memory_window = conv_context.get("memory_window", [])
     
+    # Detect random intent to increase top_k for variety
+    q_low = query.lower()
+    is_random = "random" in q_low or "any" in q_low or "some" in q_low
+    effective_top_k = top_k * 3 if is_random else top_k
+
     # Retrieve relevant context chunks
-    retrieved_nodes = retrieve_context(query, top_k=top_k)
+    retrieved_nodes = retrieve_context(query, top_k=effective_top_k)
     context_text = format_retrieved_context(retrieved_nodes)
     
     # Format prompt parts

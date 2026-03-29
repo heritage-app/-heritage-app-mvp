@@ -50,17 +50,28 @@ def _generate_query_variations(query: str, attempt: int) -> List[str]:
     q_low = query.lower()
     
     # Detect intent
-    is_bible = any(w in q_low for w in ["bible", "verse", "scripture", "chapter", "psalm", "gospel"])
+    is_bible = any(w in q_low for w in [
+        "bible", "verse", "scripture", "psalm", "gospel", "testament",
+        "john", "matthew", "luke", "mark", "genesis", "exodus", "revelation",
+        "psa", "gen", "mat", "luk", "mar", "rev", "exo", "proverbs"
+    ]) or ("chapter" in q_low or "verse" in q_low)
     is_story = any(w in q_low for w in ["story", "folktale", "ananse", "history", "traditional", "tale"])
+    is_random = "random" in q_low or "any" in q_low or "some" in q_low
 
     if attempt == 0:
-        if is_bible:
+        if is_random and is_bible:
+            import random
+            # Inject a random fragment to vary results for "random" requests
+            variations.append(f"scripture {random.choice(['wisdom', 'life', 'truth', 'heritage', 'spirit'])}")
+        elif is_bible:
             variations.append(f"scripture {query}")
         elif is_story:
             variations.append(f"traditional story {query}")
     
     elif attempt == 1:
-        if "ga" not in q_low and "translat" not in q_low:
+        if is_random and is_bible:
+            variations.append("Ga Bible verse scripture")
+        elif "ga" not in q_low and "translat" not in q_low:
             variations.append(f"Ga translation {query}")
         else:
             variations.append(f"meaning of {query}")
@@ -77,12 +88,18 @@ def _get_intent_filters(query: str) -> Optional[MetadataFilters]:
     filters = []
     
     # Bible Intent
-    if any(w in q_low for w in ["bible", "verse", "scripture", "psalm", "gospel"]):
+    if any(w in q_low for w in [
+        "bible", "verse", "scripture", "psalm", "gospel", "testament", "chapter",
+        "john", "matthew", "luke", "mark", "genesis", "exodus", "revelation",
+        "psa", "gen", "mat", "luk", "mar", "rev", "exo", "proverbs"
+    ]):
         # Match new category tag
         filters.append(MetadataFilter(key="category", value="bible"))
-        # Match existing filename pattern (e.g., GA-BIBLE...)
+        # Match existing filename patterns
+        # Using uppercase "BIBLE" as per user's Qdrant data snippet
         filters.append(MetadataFilter(key="filename", value="BIBLE", operator=FilterOperator.CONTAINS))
         filters.append(MetadataFilter(key="file_path", value="BIBLE", operator=FilterOperator.CONTAINS))
+        filters.append(MetadataFilter(key="filename", value="Ga - data.pdf", operator=FilterOperator.CONTAINS)) # Fallback
 
     # Story/Heritage Intent
     if any(w in q_low for w in ["story", "folktale", "ananse", "history", "tradition"]):
