@@ -7,6 +7,7 @@ from typing import List, Optional
 from llama_index.core import VectorStoreIndex, QueryBundle
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core.schema import NodeWithScore
+from llama_index.core.vector_stores import MetadataFilter, MetadataFilters, FilterOperator, FilterCondition
 
 from app.rag.embeddings import get_embeddings
 from app.rag.vector_store import get_vector_store
@@ -44,130 +45,123 @@ def get_retriever(top_k: int = DEFAULT_TOP_K) -> VectorIndexRetriever:
 def _generate_query_variations(query: str, attempt: int) -> List[str]:
     """
     Generate query variations for retry attempts.
-    
-    Args:
-        query: Original query string
-        attempt: Current attempt number (0-based)
-        
-    Returns:
-        List[str]: List of query variations
     """
-    variations = [query]  # Always include original query first
+    variations = [query]
+    q_low = query.lower()
     
-    # Attempt 1: Try with "Ga language" or "translation" context
+    # Detect intent
+    is_bible = any(w in q_low for w in ["bible", "verse", "scripture", "chapter", "psalm", "gospel"])
+    is_story = any(w in q_low for w in ["story", "folktale", "ananse", "history", "traditional", "tale"])
+
     if attempt == 0:
-        if "ga" not in query.lower() and "translat" not in query.lower():
-            variations.append(f"Ga language {query}")
-            variations.append(f"{query} translation")
+        if is_bible:
+            variations.append(f"scripture {query}")
+        elif is_story:
+            variations.append(f"traditional story {query}")
     
-    # Attempt 2: Try related terms and synonyms
     elif attempt == 1:
-        # Add language context
-        variations.append(f"{query} meaning")
-        variations.append(f"{query} Ga English")
-        # Try removing common words that might interfere
-        words = query.split()
-        if len(words) > 3:
-            variations.append(" ".join(words[-3:]))  # Last 3 words
-    
-    # Attempt 3: Try semantic variations
-    elif attempt == 2:
-        variations.append(f"how to say {query}")
-        variations.append(f"{query} in Ga language")
-        # Try with question words
-        if not query.lower().startswith(('what', 'how', 'where', 'when', 'why')):
-            variations.append(f"what is {query}")
-    
+        if "ga" not in q_low and "translat" not in q_low:
+            variations.append(f"Ga translation {query}")
+        else:
+            variations.append(f"meaning of {query}")
+
     return variations
 
 
-def _has_relevant_results(nodes: List[NodeWithScore], min_score: float = MIN_RELEVANCE_SCORE) -> bool:
+def _get_intent_filters(query: str) -> Optional[MetadataFilters]:
     """
-    Check if retrieved nodes have relevant results based on similarity scores.
+    Generate LlamaIndex MetadataFilters based on search intent.
+    Matches both new structured tags and existing filename patterns.
+    """
+    q_low = query.lower()
+    filters = []
     
-    Args:
-        nodes: List of retrieved nodes with scores
-        min_score: Minimum similarity score threshold
+    # Bible Intent
+    if any(w in q_low for w in ["bible", "verse", "scripture", "psalm", "gospel"]):
+        # Match new category tag
+        filters.append(MetadataFilter(key="category", value="bible"))
+        # Match existing filename pattern (e.g., GA-BIBLE...)
+        filters.append(MetadataFilter(key="filename", value="BIBLE", operator=FilterOperator.CONTAINS))
+        filters.append(MetadataFilter(key="file_path", value="BIBLE", operator=FilterOperator.CONTAINS))
+
+    # Story/Heritage Intent
+    if any(w in q_low for w in ["story", "folktale", "ananse", "history", "tradition"]):
+        filters.append(MetadataFilter(key="category", value="story"))
+        filters.append(MetadataFilter(key="filename", value="data", operator=FilterOperator.CONTAINS)) # For 'Ga - data.pdf'
+        filters.append(MetadataFilter(key="filename", value="heritage", operator=FilterOperator.CONTAINS))
+        filters.append(MetadataFilter(key="filename", value="phrases", operator=FilterOperator.CONTAINS))
+
+    if not filters:
+        return None
         
-    Returns:
-        bool: True if any node has score >= min_score
-    """
-    if not nodes:
-        return False
-    
-    # Check if any node has a reasonable similarity score
-    # Cosine similarity ranges from -1 to 1, but typically 0.3+ is considered relevant
-    return any(
-        (node.score if hasattr(node, 'score') else 0.0) >= min_score
-        for node in nodes
-    )
+    return MetadataFilters(filters=filters, condition=FilterCondition.OR)
+
+
+def _has_relevant_results(nodes: List[NodeWithScore], min_score: float = MIN_RELEVANCE_SCORE) -> bool:
+    """Check if retrieved nodes have relevant results based on similarity scores."""
+    return any((getattr(node, 'score', 0.0) >= min_score) for node in nodes)
 
 
 def retrieve_context(
     query: str, 
     top_k: int = DEFAULT_TOP_K, 
-    metadata_filter: Optional[dict] = None,
-    max_retries: int = 3
+    max_retries: int = 2
 ) -> List[NodeWithScore]:
     """
-    Retrieve relevant context chunks for a query with flexible retry logic.
-    Tries up to max_retries times with query variations if initial retrieval is not successful.
-    
-    Args:
-        query: Query string
-        top_k: Number of chunks to retrieve
-        metadata_filter: Optional metadata filter dict
-        max_retries: Maximum number of retry attempts with query variations
-        
-    Returns:
-        List[NodeWithScore]: List of retrieved nodes with scores (may be empty)
+    Retrieve relevant context chunks with intent-aware filtering.
     """
-    retriever = get_retriever(top_k=top_k)
+    embeddings = get_embeddings()
+    vector_store = get_vector_store(COLLECTION_NAME)
+    
+    # 1. Create index
+    index = VectorStoreIndex.from_vector_store(
+        vector_store=vector_store,
+        embed_model=embeddings
+    )
+    
+    # 2. Detect Filter Intent
+    intent_filters = _get_intent_filters(query)
+    
+    # 3. Create Retriever with initial filters
+    retriever = index.as_retriever(
+        similarity_top_k=top_k,
+        filters=intent_filters
+    )
     
     best_nodes: List[NodeWithScore] = []
     best_score = 0.0
     
-    # Try retrieval with original query and variations
+    # 4. Try variations
     for attempt in range(max_retries):
-        query_variations = _generate_query_variations(query, attempt)
-        
-        for query_variant in query_variations:
+        for variant in _generate_query_variations(query, attempt):
             try:
-                # Create query bundle
-                query_bundle = QueryBundle(query_str=query_variant)
+                nodes = retriever.retrieve(QueryBundle(query_str=variant))
                 
-                # Retrieve nodes
-                nodes = retriever.retrieve(query_bundle)
+                if not nodes:
+                    # If intent filtering returned nothing, try once without filters
+                    if intent_filters and attempt == 1:
+                        broad_retriever = index.as_retriever(similarity_top_k=top_k)
+                        nodes = broad_retriever.retrieve(QueryBundle(query_str=variant))
+                    
+                    if not nodes:
+                        continue
+
+                current_max_score = max(getattr(n, 'score', 0.0) for n in nodes)
                 
-                # Apply metadata filter if provided
-                if metadata_filter:
-                    filtered_nodes = []
-                    for node in nodes:
-                        node_metadata = node.node.metadata if hasattr(node.node, 'metadata') else {}
-                        if all(node_metadata.get(k) == v for k, v in metadata_filter.items()):
-                            filtered_nodes.append(node)
-                    nodes = filtered_nodes
-                
-                # Check if we have relevant results
-                if _has_relevant_results(nodes):
-                    # Return best results found so far
+                # Immediate return for high confidence
+                if current_max_score >= MIN_RELEVANCE_SCORE:
                     return nodes
                 
-                # Track best results across attempts
-                if nodes:
-                    max_score = max(
-                        (node.score if hasattr(node, 'score') else 0.0) for node in nodes
-                    )
-                    if max_score > best_score:
-                        best_score = max_score
-                        best_nodes = nodes
+                # Track best fallback
+                if current_max_score > best_score:
+                    best_score = current_max_score
+                    best_nodes = nodes
                         
             except Exception:
-                # Continue to next variation on error
                 continue
     
-    # Return best results found (may be empty or low quality)
     return best_nodes
+
 
 
 def format_retrieved_context(nodes: List[NodeWithScore]) -> str:

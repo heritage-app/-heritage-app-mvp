@@ -92,95 +92,37 @@ async def upload_document_endpoint(
     metadata: str | None = Query(None, description="Optional JSON string metadata")
 ):
     """
-    Upload a document to Supabase Storage and index it.
-    
-    Args:
-        file: Uploaded file
-        metadata: Optional JSON string metadata
-        
-    Returns:
-        UploadResponse: Upload status and file information
+    Upload a document to Supabase Storage and index it as a new version.
+    Every upload is assigned a unique timestamp to support multi-version archiving.
     """
     try:
-        # Use original filename
+        # 1. Basic validation
         if not file.filename:
             raise HTTPException(status_code=400, detail="Filename is required")
         
-        # Use original filename as file path
-        file_path = file.filename
+        # 2. Generate a unique file path using a timestamp
+        original_filename = file.filename
+        file_ext = Path(original_filename).suffix
+        file_base = Path(original_filename).stem
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        unique_file_path = f"{file_base}_{timestamp}{file_ext}"
         
-        # Check if file already exists in storage
-        if await file_exists_in_storage(file_path):
-            # File already exists - return existing file info without uploading
-            public_url = f"{settings.supabase_url}/storage/v1/object/public/{settings.supabase_bucket}/{file_path}"
-            
-            # Get file size for response (try to get from existing file)
-            file_size_str = None
-            try:
-                # Try to get file info to determine size
-                client = await get_supabase_client()
-                file_info = await client.storage.from_(settings.supabase_bucket).info(file_path)
-                if file_info and hasattr(file_info, 'metadata') and file_info.metadata:
-                    size_bytes = file_info.metadata.get('size', 0)
-                    if size_bytes:
-                        size_mb = size_bytes / (1024 * 1024)
-                        if size_mb < 1:
-                            file_size_str = f"{size_bytes / 1024:.2f} KB"
-                        else:
-                            file_size_str = f"{size_mb:.2f} MB"
-            except Exception:
-                pass
-            
-            # Check if file is indexed, if not, index it
-            is_indexed = await is_document_indexed(file_path)
-            
-            if not is_indexed:
-                # File exists but not indexed - index it now
-                try:
-                    doc_metadata = {"file_path": file_path, "filename": file.filename}
-                    await index_document_from_storage(file_path, doc_metadata)
-                    message = "⚠️ File already exists in storage. Indexed it for you."
-                    next_step = "The file is now indexed and ready for questions."
-                except Exception as e:
-                    message = f"⚠️ File already exists in storage, but indexing failed: {str(e)}"
-                    next_step = "The file exists but may not be searchable yet."
-            else:
-                message = "⚠️ File already exists in storage. Skipping upload."
-                next_step = "The file is already available and indexed. You can ask questions about it."
-            
-            return UploadResponse(
-                status="exists",
-                file_name=file.filename or file_path,
-                file_size=file_size_str,
-                message=message,
-                file_url=public_url,
-                next_step=next_step
-            )
-        
-        # Get file size before uploading (read content once)
+        # 3. Get file size for response
         file_size_str = None
         try:
-            # Read file content to get size
             content = await file.read()
             file_size = len(content)
-            
             if file_size > 0:
                 size_mb = file_size / (1024 * 1024)
                 if size_mb < 1:
                     file_size_str = f"{file_size / 1024:.2f} KB"
                 else:
                     file_size_str = f"{size_mb:.2f} MB"
-            
-            # Reset file pointer for upload_document
             await file.seek(0)
         except Exception:
-            # If we can't get file size, just skip it
-            file_size_str = None
+            file_size_str = "Unknown"
         
-        # Upload to Supabase Storage (file doesn't exist, so upload it)
-        public_url = await upload_document(file, file_path, overwrite=False)
-        
-        # Parse metadata if provided
+        # 4. Parse custom metadata from frontend
         doc_metadata: dict = {}
         if metadata:
             try:
@@ -188,22 +130,32 @@ async def upload_document_endpoint(
             except json.JSONDecodeError:
                 pass
         
-        doc_metadata["file_path"] = file_path
-        doc_metadata["filename"] = file.filename
+        # 5. Add standard metadata
+        # We store both the unique path and the original filename for searchability
+        doc_metadata["file_path"] = unique_file_path
+        doc_metadata["filename"] = original_filename
+        doc_metadata["uploaded_at"] = datetime.now(timezone.utc).isoformat()
         
-        # Index the document after upload
-        await index_document_from_storage(file_path, doc_metadata)
+        # 6. Upload to Supabase Storage (now using the unique path)
+        public_url = await upload_document(file, unique_file_path, overwrite=False)
+        
+        # 7. Index the document version after upload
+        await index_document_from_storage(unique_file_path, doc_metadata)
+        
+        category_msg = f" as category '{doc_metadata.get('category', 'general')}'" if 'category' in doc_metadata else ""
         
         return UploadResponse(
             status="success",
-            file_name=file.filename or file_path,
+            file_name=original_filename,
             file_size=file_size_str,
-            message="✅ Document uploaded and indexed successfully!",
+            message=f"✅ Document version '{unique_file_path}' uploaded and indexed successfully{category_msg}!",
             file_url=public_url,
-            next_step="You can now ask questions about this document."
+            next_step="This version is now added to your heritage archive. You can ask questions about it."
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Cumulative upload failed: {str(e)}")
 
 
 @router.post("/chat/new")

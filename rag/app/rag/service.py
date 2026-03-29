@@ -46,45 +46,43 @@ async def ask(
         # Get the conversation_id from the saved message (generated if it was None)
         conversation_id = saved_message.get("conversation_id")
     
-    # Get conversation context to remember previous conversation
-    context = await get_conversation_context(conversation_id)
-    summary = context.get("summary", "No previous conversation.")
-    memory_window = context.get("memory_window", [])
+    # Get conversation context
+    conv_context = await get_conversation_context(conversation_id)
+    summary = conv_context.get("summary", "No previous conversation.")
+    memory_window = conv_context.get("memory_window", [])
     
-    # Retrieve relevant context chunks with retry logic
+    # Retrieve relevant context chunks
     retrieved_nodes = retrieve_context(query, top_k=top_k)
     context_text = format_retrieved_context(retrieved_nodes)
-    has_indexed_context = bool(retrieved_nodes) and context_text.strip()
     
-    # Build prompt using externalized persona
-    prompt_parts: list[tuple[str, str] | MessagesPlaceholder] = [("system", NII_OBODAI_PERSONA)]
-    
-    # Add memory window if it exists
-    if memory_window:
-        prompt_parts.append(MessagesPlaceholder(variable_name="chat_history"))
-    
-    # Add current query
-    prompt_parts.append(("human", "{question}"))
+    # Format prompt parts
+    prompt_parts: list[tuple[str, str] | MessagesPlaceholder] = [
+        ("system", NII_OBODAI_PERSONA),
+        MessagesPlaceholder(variable_name="chat_history"),
+        ("human", "{question}")
+    ]
     
     prompt_template = ChatPromptTemplate.from_messages(prompt_parts)
+    
+    # Prepare chat history for MessagesPlaceholder
+    formatted_history = []
+    for msg in memory_window:
+        role = "human" if msg.get("role") == "user" else "assistant"
+        formatted_history.append((role, msg.get("content", "")))
+    
+    # Define fallback message if no context is found
+    no_context_msg = "Heritage Archive Note: No matching Bible verses, stories, or language records found for this specific query."
     
     # Prepare input
     prompt_input: dict[str, Any] = {
         "question": query,
         "summary": summary,
-        "context_text": context_text if has_indexed_context else "No relevant document context found."
+        "context_text": context_text if context_text.strip() else no_context_msg,
+        "chat_history": formatted_history
     }
     
-    if memory_window:
-        # Convert memory window to list of (role, content) for MessagesPlaceholder
-        formatted_history = []
-        for msg in memory_window:
-            role = "human" if msg.get("role") == "user" else "assistant"
-            formatted_history.append((role, msg.get("content", "")))
-        prompt_input["chat_history"] = formatted_history
-    
-    # Get LLM
-    llm = get_llm(temperature=0.7, streaming=stream)
+    # Get LLM and chain
+    llm = get_llm(temperature=0.4, streaming=stream) # Lower temp for more factual heritage consistency
     chain = prompt_template | llm
     
     # Generate response
@@ -98,6 +96,7 @@ async def ask(
         response = await chain.ainvoke(prompt_input)
         full_response = response.content if hasattr(response, 'content') else str(response)
         yield full_response
+
         
     # Background tasks: Save response and update summary/title
     # Note: In a real production app, these might be better as background tasks
