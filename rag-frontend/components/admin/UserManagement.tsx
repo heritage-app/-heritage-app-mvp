@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Users, Shield, User, UserCheck, RefreshCw, Search, MoreVertical, Crown, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
 import { apiClient } from "@/lib/api/client";
 import { formatDateAbsolute } from "@/lib/utils/formatDate";
 import { cn } from "@/lib/utils";
