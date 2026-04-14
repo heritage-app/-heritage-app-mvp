@@ -51,8 +51,11 @@ export function ProfileOnboarding() {
             console.log("[Onboarding] Profile is already complete.");
           }
         }
-      } catch (error) {
-        console.error("[Onboarding] Error during check:", error);
+      } catch (error: any) {
+        // Silently handle 401 (guest) status
+        if (error.response?.status !== 401 && error.status !== 401) {
+          console.error("[Onboarding] Error during check:", error);
+        }
       } finally {
         setIsVerifying(false);
       }
