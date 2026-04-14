@@ -43,7 +43,7 @@ export function ChatInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FilePreview[]>([]);
-  const [selectedModel, setSelectedModel] = useState<string>("models/gemini-3.1-flash-lite-preview");
+  const [selectedModel, setSelectedModel] = useState<string>("gemini-1.5-flash-8b");
   const prevConversationIdRef = useRef<string | null>(null);
 
   // Auto-focus input when starting a new conversation
@@ -241,24 +241,24 @@ export function ChatInput({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-56 rounded-2xl border-primary/20 bg-background/80 backdrop-blur-2xl p-1.5">
                       <DropdownMenuItem 
-                        onClick={() => setSelectedModel("models/gemini-3.1-flash-lite-preview")}
+                        onClick={() => setSelectedModel("gemini-1.5-flash-8b")}
                         className="flex flex-col items-start gap-1 rounded-xl p-2.5 focus:bg-primary/10"
                       >
                         <div className="flex items-center gap-2 font-bold uppercase tracking-tighter text-[0.65rem]">
                           <Sparkles className="h-3 w-3 text-primary" />
-                          Linguistic Engine (Gemini 3.1 Lite)
+                          Linguistic Engine (Gemini 1.5 Lite)
                         </div>
                         <div className="text-[10px] lowercase text-foreground/40 font-medium">Ultra-efficient Ga processing (Experimental Lite).</div>
                       </DropdownMenuItem>
                       <DropdownMenuItem 
-                        onClick={() => setSelectedModel("models/gemini-3-flash-preview")}
+                        onClick={() => setSelectedModel("gemini-1.5-flash")}
                         className="flex flex-col items-start gap-1 rounded-xl p-2.5 focus:bg-primary/10"
                       >
                         <div className="flex items-center gap-2 font-bold uppercase tracking-tighter text-[0.65rem]">
                           <Sparkles className="h-3 w-3 text-amber-400" />
-                          Linguistic Engine (Gemini 3 Flash)
+                          Linguistic Engine (Gemini 1.5 Flash)
                         </div>
-                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Standard Gemini 3 preview for deep archival grounding.</div>
+                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Standard Gemini 1.5 flash for deep archival grounding.</div>
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => setSelectedModel("meta-llama/llama-3-8b-instruct")}
