@@ -5,22 +5,44 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { AskRequestSchema } from "@/lib/schemas/requests";
 import { Button } from "@/components/ui/button";
 import { useChatStore } from "@/store/chatStore";
-import { Send, Paperclip, X } from "lucide-react";
+import { Send, X, CirclePlus, Mic, Eye } from "lucide-react";
 import type { AskRequest } from "@/types";
 import { cn } from "@/lib/utils";
 import { useRef, useEffect, useState } from "react";
 import { UploadModal } from "@/components/upload/UploadModal";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown, Sparkles, Brain, Book, History, Wand2 } from "lucide-react";
 
 interface FilePreview {
   file: File;
   id: string;
 }
 
-export function ChatInput() {
-  const { sendMessage, isLoading, isStreaming, currentConversationId } = useChatStore();
+interface ChatInputProps {
+  className?: string;
+  containerClassName?: string;
+  inputClassName?: string;
+  isStatic?: boolean;
+  variant?: "hero" | "compact";
+}
+
+export function ChatInput({ 
+  className, 
+  containerClassName, 
+  inputClassName,
+  isStatic = false,
+  variant = "hero"
+}: ChatInputProps) {
+  const { sendMessage, isLoading, isStreaming, currentConversationId, selectedMode, setMode } = useChatStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FilePreview[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>("models/gemini-3.1-flash-lite-preview");
   const prevConversationIdRef = useRef<string | null>(null);
 
   // Auto-focus input when starting a new conversation
@@ -37,11 +59,13 @@ export function ChatInput() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
     reset,
     watch,
   } = useForm<AskRequest>({
     resolver: zodResolver(AskRequestSchema),
+    mode: "onChange",
   });
 
   const query = watch("query");
@@ -51,23 +75,37 @@ export function ChatInput() {
   const { ref, ...registerProps } = register("query");
 
   // Auto-resize textarea
-  useEffect(() => {
+  const updateHeight = () => {
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = "auto";
       textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
     }
+  };
+
+  useEffect(() => {
+    updateHeight();
   }, [query]);
+
+  const handlePaste = () => {
+    // Small delay to ensure the paste operation is processed by the browser
+    setTimeout(updateHeight, 0);
+  };
 
   const onSubmit = async (data: AskRequest) => {
     if (isDisabled) return;
-    await sendMessage(data.query);
+    
+    const submittedQuery = data.query;
+    
+    // 1. CLEAR IMMEDIATELY for better UX
     reset();
     setSelectedFiles([]);
-    // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
+
+    // 2. TRIGGER SEND (don't await for the whole streaming process)
+    sendMessage(submittedQuery, selectedModel);
   };
 
   const handleFileSelect = (file: File) => {
@@ -84,94 +122,252 @@ export function ChatInput() {
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 z-10 bg-white/80 backdrop-blur-md dark:bg-neutral-900/80 border-t border-neutral-200/50 dark:border-neutral-800/50">
-        <div className="mx-auto max-w-4xl px-4 py-4 sm:px-6 sm:py-5 md:px-8">
-          {/* File preview chips */}
+      <div className={cn(
+        isStatic ? "relative inline-block w-full" : "fixed bottom-4 sm:bottom-12 left-0 right-0 z-50 pointer-events-none pb-safe",
+        containerClassName
+      )}>
+        <div className={cn(
+          "mx-auto max-w-4xl px-3 sm:px-6 md:px-8",
+          !isStatic && "pointer-events-auto flex justify-center",
+          className
+        )}>
+          {/* File preview chips - Compact Style */}
           {selectedFiles.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-2">
+            <div className="mb-4 flex flex-wrap gap-2 px-2 overflow-x-auto pb-1 scrollbar-hide">
               {selectedFiles.map((preview) => (
                 <div
                   key={preview.id}
-                  className="flex items-center gap-2 rounded-full bg-neutral-100 px-3 py-1.5 text-xs shadow-sm dark:bg-neutral-800"
+                  className="flex items-center gap-2 rounded-xl bg-background/60 backdrop-blur-xl border border-primary/20 px-3 py-1.5 text-[0.6rem] font-mono font-bold text-foreground/70 shrink-0"
                 >
-                  <span className="truncate max-w-[200px] text-neutral-700 dark:text-neutral-300">
-                    {preview.file.name}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => removeFile(preview.id)}
-                    className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors"
-                  >
-                    <X className="h-3.5 w-3.5" />
+                  <span className="truncate max-w-[120px] sm:max-w-[150px] uppercase">{preview.file.name}</span>
+                  <button type="button" onClick={() => removeFile(preview.id)} className="text-primary hover:text-white transition-colors p-1">
+                    <X className="h-3 w-3" />
                   </button>
                 </div>
               ))}
             </div>
           )}
 
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="relative flex items-end gap-2"
-          >
-            <div className="relative flex-1 rounded-2xl border border-neutral-200 bg-white shadow-sm transition-all focus-within:border-neutral-400 focus-within:shadow-md dark:border-neutral-700 dark:bg-neutral-800 dark:focus-within:border-neutral-600">
-              <textarea
-                {...registerProps}
-                ref={(e) => {
-                  ref(e);
-                  textareaRef.current = e;
-                }}
-                placeholder="Message Heritage App..."
-                disabled={isDisabled}
-                rows={1}
-                className={cn(
-                  "w-full resize-none rounded-2xl bg-transparent px-4 py-3 pr-20 text-sm leading-6",
-                  "placeholder:text-neutral-400",
-                  "focus:outline-none",
-                  "disabled:cursor-not-allowed disabled:opacity-50",
-                  "dark:text-neutral-100",
-                  "dark:placeholder:text-neutral-500",
-                  "transition-all",
-                  "sm:px-5 sm:py-3.5 sm:pr-24"
-                )}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    if (!isDisabled) {
-                      handleSubmit(onSubmit)();
-                    }
-                  }
-                }}
-              />
-              <div className="absolute bottom-2 right-2 flex items-center gap-1 sm:bottom-2.5 sm:right-2.5">
+          <form onSubmit={handleSubmit(onSubmit)} className={cn(
+            "relative group w-full",
+            variant === "hero" ? "max-w-3xl" : "max-w-full"
+          )}>
+            <div className={cn(
+              "relative flex flex-col transition-all duration-500",
+              variant === "hero" 
+                ? "rounded-[1.5rem] sm:rounded-[2rem] border border-primary/30 bg-background/60 backdrop-blur-3xl p-1 sm:p-1.5 focus-within:border-primary/60 focus-within:bg-background/90"
+                : "rounded-xl sm:rounded-2xl border border-primary/20 bg-background/40 backdrop-blur-xl p-0.5 sm:p-1 focus-within:border-primary/50 focus-within:bg-background/80",
+              containerClassName
+            )}>
+              {/* TOP ROW: Input */}
+              <div className={cn(
+                "flex items-center gap-2",
+                variant === "hero" ? "pt-2 sm:pt-4 px-3 sm:px-4" : "pt-1.5 sm:pt-2 px-2 sm:px-3"
+              )}>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  onClick={() => setUploadModalOpen(true)}
-                  className="h-8 w-8 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 sm:h-9 sm:w-9"
-                  disabled={isDisabled}
-                >
-                  <Paperclip className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isDisabled}
-                  size="icon"
                   className={cn(
-                    "h-8 w-8 rounded-lg shadow-sm transition-all",
-                    "bg-neutral-900 text-white hover:bg-neutral-800 hover:shadow-md",
-                    "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-sm",
-                    "dark:bg-neutral-700 dark:hover:bg-neutral-600",
-                    "sm:h-9 sm:w-9"
+                    "shrink-0 rounded-full text-foreground/20 hover:text-foreground/40 hover:bg-black/5",
+                    variant === "hero" ? "h-9 w-9 sm:h-10 w-10" : "h-7 w-7 sm:h-8 w-8"
                   )}
                 >
-                  <Send className="h-4 w-4" />
+                  <CirclePlus className={cn(variant === "hero" ? "h-4.5 w-4.5 sm:h-5 w-5" : "h-3.5 w-3.5 sm:h-4 w-4")} />
                 </Button>
+                <div className="flex-1">
+                  <textarea
+                    {...registerProps}
+                    ref={(e) => {
+                      ref(e);
+                      textareaRef.current = e;
+                    }}
+                    placeholder="Ask the Linguistic Engine..."
+                    disabled={isDisabled}
+                    rows={1}
+                    onPaste={handlePaste}
+                    className={cn(
+                      "w-full resize-none bg-transparent py-1.5 transition-all scrollbar-hide",
+                      variant === "hero" 
+                        ? "text-[16px] leading-6 min-h-[1.5rem]" 
+                        : "text-[15px] leading-5 min-h-[1.25rem]",
+                      "placeholder:text-foreground/40 placeholder:font-medium",
+                      "focus:outline-none text-foreground/90 font-medium tracking-tight",
+                      inputClassName
+                    )}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        if (window.innerWidth > 768) {
+                          e.preventDefault();
+                          if (!isDisabled && query?.trim()) {
+                            handleSubmit(onSubmit)();
+                          }
+                        }
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* BOTTOM ROW: Command Bar */}
+              <div className={cn(
+                "flex items-center justify-between px-2 pb-1.5 sm:pb-2",
+                variant === "hero" ? "pt-2 sm:pt-4" : "pt-0.5 sm:pt-1"
+              )}>
+                <div className="flex items-center gap-1.5 ml-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-7 gap-1.5 rounded-full px-2.5 text-[0.6rem] font-bold uppercase tracking-widest text-foreground/40 hover:bg-white/5 hover:text-foreground/60 transition-all"
+                      >
+                        {selectedModel.includes("gemini") ? (
+                          <Sparkles className="h-3 w-3 text-primary/60" />
+                        ) : selectedModel.includes("nemotron") ? (
+                          <Eye className="h-3 w-3 text-emerald-400/60" />
+                        ) : (
+                          <Brain className="h-3 w-3 text-blue-400/60" />
+                        )}
+                        {selectedModel.includes("gemini") 
+                          ? "Linguistic Engine" 
+                          : selectedModel.includes("nemotron") 
+                            ? "Vision Engine" 
+                            : "Logic Engine"}
+                        <ChevronDown className="h-2.5 w-2.5 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56 rounded-2xl border-primary/20 bg-background/80 backdrop-blur-2xl p-1.5">
+                      <DropdownMenuItem 
+                        onClick={() => setSelectedModel("models/gemini-3.1-flash-lite-preview")}
+                        className="flex flex-col items-start gap-1 rounded-xl p-2.5 focus:bg-primary/10"
+                      >
+                        <div className="flex items-center gap-2 font-bold uppercase tracking-tighter text-[0.65rem]">
+                          <Sparkles className="h-3 w-3 text-primary" />
+                          Linguistic Engine (Gemini 3.1 Lite)
+                        </div>
+                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Ultra-efficient Ga processing (Experimental Lite).</div>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setSelectedModel("models/gemini-3-flash-preview")}
+                        className="flex flex-col items-start gap-1 rounded-xl p-2.5 focus:bg-primary/10"
+                      >
+                        <div className="flex items-center gap-2 font-bold uppercase tracking-tighter text-[0.65rem]">
+                          <Sparkles className="h-3 w-3 text-amber-400" />
+                          Linguistic Engine (Gemini 3 Flash)
+                        </div>
+                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Standard Gemini 3 preview for deep archival grounding.</div>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setSelectedModel("meta-llama/llama-3-8b-instruct")}
+                        className="flex flex-col items-start gap-1 rounded-xl p-2.5 focus:bg-blue-500/10"
+                      >
+                        <div className="flex items-center gap-2 font-bold uppercase tracking-tighter text-[0.65rem]">
+                          <Brain className="h-3 w-3 text-blue-400" />
+                          Logic Engine (Llama 3)
+                        </div>
+                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Enhanced logical reasoning & conversational depth.</div>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setSelectedModel("nvidia/nemotron-nano-9b-v2:free")}
+                        className="flex flex-col items-start gap-1 rounded-xl p-2.5 focus:bg-emerald-500/10"
+                      >
+                        <div className="flex items-center gap-2 font-bold uppercase tracking-tighter text-[0.65rem]">
+                          <Eye className="h-3 w-3 text-emerald-400" />
+                          Vision Engine (Nemotron)
+                        </div>
+                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Unified reasoning & high-efficiency processing (9B V2).</div>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* RAG FOCUS SELECTOR */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-7 gap-1.5 rounded-full px-2.5 text-[0.6rem] font-bold uppercase tracking-widest text-foreground/40 hover:bg-white/5 hover:text-foreground/60 transition-all border border-primary/5 bg-background/20"
+                      >
+                        {selectedMode === "auto" ? (
+                          <Wand2 className="h-3 w-3 text-primary/60" />
+                        ) : selectedMode === "bible" ? (
+                          <Book className="h-3 w-3 text-amber-400/60" />
+                        ) : (
+                          <History className="h-3 w-3 text-emerald-400/60" />
+                        )}
+                        <span className="opacity-70">Focus:</span>
+                        {selectedMode === "auto" 
+                          ? "Auto" 
+                          : selectedMode === "bible" 
+                            ? "Bible" 
+                            : "General"}
+                        <ChevronDown className="h-2.5 w-2.5 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56 rounded-2xl border-primary/20 bg-background/80 backdrop-blur-2xl p-1.5">
+                      <DropdownMenuItem 
+                        onClick={() => setMode("auto")}
+                        className="flex flex-col items-start gap-1 rounded-xl p-2.5 focus:bg-primary/10"
+                      >
+                        <div className="flex items-center gap-2 font-bold uppercase tracking-tighter text-[0.65rem]">
+                          <Wand2 className="h-3 w-3 text-primary" />
+                          Auto (Intelligent Routing)
+                        </div>
+                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Smart detection for verses or general history.</div>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setMode("bible")}
+                        className="flex flex-col items-start gap-1 rounded-xl p-2.5 focus:bg-amber-500/10"
+                      >
+                        <div className="flex items-center gap-2 font-bold uppercase tracking-tighter text-[0.65rem]">
+                          <Book className="h-3 w-3 text-amber-400" />
+                          Bible Archives
+                        </div>
+                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Strict archival fidelity for Ga spiritual texts.</div>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setMode("general")}
+                        className="flex flex-col items-start gap-1 rounded-xl p-2.5 focus:bg-emerald-500/10"
+                      >
+                        <div className="flex items-center gap-2 font-bold uppercase tracking-tighter text-[0.65rem]">
+                          <History className="h-3 w-3 text-emerald-400" />
+                          Cultural Wisdom
+                        </div>
+                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Focus on Ga history, stories, and traditions.</div>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <div className="flex items-center gap-3 pr-1">
+                  <div className={cn(
+                    "font-mono font-bold uppercase tracking-widest tabular-nums",
+                    variant === "hero" ? "text-[0.65rem] text-foreground/50" : "text-[0.6rem] text-foreground/30"
+                  )}>
+                    {query?.length || 0}/2000
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={isDisabled || !query?.trim()}
+                    size="icon"
+                    className={cn(
+                      "rounded-full transition-all duration-500",
+                      variant === "hero" ? "h-10 w-10" : "h-8 w-8",
+                      "bg-primary text-background hover:scale-110 active:scale-90",
+                      "disabled:opacity-10 disabled:grayscale disabled:scale-100 disabled:cursor-not-allowed"
+                    )}
+                  >
+                    <Send className={cn(variant === "hero" ? "h-4 w-4" : "h-3 w-3")} />
+                  </Button>
+                </div>
               </div>
             </div>
           </form>
           {errors.query && (
-            <p className="mt-2 text-xs text-red-600 dark:text-red-400 px-1">
+            <p className="mt-4 text-[0.6rem] font-mono font-bold uppercase tracking-widest text-red-500/60 px-6">
               {errors.query.message}
             </p>
           )}

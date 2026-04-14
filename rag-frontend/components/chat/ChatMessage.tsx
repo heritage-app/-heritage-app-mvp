@@ -4,8 +4,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { MarkdownContent } from "./MarkdownContent";
 import type { Message } from "@/types";
-import { User, Bot, Copy, Check } from "lucide-react";
+import { useUserStore } from "@/store/userStore";
+import { User, Bot, Copy, Check, ThumbsUp, ThumbsDown, Share2, MoreHorizontal, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -15,9 +17,12 @@ interface ChatMessageProps {
 
 export function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === "user";
+  const isError = message.metadata?.isError === true;
   const [copied, setCopied] = useState(false);
+  const displayName = useUserStore((state) => state.displayName);
 
   const handleCopy = async () => {
+    if (isError) return;
     try {
       await navigator.clipboard.writeText(message.content);
       setCopied(true);
@@ -29,63 +34,95 @@ export function ChatMessage({ message }: ChatMessageProps) {
   };
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 20, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
       className={cn(
-        "group relative flex w-full gap-2 py-4 sm:gap-4 sm:py-5 md:gap-5 md:py-6",
-        isUser ? "justify-end" : "justify-start"
+        "group relative flex w-full gap-3 sm:gap-4 py-4 sm:py-8",
+        isUser ? "flex-row-reverse" : "flex-row"
       )}
     >
-      {!isUser && (
-        <Avatar className="h-7 w-7 shrink-0 mt-1 sm:h-8 sm:w-8">
-          <AvatarFallback className="bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-            <Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+      <div className="flex flex-col gap-2 shrink-0">
+        <Avatar className={cn(
+          "h-10 w-10 shrink-0 transition-all duration-500 group-hover:scale-105",
+          isUser 
+            ? "border-2 border-primary/20" 
+            : isError 
+              ? "border-2 border-red-500/30 bg-red-500/10" 
+              : "border-2 border-foreground/5 bg-background/50 backdrop-blur-xl"
+        )}>
+          <AvatarFallback className={cn(
+            "text-[0.7rem] font-black tracking-widest uppercase mb-[-1px]",
+            isUser ? "bg-white/10 text-white" : "bg-transparent text-white"
+          )}>
+            {isUser ? <User className="h-4 w-4" /> : isError ? <AlertCircle className="h-4 w-4 text-red-400" /> : <Bot className="h-4 w-4" />}
           </AvatarFallback>
         </Avatar>
-      )}
+      </div>
+
       <div
         className={cn(
-          "relative max-w-[90%] rounded-xl px-3 py-2.5 text-xs leading-6 sm:max-w-[85%] sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm sm:leading-7 md:px-6 md:py-[18px]",
-          isUser
-            ? "bg-neutral-900 text-white dark:bg-neutral-800"
-            : "bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
+          "relative flex flex-col gap-2 max-w-[96%] sm:max-w-[92%]",
+          isUser ? "items-end" : "items-start"
         )}
       >
-        {/* Copy button for assistant messages */}
-        {!isUser && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleCopy}
-            className={cn(
-              "absolute -right-1 -top-1 h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100 sm:-right-2 sm:-top-2 sm:h-8 sm:w-8",
-              "bg-white dark:bg-neutral-800 shadow-md hover:bg-neutral-50 dark:hover:bg-neutral-700",
-              "border border-neutral-200 dark:border-neutral-700"
-            )}
-          >
-            {copied ? (
-              <Check className="h-3.5 w-3.5 text-green-600 sm:h-4 sm:w-4" />
+        <div className="flex items-center gap-3 px-1">
+          <span className={cn(
+            "text-[0.7rem] font-mono font-bold uppercase tracking-[0.4em]",
+            isUser ? "text-white/40 mr-1" : isError ? "text-red-400" : "text-white ml-1"
+          )}>
+            {isUser ? displayName : isError ? "System Error" : "Linguistic Engine"}
+          </span>
+          {!isUser && !isError && (
+            <div className="flex gap-1">
+              <div className="h-1 w-1 rounded-full bg-primary/40 animate-pulse" />
+              <div className="h-1 w-1 rounded-full bg-primary/20 animate-pulse delay-75" />
+            </div>
+          )}
+        </div>
+
+        <div
+          className={cn(
+            "relative px-5 py-3 text-[1rem] leading-7 transition-all duration-500",
+            isUser
+              ? "rounded-2xl bg-white/[0.03] border border-white/5 text-white w-full"
+              : isError
+                ? "rounded-2xl bg-red-500/5 border border-red-500/10 text-red-500/80 w-full"
+                : "bg-transparent text-white max-w-none px-0"
+          )}
+        >
+          <div className="prose prose-base prose-invert max-w-none">
+            {isUser ? (
+              <div className="whitespace-pre-wrap break-words [word-wrap:break-word] text-white text-[1rem]">
+                {message.content}
+              </div>
+            ) : isError ? (
+              <div className="whitespace-pre-wrap break-words [word-wrap:break-word] font-mono text-[0.7rem] uppercase tracking-wider">
+                {message.content}
+              </div>
             ) : (
-              <Copy className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <MarkdownContent content={message.content} />
             )}
-          </Button>
-        )}
-        
-        {isUser ? (
-          <div className="whitespace-pre-wrap break-words [word-wrap:break-word]">
-            {message.content}
           </div>
-        ) : (
-          <MarkdownContent content={message.content} />
+        </div>
+
+        {/* Action Bar for assistant messages */}
+        {!isUser && !isError && (
+          <div className="flex items-center gap-1 mt-2 px-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleCopy}
+              className="h-8 w-8 text-foreground/30 hover:text-foreground/60 rounded-lg"
+              title="Copy"
+            >
+              {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+            </Button>
+          </div>
         )}
       </div>
-      {isUser && (
-        <Avatar className="h-7 w-7 shrink-0 mt-1 sm:h-8 sm:w-8">
-          <AvatarFallback className="bg-neutral-200 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200">
-            <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-          </AvatarFallback>
-        </Avatar>
-      )}
-    </div>
+    </motion.div>
   );
 }
 

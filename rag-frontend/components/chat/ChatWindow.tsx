@@ -3,6 +3,7 @@
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
 import { useChatStore } from "@/store/chatStore";
+import { cn } from "@/lib/utils";
 import { useEffect, useRef } from "react";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -59,17 +60,43 @@ export function ChatWindow({ conversationId, sidebarOpen = false }: ChatWindowPr
   // CRITICAL: Use key prop to force re-render when conversationId changes
   // This ensures the component tree resets when switching conversations
   return (
-    <div key={normalizedConversationId || "new"} className="flex min-h-full flex-col bg-white dark:bg-neutral-900 pb-16">
+    <div key={normalizedConversationId || "new"} className="flex h-full flex-col bg-background relative overflow-hidden">
+      {/* Background Cinematic Texture */}
+      <div className="absolute inset-0 -z-10 cultural-pattern opacity-[0.02]" />
+      
       <div className="flex-1 overflow-hidden min-h-0 relative">
         {isRestoringConversation ? (
           <div className="flex h-full items-center justify-center">
-            <Spinner className="h-6 w-6 text-neutral-400" />
+            <div className="flex flex-col items-center gap-4">
+              <Spinner className="h-8 w-8 text-primary/40" />
+              <span className="text-[0.6rem] font-bold uppercase tracking-[0.3em] text-primary/20 animate-pulse">Synchronizing Heritage...</span>
+            </div>
           </div>
         ) : (
           <MessageList conversationId={normalizedConversationId} />
         )}
       </div>
-      <ChatInput />
+      {messages.length > 0 && (
+        <div className="shrink-0 bg-background pb-3 sm:pb-4 pt-2">
+          <div className="mx-auto max-w-4xl px-3 sm:px-6 lg:px-8">
+            <ChatInput 
+              variant="compact" 
+              isStatic={true} 
+              className="!max-w-none px-0" 
+              containerClassName="py-0"
+              inputClassName={cn(
+                "w-full bg-transparent border-0 focus:ring-0 resize-none py-1.5 text-[14px] sm:text-[15px] leading-relaxed scrollbar-hide",
+                "min-h-[30px]"
+              )}
+            />
+            <div className="mt-3 sm:mt-4 text-center">
+              <span className="text-[10px] sm:text-[0.6rem] font-medium text-foreground/20 px-4 sm:px-10 italic">
+                Heritage App can make mistakes. Check important info.
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

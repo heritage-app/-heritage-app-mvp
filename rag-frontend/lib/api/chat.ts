@@ -10,25 +10,50 @@ export interface StreamingOptions {
 }
 
 /**
+ * Helper to get identity headers for native fetch
+ */
+async function getChatHeaders() {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  try {
+    const { getAnonymousId } = await import('@/lib/utils/anonymous-id');
+    const anonId = getAnonymousId();
+    if (anonId) {
+      headers["X-Anonymous-ID"] = anonId;
+    }
+  } catch (error) {
+    console.error("Error setting chat headers:", error);
+  }
+  
+  return headers;
+}
+
+/**
  * Send a message to start a new conversation
  * Uses POST /api/v1/chat/new
  */
 export async function askNewQuestion(
   query: string,
+  model?: string,
+  mode: string = "auto",
   options: StreamingOptions = {}
 ): Promise<{ message: Message; conversationId: string }> {
-  const validatedRequest = AskRequestSchema.parse({ query });
+  const validatedRequest = AskRequestSchema.parse({ query, model, mode });
 
   try {
     const streamUrl = `${API_URL}/chat/new?stream=true`;
-    console.log("🌐 [askNewQuestion] Calling endpoint:", streamUrl);
-    console.log("🌐 [askNewQuestion] Request body:", validatedRequest);
+    console.log("🌐 [askNewQuestion] Calling endpoint:", streamUrl, "mode:", mode);
+    
+    // Get identity headers (fixes 401 bug)
+    const headers = await getChatHeaders();
+
     const response = await fetch(streamUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify(validatedRequest),
+      credentials: "include",
     });
 
     if (!response.ok) {
@@ -54,20 +79,24 @@ export async function askNewQuestion(
 export async function askQuestion(
   conversationId: string,
   query: string,
+  model?: string,
+  mode: string = "auto",
   options: StreamingOptions = {}
 ): Promise<{ message: Message; conversationId: string }> {
-  const validatedRequest = AskRequestSchema.parse({ query });
+  const validatedRequest = AskRequestSchema.parse({ query, model, mode });
 
   try {
     const streamUrl = `${API_URL}/chat/${conversationId}?stream=true`;
-    console.log("🌐 [askQuestion] Calling endpoint:", streamUrl);
-    console.log("🌐 [askQuestion] Request body:", validatedRequest);
+    console.log("🌐 [askQuestion] Calling endpoint:", streamUrl, "mode:", mode);
+    
+    // Get identity headers (fixes 401 bug)
+    const headers = await getChatHeaders();
+
     const response = await fetch(streamUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify(validatedRequest),
+      credentials: "include",
     });
 
     if (!response.ok) {

@@ -2,7 +2,8 @@ import { z } from "zod";
 
 export const AskRequestSchema = z.object({
   query: z.string().min(1, "Query cannot be empty"),
-  // Note: conversation_id is now in the URL path, not in the request body
+  model: z.string().optional(),
+  mode: z.string().optional().default("auto"),
 });
 
 export const UploadRequestSchema = z.object({

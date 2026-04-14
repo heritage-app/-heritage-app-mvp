@@ -7,7 +7,8 @@ import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Shield } from "lucide-react";
+import { useUserStore } from "@/store/userStore";
 
 interface ConversationListProps {
   onConversationSelect?: () => void;
@@ -41,10 +42,35 @@ export function ConversationList({ onConversationSelect, collapsed = false }: Co
     onConversationSelect?.();
   };
 
-  if (isInitialLoading) {
+  const { isLoaded, profile } = useUserStore();
+
+  if (isInitialLoading || !isLoaded) {
     return (
       <div className="flex h-full items-center justify-center">
         <Spinner className="h-8 w-8" />
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center p-6 text-center">
+        {!collapsed && (
+          <>
+            <div className="h-12 w-12 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center mb-4">
+              <Plus className="h-6 w-6 text-primary/40" />
+            </div>
+            <h3 className="text-white text-[13px] font-bold mb-2">Login for History</h3>
+            <p className="text-[11px] text-white/30 leading-relaxed max-w-[140px]">
+              Secure your conversations and access them anywhere by joining the archive.
+            </p>
+          </>
+        )}
+        {collapsed && (
+          <div className="h-8 w-8 rounded-lg bg-primary/5 border border-primary/10 flex items-center justify-center">
+            <Shield className="h-3 w-3 text-primary/40" />
+          </div>
+        )}
       </div>
     );
   }
@@ -55,8 +81,8 @@ export function ConversationList({ onConversationSelect, collapsed = false }: Co
         <div className="flex h-full items-center justify-center p-4">
           <div className={`text-center ${collapsed ? "px-1" : ""}`}>
             {!collapsed && (
-              <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                No conversations yet
+              <p className="text-[12px] text-foreground/20 font-medium">
+                No recent chats
               </p>
             )}
           </div>

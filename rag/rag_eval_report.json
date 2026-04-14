@@ -1,0 +1,153 @@
+{
+  "summary": {
+    "total_tests": 13,
+    "average_faithfulness": 0.8461538461538461,
+    "average_relevancy": 1.0,
+    "average_vocab_accuracy": 1.0
+  },
+  "detail": [
+    {
+      "query": "Mose kl\u025b\u014bkl\u025b\u014b wolo",
+      "response": "Mose kl\u025b\u014bkl\u025b\u014b wolo. J\u025bn\u025bsis. [Source: Numerical Engine]",
+      "faithfulness": true,
+      "faithfulness_score": 1.0,
+      "faithfulness_reason": "After reviewing the new context, I would refine the existing answer to:\n\nYES\n\nThe new context appears to be a passage from the Bible, specifically from the book of 2 Chronicles and other books such as Romans, 1 Timothy, and 2 Thessalonians. The passage contains biblical phrases and references, which suggests that the information \"Mose kl\u025b\u014bkl\u025b\u014b wolo. J\u025bn\u025bsis.\" is present in the context.",
+      "relevancy": true,
+      "relevancy_score": 1.0,
+      "vocab_score": 1.0,
+      "vocab_errors": []
+    },
+    {
+      "query": "Who is Nii Obodai?",
+      "response": "Mi y\u025b ojogba\u014b\u014b. Nii Obodai is a Ga language teacher and cultural tour guide from Jamestown, Accra, Ghana. [Source: Numerical Engine]",
+      "faithfulness": true,
+      "faithfulness_score": 1.0,
+      "faithfulness_reason": "After reviewing the new context, I would refine the existing answer to:\n\nYES\n\nThe new context does not provide any information that contradicts the presence of the information \"Mi y\u025b ojogba\u014b\u014b. Nii Obodai is a Ga language teacher and cultural tour guide from Jamestown, Accra, Ghana.\"",
+      "relevancy": true,
+      "relevancy_score": 1.0,
+      "vocab_score": 1.0,
+      "vocab_errors": []
+    },
+    {
+      "query": "What is the Ga word for a friend?",
+      "response": "Naanyo.\n\n[Source: Ga Language Archives]",
+      "faithfulness": false,
+      "faithfulness_score": 0.0,
+      "faithfulness_reason": "After reviewing the provided context, I can confirm that the information \"Naanyo\" is not present in the given text. Therefore, I will answer:\n\nNO",
+      "relevancy": true,
+      "relevancy_score": 1.0,
+      "vocab_score": 1.0,
+      "vocab_errors": []
+    },
+    {
+      "query": "H\u025bloo, te oy\u0254\u0254 t\u025b\u014b\u014b?",
+      "response": "H\u025bloo! Mi y\u025b ojogba\u014b\u014b. [Source: ]",
+      "faithfulness": true,
+      "faithfulness_score": 1.0,
+      "faithfulness_reason": "Based on the new context, I would refine the existing answer to:\n\nYES\n\nThe new context includes the phrase \"H\u025bloo! Mi y\u025b ojogba\u014b\u014b\" which is the same as the original text. Therefore, the information is present in the new context.",
+      "relevancy": true,
+      "relevancy_score": 1.0,
+      "vocab_score": 1.0,
+      "vocab_errors": []
+    },
+    {
+      "query": "How do you say 12 in Ga?",
+      "response": "ny\u0254\u014bma k\u025b eny\u0254\n\n[Source: Ga Numerical Engine]",
+      "faithfulness": true,
+      "faithfulness_score": 1.0,
+      "faithfulness_reason": "YES",
+      "relevancy": true,
+      "relevancy_score": 1.0,
+      "vocab_score": 1.0,
+      "vocab_errors": []
+    },
+    {
+      "query": "Translate 133 into Ga",
+      "response": "Mi y\u025b oha k\u025b ny\u0254\u014bmai-et\u025b k\u025b et\u025b k\u025b et\u025b. [Source: Numerical Engine]\n\nNote: The Ga translation for 133 is \"oha k\u025b ny\u0254\u014bmai-et\u025b k\u025b et\u025b k\u025b et\u025b\".",
+      "faithfulness": true,
+      "faithfulness_score": 1.0,
+      "faithfulness_reason": "Based on the provided context, the answer remains YES. The original answer was already YES, and the new context does not provide any information that would change the answer to NO. The context provided is a collection of phrases and sentences in the Ga language, including greetings, farewells, location questions, love language, and common questions. The phrase \"Mi y\u025b oha k\u025b ny\u0254\u014bmai-et\u025b k\u025b et\u025b k\u025b et\u025b\" is mentioned as the Ga translation for the number 133, which is not relevant to the context of the original question. Therefore, the answer remains YES.",
+      "relevancy": true,
+      "relevancy_score": 1.0,
+      "vocab_score": 1.0,
+      "vocab_errors": []
+    },
+    {
+      "query": "How do you form 21 in Ga?",
+      "response": "To form 21 in Ga, we can use the Ga numerical engine.\n\nAccording to the engine, the tens place is 20, which is \"ny\u0254\u014bmai-eny\u0254\". The unit place is 1, which is \"ekome\".\n\nSo, to form 21, we can assemble the numbers as follows:\n\n21 = ny\u0254\u014bmai-eny\u0254 k\u025b ekome\n\nTherefore, the Ga translation for 21 is \"ny\u0254\u014bmai-eny\u0254 k\u025b ekome\".\n\n[Source: Ga Numerical Engine]",
+      "faithfulness": true,
+      "faithfulness_score": 1.0,
+      "faithfulness_reason": "The existing answer is YES. Upon reviewing the new context, I can see that it appears to be a collection of Ga language phrases and grammar rules, with examples and explanations. The context does not seem to be related to the original information about forming the number 21 in Ga, which was \"ny\u0254\u014bmai-eny\u0254 k\u025b ekome\".\n\nTherefore, I will answer YES, as the existing answer was already YES and the new context does not contradict or relate to the original information.",
+      "relevancy": true,
+      "relevancy_score": 1.0,
+      "vocab_score": 1.0,
+      "vocab_errors": []
+    },
+    {
+      "query": "How do I say 'I have 3 books' in Ga?",
+      "response": "1. Woloi enum\u0254 ny\u0254\u014bma k\u025b et\u025b\n2. Woloi enum\u0254 et\u025b\n\n[Source: Ga Archives]",
+      "faithfulness": true,
+      "faithfulness_score": 1.0,
+      "faithfulness_reason": "After analyzing the new context, I can confirm that the information is still present. The answer remains:\n\n**YES**",
+      "relevancy": true,
+      "relevancy_score": 1.0,
+      "vocab_score": 1.0,
+      "vocab_errors": []
+    },
+    {
+      "query": "What is the Ga word for 'once'?",
+      "response": "Mi ny\u0254\u014bma k\u025b enum\u0254. [Source: Ga language data]",
+      "faithfulness": true,
+      "faithfulness_score": 1.0,
+      "faithfulness_reason": "Based on the provided context information, I would refine the existing answer from NO to YES.\n\nThe phrase \"Mi ny\u0254\u014bma k\u025b enum\u0254\" is present in the Ga language data, and it appears to be a sentence in the Ga language. The sentence structure and word order are consistent with the Ga language's sentence construction guide, which suggests that the sentence is grammatically correct.\n\nThe phrase \"ny\u0254\u014bma\" is not explicitly defined in the provided context, but based on the sentence structure and word order, it appears to be a verb or a verb phrase. The word \"k\u025b\" is a function word that means \"with\" or \"and\", and \"enum\u0254\" is likely an object or a noun phrase.\n\nOverall, the presence of the phrase \"Mi ny\u0254\u014bma k\u025b enum\u0254\" in the Ga language data suggests that the information is present in the context, and therefore, I would answer YES.",
+      "relevancy": true,
+      "relevancy_score": 1.0,
+      "vocab_score": 1.0,
+      "vocab_errors": []
+    },
+    {
+      "query": "What is the Ga word for 'second'?",
+      "response": "Eny\u0254.\n\n[Source: Ga language data]",
+      "faithfulness": true,
+      "faithfulness_score": 1.0,
+      "faithfulness_reason": "Based on the provided context, I would refine the existing answer from NO to YES. The word \"Eny\u0254\" is not explicitly mentioned in the provided text, but it appears to be related to the Ga language and its usage.\n\nIn the \"Pronouns\" section, there is a mention of the inclusive pronoun \"w\u0254\" which means \"we\" or \"us\". This could be related to the word \"Eny\u0254\" which is mentioned in the original question.\n\nAdditionally, in the \"Weather & Natural Phenomena\" section, there is a mention of the word \"n\u025b\" which is used as a state marker, indicating that something is happening or is present. This could be related to the word \"Eny\u0254\" which is mentioned in the original question.\n\nTherefore, based on the provided context, I would answer YES, indicating that the information is present in the context.",
+      "relevancy": true,
+      "relevancy_score": 1.0,
+      "vocab_score": 1.0,
+      "vocab_errors": []
+    },
+    {
+      "query": "Translate 28 into Ga",
+      "response": "ny\u0254\u014bmai-eny\u0254 k\u025b kpaany\u0254\n\n[Source: Ga Numerical Engine]",
+      "faithfulness": false,
+      "faithfulness_score": 0.0,
+      "faithfulness_reason": "Based on the provided context, I would refine the existing answer from NO to NO. The phrase \"ny\u0254\u014bmai-eny\u0254 k\u025b kpaany\u0254\" does not appear in the provided context, and it does not seem to be related to the weather or any of the grammar patterns discussed.",
+      "relevancy": true,
+      "relevancy_score": 1.0,
+      "vocab_score": 1.0,
+      "vocab_errors": []
+    },
+    {
+      "query": "What is 35 in Ga?",
+      "response": "ny\u0254\u014bmai-et\u025b k\u025b enum\u0254\n\n[Source: Ga Numerical Engine]",
+      "faithfulness": true,
+      "faithfulness_score": 1.0,
+      "faithfulness_reason": "Based on the new context, I would refine the existing answer to:\n\nYES\n\nThe phrase \"ny\u0254\u014bmai-et\u025b k\u025b enum\u0254\" is present in the new context, specifically in the sentence:\n\n\"Esa ak\u025b hi\u025bnyi\u025bl\u0254 kpakpa Ny\u0254\u014bm\u0254 hi\u025bgb\u025b daa, ni eye Ny\u0254\u014bm\u0254 Wiem\u0254 l\u025b n\u0254.\"\n\nThe phrase appears to be a proper noun or a name, likely referring to a person or a place.",
+      "relevancy": true,
+      "relevancy_score": 1.0,
+      "vocab_score": 1.0,
+      "vocab_errors": []
+    },
+    {
+      "query": "How do you say 28 books in Ga?",
+      "response": "Woloi ny\u0254\u014bmai-eny\u0254 k\u025b kpaany\u0254.\n\n[Source: Ga language resources]",
+      "faithfulness": true,
+      "faithfulness_score": 1.0,
+      "faithfulness_reason": "Based on the new context, I would refine the existing answer from NO to YES.\n\nThe phrase \"Woloi ny\u0254\u014bmai-eny\u0254 k\u025b kpaany\u0254\" is present in the new context, specifically in the section starting from \"Ma\u014bts\u025b Uzia ye hewolo n\u0254 hela n\u025b\u025b k\u025btee egbele mli.\"",
+      "relevancy": true,
+      "relevancy_score": 1.0,
+      "vocab_score": 1.0,
+      "vocab_errors": []
+    }
+  ]
+}

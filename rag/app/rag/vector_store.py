@@ -6,7 +6,7 @@ Handles collection creation and vector store initialization.
 from functools import lru_cache
 from typing import Optional
 from llama_index.vector_stores.qdrant import QdrantVectorStore
-from qdrant_client import QdrantClient
+from qdrant_client import QdrantClient, AsyncQdrantClient
 from qdrant_client.models import Distance, VectorParams
 
 from app.core.config import settings
@@ -27,9 +27,27 @@ def get_qdrant_client() -> QdrantClient:
     if settings.qdrant_api_key:
         return QdrantClient(
             url=settings.qdrant_url,
-            api_key=settings.qdrant_api_key
+            api_key=settings.qdrant_api_key,
+            timeout=60
         )
-    return QdrantClient(url=settings.qdrant_url)
+    return QdrantClient(url=settings.qdrant_url, timeout=60)
+
+
+@lru_cache()
+def get_async_qdrant_client() -> AsyncQdrantClient:
+    """
+    Get Async Qdrant client instance.
+    
+    Returns:
+        AsyncQdrantClient: Async Qdrant client
+    """
+    if settings.qdrant_api_key:
+        return AsyncQdrantClient(
+            url=settings.qdrant_url,
+            api_key=settings.qdrant_api_key,
+            timeout=60
+        )
+    return AsyncQdrantClient(url=settings.qdrant_url, timeout=60)
 
 
 def get_vector_store(collection_name: str = COLLECTION_NAME) -> QdrantVectorStore:
@@ -80,28 +98,71 @@ def get_vector_store(collection_name: str = COLLECTION_NAME) -> QdrantVectorStor
                     distance=Distance.COSINE
                 )
             )
+            
+        # Ensure payload indexes exist (for both new and existing collections)
+        _ensure_payload_indexes(client, collection_name)
+
     except Exception as e:
-        # Collection might not exist, create it
-        try:
-            client.create_collection(
-                collection_name=collection_name,
-                vectors_config=VectorParams(
-                    size=embedding_dim,
-                    distance=Distance.COSINE
+        # If it's a conflict error (collection already exists), we can ignore it
+        if "already exists" in str(e).lower():
+            _ensure_payload_indexes(client, collection_name)
+        else:
+            # Re-try creation just in case it was a transient fetch error
+            try:
+                client.create_collection(
+                    collection_name=collection_name,
+                    vectors_config=VectorParams(
+                        size=embedding_dim,
+                        distance=Distance.COSINE
+                    )
                 )
-            )
-        except Exception as create_error:
-            error_msg = f"Failed to create Qdrant collection: {create_error}."
-            if settings.qdrant_api_key:
-                error_msg += " Please verify your Qdrant Cloud API key has the necessary permissions."
-            else:
-                error_msg += " Please ensure Qdrant is running."
-            raise ConnectionError(error_msg) from create_error
+                _ensure_payload_indexes(client, collection_name)
+            except Exception as create_error:
+                if "already exists" in str(create_error).lower():
+                    _ensure_payload_indexes(client, collection_name)
+                else:
+                    error_msg = f"Failed to create Qdrant collection: {create_error}."
+                    if settings.qdrant_api_key:
+                        error_msg += " Please verify your Qdrant Cloud API key has the necessary permissions."
+                    raise ConnectionError(error_msg) from create_error
+
     
     return QdrantVectorStore(
         client=client,
+        aclient=get_async_qdrant_client(),
         collection_name=collection_name
     )
+
+
+def _ensure_payload_indexes(client: QdrantClient, collection_name: str):
+    """Ensure required metadata indexes exist for fast filtering and deletion."""
+    from qdrant_client.models import PayloadSchemaType
+    
+    # Keyword fields for exact matching
+    keyword_fields = ["file_path", "filename", "category", "book", "chapter", "verse"]
+    
+    # Integer fields for range matching (if needed)
+    integer_fields = ["chapter_num", "verse_num"]
+    
+    for field in keyword_fields:
+        try:
+            client.create_payload_index(
+                collection_name=collection_name,
+                field_name=field,
+                field_schema=PayloadSchemaType.KEYWORD
+            )
+        except Exception:
+            pass
+            
+    for field in integer_fields:
+        try:
+            client.create_payload_index(
+                collection_name=collection_name,
+                field_name=field,
+                field_schema=PayloadSchemaType.INTEGER
+            )
+        except Exception:
+            pass
 
 
 def collection_exists(collection_name: str = COLLECTION_NAME) -> bool:

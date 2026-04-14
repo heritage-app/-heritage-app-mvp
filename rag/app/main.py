@@ -10,7 +10,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.rag.indexer import initial_index_if_needed
-from app.api.routes import router
+from app.api.routes import router as legacy_router
+from app.api.routers import documents, admin
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -26,8 +27,13 @@ async def lifespan(app: FastAPI):
         try:
             initial_index_if_needed()
             logger.info("Qdrant collection check complete")
+            # Also ensure interaction storage indexes
+            from app.storage.providers import Repositories
+            msg_repo = await Repositories.messages()
+            await msg_repo.ensure_ttl_indexes()
+            logger.info("Database TTL indexes ensured")
         except Exception as e:
-            logger.warning(f"Qdrant not available or error during initialization: {e}")
+            logger.warning(f"Error during startup initialization: {e}")
 
     asyncio.create_task(init_qdrant())
     
@@ -56,5 +62,17 @@ app.add_middleware(
     max_age=3600,  # Cache preflight requests for 1 hour
 )
 
+# Root endpoint
+@app.get("/")
+async def root():
+    return {
+        "message": "Heritage RAG System API is running",
+        "version": "1.0.0",
+        "documentation": "/docs",
+        "status": "healthy"
+    }
+
 # Include API routes
-app.include_router(router)
+app.include_router(legacy_router)
+app.include_router(admin.router, prefix="/api/v1")
+app.include_router(documents.router, prefix="/api/v1")

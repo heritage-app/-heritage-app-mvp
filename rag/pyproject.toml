@@ -21,6 +21,17 @@ dependencies = [
     "uvicorn>=0.40.0",
     "pydantic-settings>=2.0.0",
     "python-multipart>=0.0.21",
+    "psycopg2-binary>=2.9.11",
+    "pymongo[srv]>=4.16.0",
+    "pyjwt>=2.10.1",
+    "llama-index-llms-openai>=0.3.0",
+    "llama-index-llms-openrouter>=0.2.0",
+    "langchain-google-genai>=4.2.1",
+    "pandas>=2.3.3",
+    "openpyxl>=3.1.5",
+    "python-docx>=1.2.0",
+    "passlib[bcrypt]>=1.7.4",
+    "email-validator>=2.3.0",
 ]
 
 [project.optional-dependencies]
@@ -68,4 +79,9 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "if TYPE_CHECKING:",
     "@abstractmethod",
+]
+
+[dependency-groups]
+dev = [
+    "mongomock-motor>=0.0.36",
 ]

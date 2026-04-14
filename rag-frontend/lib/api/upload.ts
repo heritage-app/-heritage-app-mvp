@@ -20,7 +20,7 @@ export async function uploadDocument(
     });
   }
 
-  const response = await apiClient.post("/upload", formData, {
+  const response = await apiClient.post("/admin/upload", formData, {
     headers: {
       "Content-Type": "multipart/form-data",
     },

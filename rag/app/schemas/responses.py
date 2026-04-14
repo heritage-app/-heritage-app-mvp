@@ -84,3 +84,58 @@ class ConversationsListResponse(BaseModel):
     total: str = Field(..., description="Total number of conversations (e.g., '5 conversations')")
     summary: str | None = Field(None, description="Summary message (e.g., 'You have 5 active conversations')")
 
+
+class DocumentListItem(BaseModel):
+    """Response schema for a single document list item."""
+    id: str = Field(..., description="The document ID (MongoDB)")
+    original_filename: str = Field(..., description="The name of the originally uploaded file")
+    public_url: str = Field(..., description="The public URL where the file can be downloaded")
+    status: str = Field(..., description="Processing status (e.g., 'indexed')")
+    uploaded_at: str = Field(..., description="When the file was uploaded (human-readable)")
+
+class DocumentListResponse(BaseModel):
+    """Response schema for a list of all documents."""
+    documents: list[DocumentListItem] = Field(..., description="List of documents")
+    total: int = Field(..., description="Total number of documents")
+
+class UserListItem(BaseModel):
+    """Response schema for a single user in the management list."""
+    id: str = Field(..., description="The user's unique ID (MongoDB)")
+    email: str = Field(..., description="The user's email address")
+    role: str = Field(..., description="The user's current role (e.g., 'admin', 'moderator', 'user')")
+    display_name: str | None = Field(None, description="User's display name")
+    first_name: str | None = Field(None, description="User's first name")
+    last_name: str | None = Field(None, description="User's last name")
+    dob: str | None = Field(None, description="User's date of birth")
+    created_at: str = Field(..., description="When the user joined (human-readable)")
+
+class UserListResponse(BaseModel):
+    """Response schema for a list of users."""
+    users: list[UserListItem] = Field(..., description="List of registered users")
+    total: int = Field(..., description="Total number of registered users")
+
+
+class SystemStatsResponse(BaseModel):
+    """Response schema for global system statistics in the admin dashboard."""
+    total_documents: int = Field(..., description="Total number of indexed documents")
+    registered_users: int = Field(..., description="Total number of registered users (from profiles)")
+    user_conversations: int = Field(..., description="Total number of conversations by registered users")
+    guest_conversations: int = Field(..., description="Total number of guest conversations")
+    total_conversations: int = Field(..., description="Grand total of all conversations")
+    status: str = Field(..., description="System health status (e.g., 'operational')")
+    timestamp: str = Field(..., description="UTC timestamp of the stats report")
+
+
+class RefinementPreviewResponse(BaseModel):
+    """Response schema for the /refine/preview endpoint."""
+    raw_text: str = Field(..., description="Extracted raw text (truncated for preview)")
+    refined_records: list[dict] = Field(..., description="List of 16-field verse records")
+    jsonl_preview: str = Field(..., description="Preview of the generated JSONL archival format")
+    stats: dict = Field(..., description="Statistics about the extraction (counts, chapters, etc.)")
+
+
+class RefineCommitRequest(BaseModel):
+    """Request schema for the /refine/commit endpoint."""
+    staged_records: list[dict] = Field(..., description="Validated records to be indexed")
+    original_filename: str = Field(..., description="The name of the original file")
+

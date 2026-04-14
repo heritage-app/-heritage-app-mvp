@@ -20,41 +20,31 @@ export function ConversationItem({
   collapsed = false,
 }: ConversationItemProps) {
   if (collapsed) {
-    return (
-      <button
-        className={cn(
-          "w-full cursor-pointer rounded-lg p-2 flex items-center justify-center transition-colors",
-          "hover:bg-neutral-100 dark:hover:bg-neutral-800",
-          "active:scale-[0.98]",
-          isSelected && "bg-neutral-200 dark:bg-neutral-800"
-        )}
-        onClick={onClick}
-        title={conversation.title || "New Conversation"}
-      >
-        <MessageSquare className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
-      </button>
-    );
+    return null;
   }
 
   return (
     <button
       className={cn(
-        "w-full cursor-pointer rounded-lg px-3 py-2.5 text-left text-sm transition-colors",
-        "hover:bg-neutral-100 dark:hover:bg-neutral-800",
+        "group w-full cursor-pointer rounded-xl px-3 py-2 text-left transition-all duration-300",
+        "relative overflow-hidden",
         "active:scale-[0.98]",
-        isSelected && "bg-neutral-200 dark:bg-neutral-800"
+        isSelected 
+          ? "bg-[#212121] text-foreground" 
+          : "text-foreground/50 hover:bg-white/[0.03] hover:text-foreground/80"
       )}
       onClick={onClick}
     >
-      <div className="flex-1 min-w-0">
-        <h3 className="truncate font-medium text-neutral-900 dark:text-neutral-100 text-sm">
-          {conversation.title || "New Conversation"}
-        </h3>
-        {conversation.last_message_at && (
-          <p className="mt-1 truncate text-xs text-neutral-500 dark:text-neutral-400">
-            {formatDate(conversation.last_message_at)}
-          </p>
-        )}
+      <div className="flex-1 min-w-0 relative z-10">
+        <div className="flex items-center justify-between gap-2 overflow-hidden">
+          <h3 className={cn(
+            "truncate text-[13px] font-medium tracking-tight py-0.5 transition-colors",
+            isSelected ? "text-foreground" : "text-foreground/70 group-hover:text-foreground"
+          )}>
+            {conversation.title || "New Conversation"}
+          </h3>
+          {isSelected && <div className="h-1 w-1 rounded-full bg-primary shrink-0" />}
+        </div>
       </div>
     </button>
   );

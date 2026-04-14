@@ -9,7 +9,15 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_TYPES = ["application/pdf"];
+const ALLOWED_TYPES = [
+  "application/pdf",
+  "text/markdown",
+  "text/x-markdown",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/csv",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain"
+];
 
 interface UploadModalProps {
   open: boolean;
@@ -25,8 +33,8 @@ export function UploadModal({ open, onOpenChange, onFileSelect }: UploadModalPro
 
   const handleFileSelect = (file: File) => {
     // Validate file type - only PDF allowed
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.error("Invalid file type. Please upload a PDF file.");
+    if (!ALLOWED_TYPES.includes(file.type) && !file.name.endsWith('.md')) {
+      toast.error("Invalid file type. Please upload a supported document (PDF, MD, Word, Excel, CSV, or Text).");
       return;
     }
 
@@ -89,7 +97,7 @@ export function UploadModal({ open, onOpenChange, onFileSelect }: UploadModalPro
         <DialogHeader>
           <DialogTitle className="text-lg sm:text-xl">Upload Learning Material</DialogTitle>
           <DialogDescription className="text-sm">
-            Upload Ga language learning resources as PDF (max 10MB)
+            Upload document as PDF, MD, Word, Excel, CSV, or Text (max 10MB)
           </DialogDescription>
         </DialogHeader>
         
@@ -110,7 +118,7 @@ export function UploadModal({ open, onOpenChange, onFileSelect }: UploadModalPro
           <input
             ref={fileInputRef}
             type="file"
-            accept=".pdf,application/pdf"
+            accept=".pdf,.md,.docx,.csv,.xlsx,.xls,.txt"
             onChange={handleFileInputChange}
             className="hidden"
           />
@@ -150,7 +158,7 @@ export function UploadModal({ open, onOpenChange, onFileSelect }: UploadModalPro
                   Drag and drop your document here, or click to browse
                 </p>
                 <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400 sm:text-sm">
-                  PDF files only (max 10MB)
+                  Supported: PDF, MD, Word, Excel, CSV, or Text (max 10MB)
                 </p>
               </div>
             </div>

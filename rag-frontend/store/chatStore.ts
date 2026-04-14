@@ -11,7 +11,9 @@ interface ChatState {
   isStreaming: boolean;
   error: string | null;
   currentStreamingContent: string;
-  sendMessage: (query: string) => Promise<void>;
+  selectedMode: string;
+  setMode: (mode: string) => void;
+  sendMessage: (query: string, model?: string) => Promise<void>;
   addMessage: (message: Message) => void;
   setConversationId: (id: string) => void;
   clearChat: () => void;
@@ -27,8 +29,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isStreaming: false,
   error: null,
   currentStreamingContent: "",
+  selectedMode: "auto",
 
-  sendMessage: async (query: string) => {
+  setMode: (mode: string) => set({ selectedMode: mode }),
+
+  sendMessage: async (query: string, model?: string) => {
+    const { selectedMode } = get();
     set({ isLoading: true, error: null, isStreaming: false, currentStreamingContent: "" });
 
     const currentConversationId = get().currentConversationId;
@@ -50,8 +56,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Use appropriate endpoint based on whether we have a conversation_id
       if (currentConversationId) {
         // Continue existing conversation
-        console.log("📤 Continuing conversation:", currentConversationId);
-        await askQuestion(currentConversationId, query, {
+        console.log("📤 Continuing conversation:", currentConversationId, "with model:", model, "mode:", selectedMode);
+        await askQuestion(currentConversationId, query, model, selectedMode, {
           onChunk: (chunk) => {
             set((state) => ({
               isStreaming: true,
@@ -99,31 +105,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
             }
           },
           onError: (error) => {
-            // Handle 404 - conversation not found
-            if (error.message.includes("Conversation not found")) {
-              console.log("⚠️ Conversation not found, clearing and starting new chat");
-              // Clear the invalid conversation_id and allow user to start fresh
-              set({
-                currentConversationId: null,
-                error: error.message,
-                isLoading: false,
-                isStreaming: false,
-                currentStreamingContent: "",
-              });
-            } else {
-              set({
-                error: error.message,
-                isLoading: false,
-                isStreaming: false,
-                currentStreamingContent: "",
-              });
-            }
+            const errorMessage = error.message;
+            console.error("❌ Chat Error:", errorMessage);
+
+            // Add error as a persistent message
+            const errorMsg: Message = {
+              id: `error-${Date.now()}`,
+              conversation_id: get().currentConversationId || "",
+              role: "assistant",
+              content: errorMessage,
+              created_at: new Date().toISOString(),
+              metadata: { isError: true }
+            };
+
+            set((state) => ({
+              messages: [...state.messages, errorMsg],
+              error: errorMessage,
+              isLoading: false,
+              isStreaming: false,
+              currentStreamingContent: "",
+            }));
           },
         });
       } else {
         // Start new conversation
-        console.log("📤 Starting new conversation");
-        await askNewQuestion(query, {
+        console.log("📤 Starting new conversation with model:", model, "mode:", selectedMode);
+        await askNewQuestion(query, model, selectedMode, {
           onChunk: (chunk) => {
             set((state) => ({
               isStreaming: true,
@@ -171,23 +178,50 @@ export const useChatStore = create<ChatState>((set, get) => ({
             }
           },
           onError: (error) => {
-            set({
-              error: error.message,
+            const errorMessage = error.message;
+            console.error("❌ Chat New Error:", errorMessage);
+
+            // Add error as a persistent message
+            const errorMsg: Message = {
+              id: `error-${Date.now()}`,
+              conversation_id: "",
+              role: "assistant",
+              content: errorMessage,
+              created_at: new Date().toISOString(),
+              metadata: { isError: true }
+            };
+
+            set((state) => ({
+              messages: [...state.messages, errorMsg],
+              error: errorMessage,
               isLoading: false,
               isStreaming: false,
               currentStreamingContent: "",
-            });
+            }));
           },
         });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to send message";
-      set({
+      console.error("❌ sendMessage Catch Error:", errorMessage);
+
+      // Add error as a persistent message
+      const errorMsg: Message = {
+        id: `error-catch-${Date.now()}`,
+        conversation_id: get().currentConversationId || "",
+        role: "assistant",
+        content: errorMessage,
+        created_at: new Date().toISOString(),
+        metadata: { isError: true }
+      };
+
+      set((state) => ({
+        messages: [...state.messages, errorMsg],
         error: errorMessage,
         isLoading: false,
         isStreaming: false,
         currentStreamingContent: "",
-      });
+      }));
     }
   },
 

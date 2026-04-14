@@ -6,16 +6,18 @@ import uuid
 import json
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File, HTTPException, Query, Form
+from fastapi import APIRouter, UploadFile, File, HTTPException, Query, Form, Depends
 from fastapi.responses import StreamingResponse
+from app.api.deps import get_current_user, get_optional_user, get_current_admin
 
-from app.rag.service import ask
-from app.storage.supabase import upload_document, get_messages, list_conversations, get_conversation_title, conversation_exists, file_exists_in_storage, get_supabase_client, save_message
-from app.schemas.requests import AskRequest
-from app.rag.indexer import index_document_from_storage, is_document_indexed
-from app.rag.vector_store import collection_exists
 from app.core.config import settings
-from app.rag.constants import DEFAULT_TOP_K
+from app.rag.constants import DEFAULT_TOP_K, COLLECTION_NAME
+from app.storage.supabase import upload_document, delete_document
+from app.schemas.requests import AskRequest, ProfileUpdate
+from app.rag.indexer import index_document_from_storage
+from app.rag.service import ask
+from app.rag.vector_store import collection_exists, get_qdrant_client
+from qdrant_client import models
 from app.schemas.responses import (
     UploadResponse,
     AskResponse,
@@ -24,22 +26,25 @@ from app.schemas.responses import (
     ConversationsListResponse,
     ConversationListItem,
     HealthResponse,
-    APIInfoResponse
+    APIInfoResponse,
+    DocumentListResponse,
+    DocumentListItem,
+    UserListItem,
+    UserListResponse
 )
+from app.storage.supabase_client import get_supabase
+from app.storage.providers import Repositories
+from app.api.routers import auth
 
 
 router = APIRouter(prefix="/api/v1", tags=["rag"])
 
+# Include sub-routers
+router.include_router(auth.router, prefix="/auth", tags=["auth"])
 
 def humanize_timestamp(timestamp_str: str | datetime | None) -> str:
     """
     Convert a timestamp string or datetime object to a human-readable format.
-    
-    Args:
-        timestamp_str: ISO format timestamp string, datetime object, or None
-        
-    Returns:
-        Human-readable time string (e.g., "Just now", "2 hours ago", "Yesterday")
     """
     if not timestamp_str:
         return "Unknown"
@@ -87,133 +92,99 @@ def humanize_timestamp(timestamp_str: str | datetime | None) -> str:
         return "Unknown"
 
 
-@router.post("/upload", response_model=UploadResponse)
-async def upload_document_endpoint(
-    file: UploadFile = File(..., description="Document file to upload"),
-    metadata: str | None = Form(None, description="Optional JSON string metadata")
+@router.get("/user/me")
+async def get_my_profile_endpoint(
+    user: any = Depends(get_current_user)
 ):
     """
-    Upload a document to Supabase Storage and index it as a new version.
-    Every upload is assigned a unique timestamp to support multi-version archiving.
+    Get the profile information for the currently logged-in user from MongoDB.
     """
-    try:
-        # 1. Basic validation
-        if not file.filename:
-            raise HTTPException(status_code=400, detail="Filename is required")
+    user_id = str(user["_id"])
+    
+    # Check completeness
+    is_complete = all([user.get("first_name"), user.get("last_name"), user.get("dob")])
+    
+    return {
+        "id": user_id,
+        "email": user.get("email"),
+        "role": user.get("role", "member"),
+        "display_name": user.get("display_name"),
+        "first_name": user.get("first_name"),
+        "last_name": user.get("last_name"),
+        "dob": user.get("dob"),
+        "is_complete": is_complete,
+        "created_at": user.get("created_at").isoformat() if isinstance(user.get("created_at"), datetime) else str(user.get("created_at"))
+    }
+
+
+@router.patch("/user/me")
+async def update_my_profile_endpoint(
+    profile_data: ProfileUpdate,
+    user: any = Depends(get_current_user)
+):
+    """
+    Update the profile information for the currently logged-in user in MongoDB.
+    """
+    from app.storage.repositories.users import UserRepository
+    user_id = str(user["_id"])
+    
+    update_data = profile_data.model_dump(exclude_unset=True)
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields provided for update.")
+    
+    update_data["updated_at"] = datetime.now(timezone.utc)
+    
+    success = await UserRepository.update_user(user_id, update_data)
+    
+    if not success:
+        # It's possible the record exists but no fields changed
+        pass
         
-        # 2. Generate a unique file path using a timestamp
-        original_filename = file.filename
-        file_ext = Path(original_filename).suffix
-        file_base = Path(original_filename).stem
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        unique_file_path = f"{file_base}_{timestamp}{file_ext}"
+    # Re-fetch the updated user
+    updated_user = await UserRepository.get_user_by_id(user_id)
         
-        # 3. Get file size for response
-        file_size_str = None
-        try:
-            content = await file.read()
-            file_size = len(content)
-            if file_size > 0:
-                size_mb = file_size / (1024 * 1024)
-                if size_mb < 1:
-                    file_size_str = f"{file_size / 1024:.2f} KB"
-                else:
-                    file_size_str = f"{size_mb:.2f} MB"
-            await file.seek(0)
-        except Exception:
-            file_size_str = "Unknown"
-        
-        # 4. Parse custom metadata from frontend
-        doc_metadata: dict = {}
-        if metadata:
-            try:
-                doc_metadata = json.loads(metadata)
-            except json.JSONDecodeError:
-                pass
-        
-        # 5. Add standard metadata
-        # We store both the unique path and the original filename for searchability
-        doc_metadata["file_path"] = unique_file_path
-        doc_metadata["filename"] = original_filename
-        doc_metadata["uploaded_at"] = datetime.now(timezone.utc).isoformat()
-        
-        # 6. Upload to Supabase Storage (now using the unique path)
-        public_url = await upload_document(file, unique_file_path, overwrite=False)
-        
-        # 7. Index the document version after upload
-        await index_document_from_storage(unique_file_path, doc_metadata)
-        
-        category_msg = f" as category '{doc_metadata.get('category', 'general')}'" if 'category' in doc_metadata else ""
-        
-        return UploadResponse(
-            status="success",
-            file_name=original_filename,
-            file_size=file_size_str,
-            message=f"✅ Document version '{unique_file_path}' uploaded and indexed successfully{category_msg}!",
-            file_url=public_url,
-            next_step="This version is now added to your heritage archive. You can ask questions about it."
-        )
-    except Exception as e:
-        import traceback
-        print(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Cumulative upload failed: {str(e)}")
+    return {"status": "success", "profile": {
+        "id": user_id,
+        "email": updated_user.get("email"),
+        "display_name": updated_user.get("display_name"),
+        "first_name": updated_user.get("first_name"),
+        "last_name": updated_user.get("last_name"),
+        "dob": updated_user.get("dob")
+    }}
 
 
 @router.post("/chat/new")
 async def new_chat_endpoint(
     request: AskRequest,
     top_k: int = Query(DEFAULT_TOP_K, description="Number of context chunks to retrieve", ge=1, le=20),
-    stream: bool = Query(True, description="Whether to stream the response")
+    stream: bool = Query(False, description="Whether to stream the response"),
+    user_id: str = Depends(get_optional_user)
 ):
     """
-    Start a new chat conversation.
-    Creates a new conversation and returns the conversation_id in the response.
-    
-    Args:
-        request: AskRequest containing query
-        top_k: Number of context chunks to retrieve (default: 5)
-        stream: Whether to stream the response (default: True)
-        
-    Returns:
-        StreamingResponse (with X-Conversation-Id header) or AskResponse (with conversation_id in body)
-        
-    Raises:
-        HTTPException 400: If query is empty
-        HTTPException 503: If vector store is not initialized
+    [PUBLIC/GUEST] Start a new chat conversation. 
     """
     if not request.query:
         raise HTTPException(status_code=400, detail="Query is required")
     
-    # Check if collection exists
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User identification required.")
+
     if not collection_exists():
-        raise HTTPException(
-            status_code=503,
-            detail="Vector store not initialized. Please upload documents first."
-        )
+        raise HTTPException(status_code=503, detail="Vector store not initialized.")
     
-    # New chat - conversation_id will be None, save_message will generate a new one
-    conversation_id = None
+    conversation_id = str(uuid.uuid4())
+    chat_repo = await Repositories.chat()
+    await chat_repo.initialize_session(conversation_id, user_id=user_id)
     
     if stream:
-        # For streaming: save user message first to get conversation_id
-        # Then return it in response headers
-        saved_message = await save_message(conversation_id, "user", request.query)
-        conversation_id = saved_message.get("conversation_id")
-        
-        # Return streaming response with conversation_id in headers
         return StreamingResponse(
-            ask(request.query, conversation_id, top_k=top_k, stream=True, skip_user_message=True),
+            ask(request.query, conversation_id, user_id=user_id, top_k=top_k, stream=True, model=request.model, mode=request.mode),
             media_type="text/plain",
-            headers={"X-Conversation-Id": conversation_id}
+            headers={"X-Conversation-Id": conversation_id, "X-Content-Type-Options": "nosniff"}
         )
     else:
-        # For non-streaming: save user message first to get conversation_id
-        saved_message = await save_message(conversation_id, "user", request.query)
-        conversation_id = saved_message.get("conversation_id")
-        
-        # Call ask with skip_user_message=True since we already saved it
         response_chunks = []
-        async for chunk in ask(request.query, conversation_id, top_k=top_k, stream=False, skip_user_message=True):
+        async for chunk in ask(request.query, conversation_id, user_id=user_id, top_k=top_k, stream=False, model=request.model, mode=request.mode):
             response_chunks.append(chunk)
         
         return AskResponse(
@@ -229,63 +200,35 @@ async def continue_chat_endpoint(
     conversation_id: str,
     request: AskRequest,
     top_k: int = Query(DEFAULT_TOP_K, description="Number of context chunks to retrieve", ge=1, le=20),
-    stream: bool = Query(True, description="Whether to stream the response")
+    stream: bool = Query(False, description="Whether to stream the response"),
+    user_id: str = Depends(get_optional_user)
 ):
     """
-    Continue an existing chat conversation.
-    Requires a valid conversation_id that exists in the database.
-    
-    Args:
-        conversation_id: Existing conversation ID (from path)
-        request: AskRequest containing query
-        top_k: Number of context chunks to retrieve (default: 5)
-        stream: Whether to stream the response (default: True)
-        
-    Returns:
-        StreamingResponse (with X-Conversation-Id header) or AskResponse (with conversation_id in body)
-        
-    Raises:
-        HTTPException 404: If conversation_id does not exist
-        HTTPException 400: If query is empty
-        HTTPException 503: If vector store is not initialized
+    [PUBLIC/GUEST] Continue an existing chat conversation.
     """
     if not request.query:
         raise HTTPException(status_code=400, detail="Query is required")
     
-    # Validate that conversation exists
-    if not await conversation_exists(conversation_id):
-        raise HTTPException(
-            status_code=404,
-            detail=f"Conversation with ID '{conversation_id}' not found. Use /chat/new to start a new conversation."
-        )
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User identification required.")
+
+    chat_repo = await Repositories.chat()
+    session = await chat_repo.get_by_id_and_user(conversation_id, user_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
     
-    # Check if collection exists
     if not collection_exists():
-        raise HTTPException(
-            status_code=503,
-            detail="Vector store not initialized. Please upload documents first."
-        )
+        raise HTTPException(status_code=503, detail="Vector store not initialized.")
     
     if stream:
-        # For streaming: save user message first
-        # Then return it in response headers
-        saved_message = await save_message(conversation_id, "user", request.query)
-        conversation_id = saved_message.get("conversation_id")
-        
-        # Return streaming response with conversation_id in headers
         return StreamingResponse(
-            ask(request.query, conversation_id, top_k=top_k, stream=True, skip_user_message=True),
+            ask(request.query, conversation_id, user_id=user_id, top_k=top_k, stream=True, model=request.model, mode=request.mode),
             media_type="text/plain",
-            headers={"X-Conversation-Id": conversation_id}
+            headers={"X-Conversation-Id": conversation_id, "X-Content-Type-Options": "nosniff"}
         )
     else:
-        # For non-streaming: save user message first
-        saved_message = await save_message(conversation_id, "user", request.query)
-        conversation_id = saved_message.get("conversation_id")
-        
-        # Call ask with skip_user_message=True since we already saved it
         response_chunks = []
-        async for chunk in ask(request.query, conversation_id, top_k=top_k, stream=False, skip_user_message=True):
+        async for chunk in ask(request.query, conversation_id, user_id=user_id, top_k=top_k, stream=False, model=request.model, mode=request.mode):
             response_chunks.append(chunk)
         
         return AskResponse(
@@ -296,130 +239,132 @@ async def continue_chat_endpoint(
         )
 
 
+@router.post("/bible/ask")
+async def ask_bible_explicit(
+    request: AskRequest,
+    user_id: str = Depends(get_optional_user)
+):
+    """Dedicated explicit endpoint for Bible queries."""
+    request.mode = "bible"
+    return await new_chat_endpoint(request, user_id=user_id)
+
+
+@router.post("/general/ask")
+async def ask_general_explicit(
+    request: AskRequest,
+    user_id: str = Depends(get_optional_user)
+):
+    """Dedicated explicit endpoint for General Heritage queries."""
+    request.mode = "general"
+    return await new_chat_endpoint(request, user_id=user_id)
+
+
 @router.get("/conversations/{conversation_id}/messages", response_model=ConversationResponse)
 async def get_conversation_messages(
     conversation_id: str,
-    limit: int | None = Query(None, description="Maximum number of messages to retrieve", ge=1, le=100)
+    limit: int | None = Query(None, description="Maximum number of turns to retrieve", ge=1, le=100),
+    user_id: str = Depends(get_optional_user)
 ):
     """
-    Get messages for a conversation.
-    
-    Args:
-        conversation_id: Unique conversation identifier
-        limit: Maximum number of messages to retrieve
-        
-    Returns:
-        ConversationResponse: Conversation messages with title
+    [PUBLIC/GUEST] Get messages for a given conversation.
     """
-    messages = await get_messages(conversation_id, limit=limit)
-    
-    # Get conversation title
-    title = await get_conversation_title(conversation_id)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User identification required.")
+
+    chat_repo = await Repositories.chat()
+    session = await chat_repo.get_by_id_and_user(conversation_id, user_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    msg_repo = await Repositories.messages()
+    interactions = await msg_repo.get_by_conversation(conversation_id, user_id=user_id, limit=limit)
     
     message_responses = []
-    for msg in messages:
-        # Parse created_at timestamp
-        created_at_str = msg.get("created_at")
-        if created_at_str:
-            # Handle ISO format with or without timezone
-            if isinstance(created_at_str, str):
-                try:
-                    if created_at_str.endswith("Z"):
-                        created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
-                    else:
-                        created_at = datetime.fromisoformat(created_at_str)
-                except ValueError:
-                    created_at = datetime.now(timezone.utc)
+    for turn in interactions:
+        created_at_str = turn.get("created_at")
+        try:
+            # Handle both datetime objects and ISO strings
+            if isinstance(created_at_str, datetime):
+                created_at = created_at_str
             else:
-                created_at = datetime.now(timezone.utc)
-        else:
+                created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+        except (ValueError, TypeError):
             created_at = datetime.now(timezone.utc)
         
-        # Humanize timestamp for sent_at field
-        sent_at_str = humanize_timestamp(created_at)
-        
+        # 1. Add User query as a message
         message_responses.append(
             MessageResponse(
-                id=str(msg.get("id", "")),
-                conversation_id=msg.get("conversation_id", ""),
-                role=msg.get("role", ""),
-                content=msg.get("content", ""),
-                sent_at=sent_at_str,
-                metadata=msg.get("metadata", {}),
+                id=f"{turn.get('id', '')}_q",
+                conversation_id=conversation_id,
+                role="user",
+                content=turn.get("query", ""),
+                sent_at=humanize_timestamp(created_at),
                 created_at=created_at
             )
         )
-    
-    total_count = len(message_responses)
-    total_str = f"{total_count} message{'s' if total_count != 1 else ''}"
-    
-    # Get last activity time from the most recent message
-    last_activity = None
-    if message_responses:
-        last_message = message_responses[-1]
-        last_activity = last_message.sent_at
+        
+        # 2. Add Assistant response as a message
+        if turn.get("response"):
+            message_responses.append(
+                MessageResponse(
+                    id=f"{turn.get('id', '')}_a",
+                    conversation_id=conversation_id,
+                    role="assistant",
+                    content=turn.get("response", ""),
+                    sent_at=humanize_timestamp(created_at),
+                    created_at=created_at
+                )
+            )
     
     return ConversationResponse(
         conversation_id=conversation_id,
-        title=title,
+        title=session.get("title"),
         messages=message_responses,
-        total=total_str,
-        last_activity=last_activity
+        total=f"{len(message_responses)} messages",
+        last_activity=humanize_timestamp(session.get("updated_at"))
     )
 
 
 @router.get("/conversations", response_model=ConversationsListResponse)
 async def list_conversations_endpoint(
-    limit: int = Query(50, description="Maximum number of conversations to retrieve", ge=1, le=100)
+    limit: int = Query(50, description="Maximum number of conversations to retrieve", ge=1, le=100),
+    user_id: str = Depends(get_optional_user)
 ):
     """
-    List all chat conversations.
-    
-    Args:
-        limit: Maximum number of conversations to retrieve
-        
-    Returns:
-        ConversationsListResponse: List of conversations with their latest message timestamps
+    [PUBLIC] List recent chat conversations.
     """
-    conversations = await list_conversations(limit=limit)
+    if not user_id or user_id.startswith("guest_"):
+        return ConversationsListResponse(conversations=[], total="0 conversations")
+
+    chat_repo = await Repositories.chat()
+    sessions = await chat_repo.get_recent_sessions(user_id, limit=limit)
     
-    # Fetch additional data for each conversation (message count and last message)
+    msg_repo = await Repositories.messages()
+    
     conversation_items = []
-    for conv in conversations:
-        conv_id = conv.get("conversation_id", "")
-        
-        # Get messages to get count and last message in one query
-        messages = await get_messages(conv_id)
-        message_count = len(messages)
+    for sess in sessions:
+        conv_id = sess.get("id")
+        interactions = await msg_repo.get_by_conversation(conv_id, user_id=user_id, limit=1)
         
         last_message = None
-        if messages:
-            last_msg = messages[-1]
-            content = last_msg.get("content", "")
-            # Truncate if too long
-            if len(content) > 100:
-                last_message = content[:100] + "..."
-            else:
-                last_message = content
-        
-        message_count_str = f"{message_count} message{'s' if message_count != 1 else ''}" if message_count > 0 else None
+        if interactions:
+            # Use the query from the latest turn as physical last message preview
+            content = interactions[0].get("query", "")
+            last_message = content[:100] + "..." if len(content) > 100 else content
         
         conversation_items.append(
             ConversationListItem(
                 conversation_id=conv_id,
-                title=conv.get("title"),
+                title=sess.get("title"),
                 last_message=last_message,
-                last_activity=humanize_timestamp(conv.get("last_message_at")),
-                message_count=message_count_str
+                last_activity=humanize_timestamp(sess.get("updated_at")),
+                message_count="Recent session"
             )
         )
     
-    total_count = len(conversation_items)
-    total_str = f"{total_count} conversation{'s' if total_count != 1 else ''}"
-    
     return ConversationsListResponse(
         conversations=conversation_items,
-        total=total_str
+        total=f"{len(conversation_items)} conversations"
     )
 
 
@@ -436,16 +381,15 @@ async def health_check():
 async def root():
     """Root endpoint with API information."""
     return APIInfoResponse(
-        message="Heritage RAG System API",
-        description="Production-ready RAG system using LlamaIndex, LangChain, Qdrant, Supabase, and OpenRouter",
-        version="1.0.0",
+        message="Heritage RAG System API (Mixed-Access Mode)",
+        description="Public chat enabled with Admin-protected document management.",
+        version="1.2.0",
         endpoints={
-            "upload": "/api/v1/upload",
-            "new_chat": "/api/v1/chat/new",
-            "continue_chat": "/api/v1/chat/{conversation_id}",
-            "conversations": "/api/v1/conversations",
-            "conversation_messages": "/api/v1/conversations/{conversation_id}/messages",
-            "health": "/api/v1/health"
+            "public_chat": "/chat/new",
+            "admin_upload": "/admin/upload",
+            "admin_list_documents": "/admin/documents",
+            "admin_delete": "/admin/documents/{id}",
+            "admin_users": "/admin/users",
+            "admin_stats": "/admin/stats"
         }
     )
-
