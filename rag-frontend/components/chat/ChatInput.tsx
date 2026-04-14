@@ -1,5 +1,6 @@
 "use client";
 
+import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AskRequestSchema } from "@/lib/schemas/requests";
@@ -63,7 +64,7 @@ export function ChatInput({
     formState: { errors },
     reset,
     watch,
-  } = useForm<AskRequest>({
+  } = useForm<z.input<typeof AskRequestSchema>, any, AskRequest>({
     resolver: zodResolver(AskRequestSchema),
     mode: "onChange",
   });
