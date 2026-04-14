@@ -60,13 +60,16 @@ class Settings(BaseSettings):
     @classmethod
     def assemble_admin_ids(cls, v: any) -> list[str]:
         if isinstance(v, str):
-            if v.startswith("["):
+            v_stripped = v.strip()
+            if v_stripped.startswith("[") and v_stripped.endswith("]"):
                 import json
                 try:
-                    return json.loads(v)
+                    return json.loads(v_stripped)
                 except Exception:
+                    # If it looks like JSON but fails, it might be malformed.
+                    # We'll fall back to comma splitting but strip quotes just in case.
                     pass
-            return [i.strip() for i in v.split(",") if i.strip()]
+            return [i.strip().strip("'").strip('"') for i in v_stripped.split(",") if i.strip()]
         return v
 
     @field_validator("supabase_url", mode="after")
@@ -81,13 +84,16 @@ class Settings(BaseSettings):
     @classmethod
     def assemble_cors_origins(cls, v: any) -> list[str]:
         if isinstance(v, str):
-            if v.startswith("["):
+            v_stripped = v.strip()
+            if v_stripped.startswith("[") and v_stripped.endswith("]"):
                 import json
                 try:
-                    return json.loads(v)
+                    return json.loads(v_stripped)
                 except Exception:
+                    # Fall back to comma splitting but be careful with brackets/quotes
                     pass
-            return [i.strip() for i in v.split(",")]
+            # Split by comma and strip common surrounding characters from items
+            return [i.strip().strip("'").strip('"').strip("[").strip("]") for i in v_stripped.split(",") if i.strip()]
         return v
     
     model_config = SettingsConfigDict(

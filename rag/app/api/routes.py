@@ -370,9 +370,21 @@ async def list_conversations_endpoint(
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
-    """Health check endpoint."""
+    """Health check endpoint with DB ping."""
+    from app.storage.mongodb_client import get_database
+    
+    db_status = "connected"
+    try:
+        db = await get_database()
+        # The admin command 'ping' is a lightweight way to check connectivity
+        await db.command("ping")
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Health check DB ping failed: {e}")
+        db_status = "disconnected"
+    
     return HealthResponse(
-        status="healthy",
+        status="healthy" if db_status == "connected" else "degraded",
         timestamp=datetime.now(timezone.utc).isoformat()
     )
 
