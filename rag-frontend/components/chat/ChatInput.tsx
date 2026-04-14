@@ -43,7 +43,7 @@ export function ChatInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FilePreview[]>([]);
-  const [selectedModel, setSelectedModel] = useState<string>("gemini-1.5-flash-8b");
+  const [selectedModel, setSelectedModel] = useState<string>("gemini-3-flash-preview");
   const prevConversationIdRef = useRef<string | null>(null);
 
   // Auto-focus input when starting a new conversation
@@ -241,24 +241,34 @@ export function ChatInput({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-56 rounded-2xl border-primary/20 bg-background/80 backdrop-blur-2xl p-1.5">
                       <DropdownMenuItem 
-                        onClick={() => setSelectedModel("gemini-1.5-flash-8b")}
+                        onClick={() => setSelectedModel("gemini-3-flash-preview")}
                         className="flex flex-col items-start gap-1 rounded-xl p-2.5 focus:bg-primary/10"
                       >
                         <div className="flex items-center gap-2 font-bold uppercase tracking-tighter text-[0.65rem]">
                           <Sparkles className="h-3 w-3 text-primary" />
-                          Linguistic Engine (Gemini 1.5 Lite)
+                          Linguistic Engine (Gemini 3 Flash)
                         </div>
-                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Ultra-efficient Ga processing (Experimental Lite).</div>
+                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Ultra-efficient 3rd gen. processing (Preview).</div>
                       </DropdownMenuItem>
                       <DropdownMenuItem 
-                        onClick={() => setSelectedModel("gemini-1.5-flash")}
+                        onClick={() => setSelectedModel("gemini-3.1-pro-preview")}
                         className="flex flex-col items-start gap-1 rounded-xl p-2.5 focus:bg-primary/10"
                       >
                         <div className="flex items-center gap-2 font-bold uppercase tracking-tighter text-[0.65rem]">
                           <Sparkles className="h-3 w-3 text-amber-400" />
-                          Linguistic Engine (Gemini 1.5 Flash)
+                          Linguistic Engine (Gemini 3.1 Pro)
                         </div>
-                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Standard Gemini 1.5 flash for deep archival grounding.</div>
+                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Deep archival grounding with 3.1 Pro logic.</div>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setSelectedModel("gemini-3.1-flash-lite-preview")}
+                        className="flex flex-col items-start gap-1 rounded-xl p-2.5 focus:bg-primary/10"
+                      >
+                        <div className="flex items-center gap-2 font-bold uppercase tracking-tighter text-[0.65rem]">
+                          <Sparkles className="h-3 w-3 text-emerald-400" />
+                          Linguistic Engine (Gemini 3.1 Lite)
+                        </div>
+                        <div className="text-[10px] lowercase text-foreground/40 font-medium">High-speed linguistic analysis (Preview).</div>
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => setSelectedModel("meta-llama/llama-3-8b-instruct")}
@@ -268,17 +278,7 @@ export function ChatInput({
                           <Brain className="h-3 w-3 text-blue-400" />
                           Logic Engine (Llama 3)
                         </div>
-                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Enhanced logical reasoning & conversational depth.</div>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => setSelectedModel("nvidia/nemotron-nano-9b-v2:free")}
-                        className="flex flex-col items-start gap-1 rounded-xl p-2.5 focus:bg-emerald-500/10"
-                      >
-                        <div className="flex items-center gap-2 font-bold uppercase tracking-tighter text-[0.65rem]">
-                          <Eye className="h-3 w-3 text-emerald-400" />
-                          Vision Engine (Nemotron)
-                        </div>
-                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Unified reasoning & high-efficiency processing (9B V2).</div>
+                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Enhanced logical reasoning & cross-referencing.</div>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
