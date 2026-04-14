@@ -231,12 +231,14 @@ export function ChatInput({
                         ) : (
                           <Brain className="h-3 w-3 text-blue-400/60" />
                         )}
-                        {selectedModel.includes("gemini") 
-                          ? "Linguistic Engine" 
-                          : selectedModel.includes("nemotron") 
-                            ? "Vision Engine" 
-                            : "Logic Engine"}
-                        <ChevronDown className="h-2.5 w-2.5 opacity-50" />
+                        <span className="hidden sm:inline">
+                          {selectedModel.includes("gemini") 
+                            ? "Linguistic Engine" 
+                            : selectedModel.includes("nemotron") 
+                              ? "Vision Engine" 
+                              : "Logic Engine"}
+                        </span>
+                        <ChevronDown className="h-2.5 w-2.5 opacity-50 shrink-0" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-56 rounded-2xl border-primary/20 bg-background/80 backdrop-blur-2xl p-1.5">
@@ -299,13 +301,15 @@ export function ChatInput({
                         ) : (
                           <History className="h-3 w-3 text-emerald-400/60" />
                         )}
-                        <span className="opacity-70">Focus:</span>
-                        {selectedMode === "auto" 
-                          ? "Auto" 
-                          : selectedMode === "bible" 
-                            ? "Bible" 
-                            : "General"}
-                        <ChevronDown className="h-2.5 w-2.5 opacity-50" />
+                        <span className="opacity-70 hidden sm:inline">Focus:</span>
+                        <span className="hidden sm:inline">
+                          {selectedMode === "auto" 
+                            ? "Auto" 
+                            : selectedMode === "bible" 
+                              ? "Bible" 
+                              : "General"}
+                        </span>
+                        <ChevronDown className="h-2.5 w-2.5 opacity-50 shrink-0" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-56 rounded-2xl border-primary/20 bg-background/80 backdrop-blur-2xl p-1.5">
@@ -343,10 +347,10 @@ export function ChatInput({
                   </DropdownMenu>
                 </div>
 
-                <div className="flex items-center gap-3 pr-1">
+                <div className="flex items-center gap-1.5 sm:gap-3 pr-1">
                   <div className={cn(
                     "font-mono font-bold uppercase tracking-widest tabular-nums",
-                    variant === "hero" ? "text-[0.65rem] text-foreground/50" : "text-[0.6rem] text-foreground/30"
+                    variant === "hero" ? "text-[0.6rem] sm:text-[0.65rem] text-foreground/50" : "text-[0.55rem] sm:text-[0.6rem] text-foreground/30"
                   )}>
                     {query?.length || 0}/2000
                   </div>
