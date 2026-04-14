@@ -41,8 +41,9 @@ export default function BibleRefinerTool() {
         headers: { "Content-Type": "multipart/form-data" }
       });
 
-      if (res.refined_records?.length > 0) {
-        setStagedData(res);
+      const { data } = res;
+      if (data.refined_records?.length > 0) {
+        setStagedData(data);
         setStagedFilename(file.name);
         setIsPreviewOpen(true);
       } else {
