@@ -71,7 +71,7 @@ export function ChatWindow({ conversationId, sidebarOpen = false }: ChatWindowPr
           <MessageList conversationId={normalizedConversationId} />
         )}
       </div>
-      {messages.length > 0 && (
+      {(messages.length > 0 || !!normalizedConversationId) && (
         <div className="shrink-0 bg-background pb-2 sm:pb-3 md:pb-4 pt-1 sm:pt-2">
           <div className="mx-auto max-w-4xl px-2 sm:px-4 md:px-6 lg:px-8">
             <ChatInput 
