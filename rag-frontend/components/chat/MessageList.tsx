@@ -43,6 +43,8 @@ export function MessageList({ conversationId }: MessageListProps) {
     error: historyError
   } = useMessages(conversationId || null);
 
+  const isLoading = isStoreLoading || isHistoryLoading;
+
   const { displayedContent, isTyping } = useTypewriter(currentStreamingContent || "");
   const displayName = useUserStore((state) => state.displayName);
   const scrollRef = useRef<HTMLDivElement>(null);
