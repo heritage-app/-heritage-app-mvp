@@ -7,6 +7,7 @@ interface ConversationState {
   isLoading: boolean;
   isInitialLoading: boolean;
   selectedConversationId: string | null;
+  setConversations: (conversations: ConversationListItem[]) => void;
   fetchConversations: () => Promise<void>;
   selectConversation: (id: string) => void;
   addConversation: (item: ConversationListItem) => void;
@@ -18,6 +19,10 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   isLoading: false,
   isInitialLoading: true,
   selectedConversationId: null,
+
+  setConversations: (conversations: ConversationListItem[]) => {
+    set({ conversations });
+  },
 
   fetchConversations: async () => {
     const isFirstLoad = get().conversations.length === 0;

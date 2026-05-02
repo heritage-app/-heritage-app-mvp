@@ -6,16 +6,14 @@ export const CONVERSATIONS_QUERY_KEY = ["conversations"];
 
 export function useConversations(limit: number = 50) {
   const queryClient = useQueryClient();
-  const { setConversations } = useConversationStore();
+  const { fetchConversations } = useConversationStore();
 
   const query = useQuery({
     queryKey: CONVERSATIONS_QUERY_KEY,
     queryFn: async () => {
       const data = await getConversations(limit);
-      // Sync with Zustand for components that still rely on it
-      if (data && data.conversations) {
-        setConversations(data.conversations);
-      }
+      // Also sync with Zustand store
+      await fetchConversations();
       return data;
     },
   });
