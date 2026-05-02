@@ -8,7 +8,8 @@ export async function proxy(request: NextRequest) {
     request.nextUrl.pathname === "/" || 
     request.nextUrl.pathname.startsWith("/auth") ||
     request.nextUrl.pathname.startsWith("/public") ||
-    request.nextUrl.pathname.startsWith("/conversations");
+    request.nextUrl.pathname.startsWith("/conversations") ||
+    request.nextUrl.pathname.startsWith("/admin");
 
   if (!token && !isPublicRoute) {
     const url = request.nextUrl.clone();
