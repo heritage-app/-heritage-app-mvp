@@ -24,19 +24,19 @@ export default function Home() {
       </div>
 
       {/* Premium Minimalist Footer */}
-      <footer className="relative border-t border-foreground/5 bg-transparent px-6 py-16 sm:px-8 lg:px-12 text-foreground">
+      <footer className="relative border-t border-foreground/5 bg-transparent px-4 py-10 sm:px-6 md:px-8 lg:px-12 text-foreground">
         <div className="mx-auto max-w-7xl">
-          <div className="grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-3">
-            <div className="space-y-4">
-              <span className="text-xl font-black tracking-tighter text-foreground">Ga AI.</span>
-              <p className="max-w-xs text-sm leading-relaxed text-foreground/70">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3">
+            <div className="space-y-3 sm:space-y-4">
+              <span className="text-lg sm:text-xl font-black tracking-tighter text-foreground">Ga AI.</span>
+              <p className="max-w-xs text-xs sm:text-sm leading-relaxed text-foreground/70">
                 A specialized linguistic engine dedicated to the preservation and fluent translation of the Ga language.
               </p>
             </div>
             
-            <div className="flex flex-col gap-4">
-              <span className="text-[0.65rem] font-bold uppercase tracking-[0.4em] text-foreground/60">Legal & Support</span>
-              <nav className="flex flex-col gap-3 text-xs font-semibold text-foreground/70">
+            <div className="flex flex-col gap-3 sm:gap-4">
+              <span className="text-[0.55rem] sm:text-[0.65rem] font-bold uppercase tracking-[0.3em] sm:tracking-[0.4em] text-foreground/60">Legal & Support</span>
+              <nav className="flex flex-col gap-2 sm:gap-3 text-xs sm:text-sm font-semibold text-foreground/70">
                 {["Privacy Policy", "Terms of Service", "Contact Us"].map((link) => (
                   <a key={link} href="#" className="transition-all hover:text-foreground hover:translate-x-1">
                     {link}
@@ -45,12 +45,12 @@ export default function Home() {
               </nav>
             </div>
 
-            <div className="flex flex-col justify-between items-start lg:items-end">
-              <div className="space-y-1 text-left lg:text-right">
-                <p className="text-[0.65rem] font-bold uppercase tracking-[0.4em] text-primary">Mission Statement</p>
-                <p className="text-xs font-medium italic text-foreground/50 truncate">"Language technology in service of culture."</p>
+            <div className="flex flex-col justify-between items-start sm:items-end md:justify-end">
+              <div className="space-y-1 text-left sm:text-right">
+                <p className="text-[0.55rem] sm:text-[0.65rem] font-bold uppercase tracking-[0.3em] sm:tracking-[0.4em] text-primary">Mission Statement</p>
+                <p className="text-[10px] sm:text-xs font-medium italic text-foreground/50 truncate">"Language technology in service of culture."</p>
               </div>
-              <p className="mt-8 text-[0.6rem] font-medium tracking-[0.3em] text-foreground/40 uppercase">
+              <p className="mt-6 sm:mt-8 text-[0.5rem] sm:text-[0.6rem] font-medium tracking-[0.3em] text-foreground/40 uppercase">
                 © 2026 Ga Language AI • Crafted with Respect
               </p>
             </div>

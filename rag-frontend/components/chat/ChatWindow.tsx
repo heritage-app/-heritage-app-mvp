@@ -72,20 +72,20 @@ export function ChatWindow({ conversationId, sidebarOpen = false }: ChatWindowPr
         )}
       </div>
       {messages.length > 0 && (
-        <div className="shrink-0 bg-background pb-3 sm:pb-4 pt-2">
-          <div className="mx-auto max-w-4xl px-3 sm:px-6 lg:px-8">
+        <div className="shrink-0 bg-background pb-2 sm:pb-3 md:pb-4 pt-1 sm:pt-2">
+          <div className="mx-auto max-w-4xl px-2 sm:px-4 md:px-6 lg:px-8">
             <ChatInput 
               variant="compact" 
               isStatic={true} 
               className="!max-w-none px-0" 
               containerClassName="py-0"
               inputClassName={cn(
-                "w-full bg-transparent border-0 focus:ring-0 resize-none py-1.5 text-[14px] sm:text-[15px] leading-relaxed scrollbar-hide",
-                "min-h-[30px]"
+                "w-full bg-transparent border-0 focus:ring-0 resize-none py-1.5 text-[13px] sm:text-[14px] md:text-[15px] leading-relaxed scrollbar-hide",
+                "min-h-[28px] sm:min-h-[30px]"
               )}
             />
-            <div className="mt-3 sm:mt-4 text-center">
-              <span className="text-[10px] sm:text-[0.6rem] font-medium text-foreground/20 px-4 sm:px-10 italic">
+            <div className="mt-2 sm:mt-3 text-center">
+              <span className="text-[9px] sm:text-[10px] md:text-[0.6rem] font-medium text-foreground/20 px-2 sm:px-4 italic">
                 Heritage App can make mistakes. Check important info.
               </span>
             </div>
