@@ -9,6 +9,7 @@ import { ChatInput } from "./ChatInput";
 import { useChatStore } from "@/store/chatStore";
 import { useUserStore } from "@/store/userStore";
 import { useTypewriter } from "@/hooks/use-typewriter";
+import { useMessages } from "@/hooks/use-messages";
 import { Spinner } from "@/components/ui/spinner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -28,18 +29,30 @@ interface MessageListProps {
 }
 
 export function MessageList({ conversationId }: MessageListProps) {
-  const { messages, isLoading, isStreaming, currentStreamingContent, currentConversationId } =
-    useChatStore();
+  const { 
+    isStreaming, 
+    currentStreamingContent, 
+    currentConversationId,
+    messages: storeMessages,
+    isLoading: isStoreLoading
+  } = useChatStore();
+
+  const { 
+    messages: historicalMessages, 
+    isLoading: isHistoryLoading,
+    error: historyError
+  } = useMessages(conversationId || null);
+
   const { displayedContent, isTyping } = useTypewriter(currentStreamingContent || "");
   const displayName = useUserStore((state) => state.displayName);
   const scrollRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // CRITICAL: Filter messages to only show those for the current conversation
-  // This prevents showing messages from a different conversation
-  const filteredMessages = conversationId && currentConversationId === conversationId
-    ? messages.filter(msg => msg.conversation_id === conversationId)
-    : messages;
+  // Merge historical messages with any new messages in the store that aren't persisted yet
+  const filteredMessages = [
+    ...historicalMessages,
+    ...storeMessages.filter(m => !historicalMessages.some(hm => hm.id === m.id || hm.created_at === m.created_at))
+  ];
 
   useEffect(() => {
     // Auto-scroll to bottom when new messages arrive
@@ -127,7 +140,7 @@ export function MessageList({ conversationId }: MessageListProps) {
   // Check if we're waiting for a response (user sent message but no response yet)
   const lastMessage = filteredMessages[filteredMessages.length - 1];
   const isThinking = 
-    isLoading && 
+    (isHistoryLoading || isStoreLoading) && 
     lastMessage?.role === "user" && 
     !isStreaming && 
     !currentStreamingContent;

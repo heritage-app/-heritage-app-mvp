@@ -3,6 +3,7 @@ Document indexing module using LlamaIndex.
 Handles one-time indexing and document processing.
 """
 
+import logging
 from pathlib import Path
 from typing import List, Optional
 from llama_index.core import VectorStoreIndex, Document
@@ -19,6 +20,8 @@ from app.rag.vector_store import get_vector_store, collection_exists, get_qdrant
 from app.storage.service import StorageService
 from app.storage.supabase_client import get_supabase
 from app.rag.constants import COLLECTION_NAME, COLLECTION_MAP, get_collection_name
+
+logger = logging.getLogger(__name__)
 
 
 class BibleRefiner:
@@ -357,7 +360,7 @@ async def index_from_bytes(content: bytes, file_path: str, metadata: Optional[di
         if file_extension == ".jsonl":
             documents = _parse_bible_jsonl(text, file_path)
         else:
-            print(f"Refining Bible document: {filename}...")
+            logger.info(f"Refining Bible document: {filename}...")
             if file_extension == ".pdf":
                 documents = _parse_bible_pdf(text, file_path)
             else:
@@ -379,8 +382,8 @@ async def index_from_bytes(content: bytes, file_path: str, metadata: Optional[di
                     refined_path = f"processed/{filename.split('.')[0]}_refined.jsonl"
                     try:
                         await StorageService.upload_file(jsonl_content.encode('utf-8'), refined_path, "application/jsonl")
-                        print(f"Saved refined sidecar: {refined_path}")
-                    except Exception as e: print(f"Failed to save sidecar: {e}")
+                        logger.info(f"Saved refined sidecar: {refined_path}")
+                    except Exception as e: logger.warning(f"Failed to save sidecar: {e}")
 
         if not documents: 
             documents = [Document(
@@ -581,7 +584,7 @@ def _parse_heritage_jsonl(text: str, file_path: str, base_metadata: dict, exclud
         )
         documents.append(doc)
 
-    print(f"JSONL parser: created {len(documents)} records from {Path(file_path).name}")
+    logger.info(f"JSONL parser: created {len(documents)} records from {Path(file_path).name}")
     return documents
 
 

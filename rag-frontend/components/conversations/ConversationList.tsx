@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Plus, Shield } from "lucide-react";
 import { useUserStore } from "@/store/userStore";
+import { useConversations } from "@/hooks/use-conversations";
 
 interface ConversationListProps {
   onConversationSelect?: () => void;
@@ -17,17 +18,16 @@ interface ConversationListProps {
 
 export function ConversationList({ onConversationSelect, collapsed = false }: ConversationListProps) {
   const {
-    conversations,
-    isInitialLoading,
     selectedConversationId,
-    fetchConversations,
     selectConversation,
   } = useConversationStore();
-  const router = useRouter();
+  
+  const { 
+    conversations, 
+    isLoading: isConversationsLoading 
+  } = useConversations();
 
-  useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
+  const router = useRouter();
 
   const handleNewConversation = () => {
     // Immediately clear chat state before navigation
@@ -44,10 +44,10 @@ export function ConversationList({ onConversationSelect, collapsed = false }: Co
 
   const { isLoaded, profile } = useUserStore();
 
-  if (isInitialLoading || !isLoaded) {
+  if (isConversationsLoading || !isLoaded) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Spinner className="h-8 w-8" />
+        <Spinner className="h-8 w-8 text-primary/40" />
       </div>
     );
   }

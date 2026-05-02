@@ -1,12 +1,13 @@
 import uuid
 import json
+import logging
 from pathlib import Path
 from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form
 from typing import List, Dict, Any, Optional
 from app.api.deps import get_current_admin
 from app.storage.providers import Repositories
 from app.schemas.responses import (
-    DocumentListResponse, DocumentListItem, UploadResponse, 
+    DocumentListResponse, DocumentListItem, UploadResponse,
     UserListResponse, UserListItem, SystemStatsResponse,
     RefinementPreviewResponse, RefineCommitRequest
 )
@@ -17,6 +18,8 @@ from qdrant_client import models
 from app.rag.constants import COLLECTION_NAME
 from datetime import datetime, timezone
 import re
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -131,21 +134,21 @@ async def admin_delete_document(
                         must=[models.FieldCondition(key="file_path", match=models.MatchValue(value=storage_path))]
                     )
                 )
-                print(f"✅ Vectors deleted from collection: {target_collection}")
+                logger.info(f"Vectors deleted from collection: {target_collection}")
         except Exception as e:
-            print(f"❌ Vector deletion failed for {storage_path}: {e}")
+            logger.error(f"Vector deletion failed for {storage_path}: {e}")
 
     # 2. Delete from Supabase Storage
     if storage_path:
         try:
             await supabase_delete_document(storage_path)
-            print(f"✅ Binary file deleted from Supabase: {storage_path}")
+            logger.info(f"Binary file deleted from Supabase: {storage_path}")
         except Exception as e:
-            print(f"❌ Supabase deletion failed for {storage_path}: {e}")
+            logger.error(f"Supabase deletion failed for {storage_path}: {e}")
             
     # 3. Delete from MongoDB
     await doc_repo.delete(document_id)
-    print(f"✅ Record deleted from MongoDB: {document_id}")
+    logger.info(f"Record deleted from MongoDB: {document_id}")
     
     return {"status": "success", "message": f"Document {document_id} completely removed from Heritage system."}
 

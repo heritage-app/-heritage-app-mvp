@@ -25,6 +25,7 @@ const ibmPlexSans = IBM_Plex_Sans({
 });
 
 import { ThemeProvider } from "@/components/theme-provider";
+import { QueryProvider } from "@/components/providers/query-provider";
 import { ProfileOnboarding } from "@/components/auth/ProfileOnboarding";
 
 export default function RootLayout({
@@ -43,9 +44,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          <ProfileOnboarding />
-          <Toaster />
+          <QueryProvider>
+            {children}
+            <ProfileOnboarding />
+            <Toaster />
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

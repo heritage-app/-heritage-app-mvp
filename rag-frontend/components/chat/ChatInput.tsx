@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { AskRequestSchema } from "@/lib/schemas/requests";
 import { Button } from "@/components/ui/button";
 import { useChatStore } from "@/store/chatStore";
+import { useMessages } from "@/hooks/use-messages";
 import { Send, X, CirclePlus, Mic, Eye } from "lucide-react";
 import type { AskRequest } from "@/types";
 import { cn } from "@/lib/utils";
@@ -39,7 +40,9 @@ export function ChatInput({
   isStatic = false,
   variant = "hero"
 }: ChatInputProps) {
-  const { sendMessage, isLoading, isStreaming, currentConversationId, selectedMode, setMode } = useChatStore();
+  const { isLoading, isStreaming, currentConversationId, selectedMode, setMode } = useChatStore();
+  const { sendMessage } = useMessages(currentConversationId);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FilePreview[]>([]);
@@ -106,7 +109,7 @@ export function ChatInput({
     }
 
     // 2. TRIGGER SEND (don't await for the whole streaming process)
-    sendMessage(submittedQuery, selectedModel);
+    sendMessage({ query: submittedQuery, model: selectedModel });
   };
 
   const handleFileSelect = (file: File) => {

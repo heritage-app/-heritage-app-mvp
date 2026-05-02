@@ -1,6 +1,9 @@
+import logging
 from typing import List, Dict, Any, Optional
 from pymongo import AsyncMongoClient, ASCENDING
 from .base import BaseRepository
+
+logger = logging.getLogger(__name__)
 
 class MessageRepository(BaseRepository):
     """
@@ -28,7 +31,7 @@ class MessageRepository(BaseRepository):
             # 86400 seconds = 24 hours
             await self.guest_collection.create_index("created_at", expireAfterSeconds=86400)
         except Exception as e:
-            print(f"Warning: Failed to create TTL index: {e}")
+            logger.warning(f"Failed to create TTL index: {e}")
 
     async def get_by_conversation(self, conversation_id: str, user_id: str = None, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """

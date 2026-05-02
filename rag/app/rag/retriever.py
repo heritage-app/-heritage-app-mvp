@@ -12,6 +12,7 @@ from llama_index.core.vector_stores import MetadataFilter, MetadataFilters, Filt
 from app.rag.embeddings import get_embeddings
 from app.rag.vector_store import get_vector_store
 from app.rag.constants import COLLECTION_NAME, COLLECTION_MAP, DEFAULT_TOP_K, MIN_RELEVANCE_SCORE
+from app.core.resilience import instrument_time
 
 
 def get_retriever(top_k: int = DEFAULT_TOP_K) -> VectorIndexRetriever:
@@ -113,6 +114,7 @@ def _has_relevant_results(nodes: List[NodeWithScore], min_score: float = MIN_REL
     return any((getattr(node, 'score', 0.0) >= min_score) for node in nodes)
 
 
+@instrument_time("Vector_Retrieval")
 def retrieve_context(
     query: str, 
     top_k: int = DEFAULT_TOP_K, 
@@ -151,7 +153,7 @@ def retrieve_context(
                     target_collections.insert(0, target_coll)
                 
                 # [VERBOSE LOGGING]
-                print(f"DEBUG: Intent detected! Prioritizing collection: '{target_coll}'")
+                logger.debug(f"Intent detected! Prioritizing collection: '{target_coll}'")
 
     # 2. Extract intent variations
     variations = []
@@ -202,7 +204,7 @@ def retrieve_context(
                     
         except Exception as e:
             # If a collection doesn't exist yet, skip it
-            print(f"Skipping collection '{coll}' search: {e}")
+            logger.warning(f"Skipping collection '{coll}' search: {e}")
             continue
 
     if not all_nodes:

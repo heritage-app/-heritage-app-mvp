@@ -6,6 +6,7 @@ Uses MongoDB repositories for persistence.
 
 import uuid
 import logging
+import asyncio
 from collections.abc import AsyncGenerator
 from typing import Any, Optional, List
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -20,10 +21,14 @@ from app.rag.memory import (
 from app.storage.providers import Repositories
 from app.rag.constants import DEFAULT_TOP_K
 from app.core.config import settings
+from app.core.resilience import instrument_time, retry_llm
+from app.core.cache import cached_llm_response, generate_cache_key, llm_cache
 
 logger = logging.getLogger(__name__)
 
 
+@retry_llm
+@instrument_time("LLM_Persona_Stream")
 async def _stream_persona_response(
     query: str,
     grounded_answer: str,
@@ -62,6 +67,7 @@ async def _stream_persona_response(
             yield token
 
 
+@instrument_time("RAG_Bible_Engine")
 async def ask_bible(
     query: str,
     conversation_id: str,
@@ -200,6 +206,7 @@ async def ask_bible(
     async for t in _stream_persona_response(query, archive_label + grounded, memory_window, model, stream): yield t
 
 
+@instrument_time("RAG_General_Engine")
 async def ask_general(
     query: str,
     conversation_id: str,
@@ -317,6 +324,7 @@ async def ask_general(
     async for t in _stream_persona_response(query, grounded, memory_window, model, stream): yield t
 
 
+@instrument_time("Unified_RAG_Entry")
 async def ask(
     query: str,
     conversation_id: str | None,
@@ -330,10 +338,43 @@ async def ask(
     """
     Unified RAG Entry Point.
     Routes to either ask_bible or ask_general based on mode or query detection.
+    Implements Hybrid Routing for faster response times on simple queries.
     """
     chat_repo = await Repositories.chat()
     msg_repo = await Repositories.messages()
+    
+    q_low = query.lower().strip()
+    
+    # --- STEP 1: CACHE CHECK (Fast Path) ---
+    if not stream:
+        cache_key = generate_cache_key("ask_v1", query=query, model=model, mode=mode)
+        if cache_key in llm_cache:
+            logger.info(f"PERF: Cache hit for query: {query}")
+            # Yield in a way that respects the generator interface
+            for segment in [llm_cache[cache_key]]:
+                yield segment
+            return
 
+    # --- STEP 2: HYBRID ROUTING / QUERY CLASSIFICATION ---
+    is_greeting = q_low in ["hi", "hello", "hey", "hɛloo", "manye", "ojekoo", "good morning", "how are you"]
+    
+    # Bible Citation Check (e.g. "Genesis 1:1")
+    import re
+    citation_match = re.search(r'(genesis|exodus|leviticus|numbers|deuteronomy|mose)\s+(\d+)(?:[\s:]+(\d+))?', q_low)
+    
+    if is_greeting:
+        logger.info("ROUTING: Fast-path greeting detected")
+        async for token in _stream_persona_response(query, "", [], model, stream):
+            yield token
+        return
+
+    # If it's a specific Bible citation, we can potentially skip pure vector retrieval
+    # and pass it to ask_bible with a 'specific' hint
+    if citation_match:
+        logger.info(f"ROUTING: Bible citation detected: {citation_match.group(0)}")
+        mode = "bible"
+
+    # --- STEP 3: CONTEXT & SESSION INITIALIZATION ---
     if conversation_id is None:
         conversation_id = str(uuid.uuid4())
         await chat_repo.initialize_session(conversation_id, user_id=user_id)
@@ -344,8 +385,6 @@ async def ask(
     # Route logic
     target_mode = mode
     if target_mode == "auto":
-        q_low = query.lower()
-        # Detect Bible intent: citations (Gen 1:1) or keywords
         is_bible = any(b in q_low for b in ["genesis", "exodus", "leviticus", "numbers", "deuteronomy", "mose", "verse", "chapter", "scripture"]) or (":" in q_low and any(c.isdigit() for c in q_low))
         target_mode = "bible" if is_bible else "general"
 
@@ -361,12 +400,19 @@ async def ask(
             full_response += token_str
             yield token
 
-        # Post-response background tasks
+        # --- STEP 4: POST-RESPONSE TASKS & CACHING ---
+        if not stream:
+            llm_cache[cache_key] = full_response
+
         try:
             await msg_repo.save_interaction(conversation_id, query=query, response=full_response, user_id=user_id)
             await chat_repo.update_activity(conversation_id)
-            await summarize_conversation_messages(conversation_id, user_id=user_id, model=model)
-            await generate_conversation_title(conversation_id, user_id=user_id, model=model)
+            # Background tasks with error logging callbacks
+            summarize_task = asyncio.create_task(summarize_conversation_messages(conversation_id, user_id=user_id, model=model))
+            summarize_task.add_done_callback(lambda t: logger.error(f"Summarization failed: {t.exception()}") if t.exception() else None)
+
+            title_task = asyncio.create_task(generate_conversation_title(conversation_id, user_id=user_id, model=model))
+            title_task.add_done_callback(lambda t: logger.error(f"Title generation failed: {t.exception()}") if t.exception() else None)
         except Exception as e:
             logger.error(f"Post-Response Background Task Error: {e}")
 

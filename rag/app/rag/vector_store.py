@@ -3,15 +3,23 @@ Qdrant vector store setup using LlamaIndex.
 Handles collection creation and vector store initialization.
 """
 
+import logging
 from functools import lru_cache
 from typing import Optional
 from llama_index.vector_stores.qdrant import QdrantVectorStore
+from llama_index.core import VectorStoreIndex
 from qdrant_client import QdrantClient, AsyncQdrantClient
 from qdrant_client.models import Distance, VectorParams
 
 from app.core.config import settings
 from app.rag.embeddings import get_embeddings
 from app.rag.constants import COLLECTION_NAME
+from app.core.resilience import retry_db
+
+logger = logging.getLogger(__name__)
+
+# Module-level cache for VectorStoreIndex instances to avoid recreating on every retrieval
+_index_cache: dict[str, VectorStoreIndex] = {}
 
 
 @lru_cache()
@@ -28,9 +36,10 @@ def get_qdrant_client() -> QdrantClient:
         return QdrantClient(
             url=settings.qdrant_url,
             api_key=settings.qdrant_api_key,
-            timeout=60
+            timeout=60,
+            prefer_grpc=True
         )
-    return QdrantClient(url=settings.qdrant_url, timeout=60)
+    return QdrantClient(url=settings.qdrant_url, timeout=60, prefer_grpc=True)
 
 
 @lru_cache()
@@ -50,6 +59,7 @@ def get_async_qdrant_client() -> AsyncQdrantClient:
     return AsyncQdrantClient(url=settings.qdrant_url, timeout=60)
 
 
+@retry_db
 def get_vector_store(collection_name: str = COLLECTION_NAME) -> QdrantVectorStore:
     """
     Get or create Qdrant vector store.
@@ -168,10 +178,10 @@ def _ensure_payload_indexes(client: QdrantClient, collection_name: str):
 def collection_exists(collection_name: str = COLLECTION_NAME) -> bool:
     """
     Check if Qdrant collection exists.
-    
+
     Args:
         collection_name: Name of the collection to check
-        
+
     Returns:
         bool: True if collection exists, False otherwise
     """
@@ -182,4 +192,42 @@ def collection_exists(collection_name: str = COLLECTION_NAME) -> bool:
     except Exception:
         # Qdrant not available or connection failed
         return False
+
+
+def get_index(collection_name: str = COLLECTION_NAME) -> VectorStoreIndex:
+    """
+    Get or create a cached VectorStoreIndex for the given collection.
+    This avoids expensive reconstruction on every retrieval call.
+
+    Args:
+        collection_name: Name of the Qdrant collection
+
+    Returns:
+        VectorStoreIndex: Cached index instance
+    """
+    if collection_name not in _index_cache:
+        logger.debug(f"Creating new VectorStoreIndex for collection: {collection_name}")
+        vector_store = get_vector_store(collection_name)
+        embeddings = get_embeddings()
+        _index_cache[collection_name] = VectorStoreIndex.from_vector_store(
+            vector_store=vector_store,
+            embed_model=embeddings
+        )
+    return _index_cache[collection_name]
+
+
+def clear_index_cache(collection_name: str | None = None) -> None:
+    """
+    Clear the index cache. Useful when collections are modified or rebuilt.
+
+    Args:
+        collection_name: If provided, clear only this collection. Otherwise clear all.
+    """
+    global _index_cache
+    if collection_name:
+        _index_cache.pop(collection_name, None)
+        logger.info(f"Cleared index cache for collection: {collection_name}")
+    else:
+        _index_cache.clear()
+        logger.info("Cleared all index caches")
 

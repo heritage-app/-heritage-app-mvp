@@ -370,21 +370,44 @@ async def list_conversations_endpoint(
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
-    """Health check endpoint with DB ping."""
+    """Health check endpoint with all critical dependency checks."""
     from app.storage.mongodb_client import get_database
-    
-    db_status = "connected"
+
+    dependencies = {}
+
+    # MongoDB check
     try:
         db = await get_database()
-        # The admin command 'ping' is a lightweight way to check connectivity
         await db.command("ping")
+        dependencies["mongodb"] = "connected"
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).error(f"Health check DB ping failed: {e}")
-        db_status = "disconnected"
-    
+        logger.error(f"Health check MongoDB ping failed: {e}")
+        dependencies["mongodb"] = "disconnected"
+
+    # Qdrant check
+    try:
+        from app.rag.vector_store import get_qdrant_client
+        client = get_qdrant_client()
+        client.get_collections()
+        dependencies["qdrant"] = "connected"
+    except Exception as e:
+        logger.error(f"Health check Qdrant ping failed: {e}")
+        dependencies["qdrant"] = "disconnected"
+
+    # Supabase check
+    try:
+        from app.storage.supabase_client import get_supabase
+        supabase = await get_supabase()
+        supabase.rest.get("/")
+        dependencies["supabase"] = "connected"
+    except Exception as e:
+        logger.warning(f"Health check Supabase ping failed: {e}")
+        dependencies["supabase"] = "degraded"
+
+    overall_status = "healthy" if all(v != "disconnected" for v in dependencies.values()) else "degraded"
+
     return HealthResponse(
-        status="healthy" if db_status == "connected" else "degraded",
+        status=overall_status,
         timestamp=datetime.now(timezone.utc).isoformat()
     )
 

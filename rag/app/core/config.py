@@ -14,15 +14,15 @@ ENV_FILE = PROJECT_ROOT / ".env"
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
-    
+
     # Supabase Configuration
     supabase_url: str = ""
     supabase_key: str = ""
     supabase_bucket: str = "documents"
-    supabase_jwt_secret: str = "placeholder-secret-change-me"
-    
-    # Auth Configuration
-    jwt_secret_key: str = "custom-jwt-secret-key-change-in-production"
+    supabase_jwt_secret: str = Field(default="", description="Supabase JWT secret for auth verification")
+
+    # Auth Configuration - CRITICAL: Must be set in production
+    jwt_secret_key: str = Field(default="", description="JWT signing secret - MUST be set in production")
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440 # 24 hours
     
@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     
     # CORS Configuration
     cors_origins: str | list[str] = Field(
-        default=["https://heritage-app.ekowlabs.space", "http://localhost:3000", "http://localhost:5173", "http://localhost:8080"],
+        default=["http://localhost:3000", "http://localhost:5173"],
         description="List of allowed CORS origins"
     )
     

@@ -13,7 +13,7 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ conversationId, sidebarOpen = false }: ChatWindowProps) {
-  const { loadConversation, setConversationId, clearChat, isLoading, messages, currentConversationId } = useChatStore();
+  const { setConversationId, clearChat, isLoading, messages, currentConversationId } = useChatStore();
   const prevConversationIdRef = useRef<string | undefined>(undefined);
   const normalizedConversationId = conversationId === "new" ? undefined : conversationId;
 
@@ -31,20 +31,15 @@ export function ChatWindow({ conversationId, sidebarOpen = false }: ChatWindowPr
       prevConversationIdRef.current = currentId;
       
       if (currentId) {
-        // Switching to a conversation - clear and load immediately
-        console.log("📥 Loading conversation:", currentId);
-        // Clear messages FIRST (synchronous)
+        // Switching to a conversation - clear and set immediately
+        // useMessages query in MessageList will handle the actual fetching
         setConversationId(currentId);
-        // Then load (async)
-        loadConversation(currentId);
       } else {
         // Clearing chat (new conversation)
-        console.log("🧹 Clearing chat - New conversation");
-        // Immediately clear all chat state
         clearChat();
       }
     }
-  }, [normalizedConversationId, setConversationId, loadConversation, clearChat]);
+  }, [normalizedConversationId, setConversationId, clearChat]);
 
   // Show loading when:
   // 1. We're loading

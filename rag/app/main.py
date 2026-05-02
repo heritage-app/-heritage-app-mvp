@@ -51,14 +51,14 @@ app = FastAPI(
     redirect_slashes=False
 )
 
-# CORS middleware
+# CORS middleware - restricted to only required methods and headers
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=["*"],
-    expose_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Anonymous-ID"],
+    expose_headers=["X-Conversation-Id"],
     max_age=3600,  # Cache preflight requests for 1 hour
 )
 

@@ -2761,6 +2761,7 @@ name = "rag"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "cachetools" },
     { name = "email-validator" },
     { name = "fastapi" },
     { name = "langchain" },
@@ -2787,6 +2788,7 @@ dependencies = [
     { name = "qdrant-client" },
     { name = "sentence-transformers" },
     { name = "supabase" },
+    { name = "tenacity" },
     { name = "uvicorn" },
 ]
 
@@ -2806,6 +2808,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cachetools", specifier = ">=5.5.0" },
     { name = "email-validator", specifier = ">=2.3.0" },
     { name = "fastapi", specifier = ">=0.128.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27.0" },
@@ -2837,6 +2840,7 @@ requires-dist = [
     { name = "qdrant-client", specifier = ">=1.16.2" },
     { name = "sentence-transformers", specifier = ">=5.2.0" },
     { name = "supabase", specifier = ">=2.27.0" },
+    { name = "tenacity", specifier = ">=9.0.0" },
     { name = "uvicorn", specifier = ">=0.40.0" },
 ]
 provides-extras = ["dev"]
