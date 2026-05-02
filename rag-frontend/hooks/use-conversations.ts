@@ -6,13 +6,13 @@ export const CONVERSATIONS_QUERY_KEY = ["conversations"];
 
 export function useConversations(limit: number = 50) {
   const queryClient = useQueryClient();
-  const { fetchConversations } = useConversationStore();
+  const { fetchConversations, conversations } = useConversationStore();
 
   const query = useQuery({
     queryKey: CONVERSATIONS_QUERY_KEY,
     queryFn: async () => {
       const data = await getConversations(limit);
-      // Also sync with Zustand store
+      // Sync with Zustand store
       await fetchConversations();
       return data;
     },
@@ -24,7 +24,8 @@ export function useConversations(limit: number = 50) {
 
   return {
     ...query,
-    conversations: query.data?.conversations || [],
+    // Read from Zustand so optimistically-added conversations appear immediately
+    conversations,
     invalidate,
   };
 }

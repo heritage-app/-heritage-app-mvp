@@ -1,14 +1,15 @@
 "use client";
 
-import { 
-  LayoutDashboard, 
-  FileText, 
-  Settings, 
-  Shield, 
+import {
+  LayoutDashboard,
+  FileText,
+  Settings,
+  Shield,
   Users,
   BookOpen,
   Menu,
-  X
+  X,
+  LogOut
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
@@ -40,7 +41,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [userRole, setUserRole] = useState<string | null>(null);
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { setProfile } = useUserStore();
+  const { setProfile, clearProfile } = useUserStore();
+
+  const handleSignOut = async () => {
+    try {
+      await apiClient.post("/auth/logout");
+    } catch (err) {}
+    clearProfile();
+    window.location.href = "/";
+  };
 
   const filteredNav = [
     { name: "Overview", href: "/admin", icon: LayoutDashboard },
@@ -142,13 +151,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             })}
           </nav>
 
-          <div className="p-4 border-t border-white/5">
-            <Link 
+          <div className="p-4 border-t border-white/5 space-y-1">
+            <Link
               href="/conversations"
               className="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest text-white/20 hover:text-primary transition-colors"
             >
               ← Exit Admin
             </Link>
+            <button
+              onClick={handleSignOut}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest text-white/20 hover:text-red-500 transition-colors"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Sign Out
+            </button>
           </div>
         </div>
 

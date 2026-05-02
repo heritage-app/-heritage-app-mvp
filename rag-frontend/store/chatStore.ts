@@ -94,13 +94,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 (conv) => conv.conversation_id === conversationId
               );
               if (!exists) {
-                // Add new conversation to the list
+                // Add new conversation optimistically so it appears immediately in sidebar
                 conversationStore.addConversation({
                   conversation_id: conversationId,
                   title: null, // Title will be generated/updated by backend
                   last_message_at: new Date().toISOString(),
                 });
                 console.log("➕ Added new conversation to list:", conversationId);
+                // Fetch again after delay to pick up server-generated title
+                setTimeout(() => {
+                  useConversationStore.getState().fetchConversations();
+                }, 3000);
               }
             }
           },
@@ -167,13 +171,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 (conv) => conv.conversation_id === conversationId
               );
               if (!exists) {
-                // Add new conversation to the list
+                // Add new conversation optimistically so it appears immediately in sidebar
                 conversationStore.addConversation({
                   conversation_id: conversationId,
                   title: null, // Title will be generated/updated by backend
                   last_message_at: new Date().toISOString(),
                 });
                 console.log("➕ Added new conversation to list:", conversationId);
+                // Fetch again after delay to pick up server-generated title
+                setTimeout(() => {
+                  useConversationStore.getState().fetchConversations();
+                }, 3000);
               }
             }
           },
