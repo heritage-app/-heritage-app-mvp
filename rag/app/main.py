@@ -35,7 +35,41 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"Error during startup initialization: {e}")
 
+    async def init_super_admin():
+        """Auto-create super admin if configured and doesn't exist."""
+        # Access the module-level settings before any shadowing imports
+        if not settings.super_admin_email or not settings.super_admin_password:
+            logger.debug("Super admin not configured, skipping")
+            return
+        try:
+            import bcrypt
+            from app.storage.repositories.users import UserRepository
+
+            # Truncate password to 72 bytes (bcrypt limit)
+            password_bytes = settings.super_admin_password.encode('utf-8')[:72]
+            hashed_password = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')
+
+            existing = await UserRepository.get_user_by_email(settings.super_admin_email)
+            if existing:
+                if existing.get("role") != "admin":
+                    await UserRepository.update_user_role(existing["_id"], "admin")
+                    logger.info(f"Updated existing user to admin role: {settings.super_admin_email}")
+                else:
+                    logger.debug(f"Super admin already exists: {settings.super_admin_email}")
+                return
+
+            new_user = await UserRepository.create_user(
+                email=settings.super_admin_email,
+                hashed_password=hashed_password,
+                role="admin",
+                display_name=settings.super_admin_display_name or "Super Admin"
+            )
+            logger.info(f"Created super admin user: {settings.super_admin_email} (ID: {new_user['_id']})")
+        except Exception as e:
+            logger.warning(f"Error during super admin initialization: {e}")
+
     asyncio.create_task(init_qdrant())
+    asyncio.create_task(init_super_admin())
     
     yield
     

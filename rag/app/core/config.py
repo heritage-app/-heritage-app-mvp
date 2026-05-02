@@ -56,6 +56,20 @@ class Settings(BaseSettings):
         description="List of Supabase user IDs that have administrative access"
     )
 
+    # Super Admin Configuration
+    super_admin_email: str = Field(
+        default="",
+        description="Email for super admin user (auto-created if not exists)"
+    )
+    super_admin_password: str = Field(
+        default="",
+        description="Password for super admin user"
+    )
+    super_admin_display_name: str = Field(
+        default="Super Admin",
+        description="Display name for super admin"
+    )
+
     @field_validator("admin_user_ids", mode="before")
     @classmethod
     def assemble_admin_ids(cls, v: any) -> list[str]:
