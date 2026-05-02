@@ -16,6 +16,16 @@ ENV/
 .env
 .env.local
 .env.*.local
+*.env
+
+# Test files
+test_*.txt
+*_test.txt
+body.json
+cookies.txt
+
+# Supabase CLI
+supabase/.temp/
 
 # IDE
 .vscode/
