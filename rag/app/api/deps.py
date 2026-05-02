@@ -86,23 +86,14 @@ async def get_optional_user(
 async def get_current_admin(user: any = Depends(get_current_user)) -> str:
     """
     Dependency that ensures the current user is an admin.
-    Checks the user's role from MongoDB, then falls back to settings.admin_user_ids.
+    Checks the user's role from MongoDB.
     """
     user_id = str(user["_id"])
-    allowed = False
     
-    # 1. Check database-driven role (attached natively to our user document now)
     if user.get("role") == "admin":
-        allowed = True
-        
-    # 2. Check legacy whitelist (Failsafe/Bootstrap)
-    if not allowed and user_id in settings.admin_user_ids:
-        allowed = True
-        
-    if not allowed:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden: User does not have administrative privileges."
-        )
-        
-    return user_id
+        return user_id
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Forbidden: User does not have administrative privileges."
+    )

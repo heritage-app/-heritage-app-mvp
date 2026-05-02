@@ -18,6 +18,8 @@ from qdrant_client import models
 from app.rag.constants import COLLECTION_NAME
 from datetime import datetime, timezone
 import re
+import asyncio
+from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
@@ -42,31 +44,27 @@ def slugify_filename(filename: str) -> str:
 async def get_system_stats(admin_id: str = Depends(get_current_admin)):
     """
     Get global system statistics for the admin dashboard.
+    Optimized with parallel queries.
     """
     from app.storage.repositories.users import UserRepository
     
     doc_repo = await Repositories.docs()
     chat_repo = await Repositories.chat()
     
-    # 1. Total Documents
-    total_docs = await doc_repo.count()
-    
-    # 2. Registered Users (from MongoDB users collection)
-    registered_users = await UserRepository.count()
-    
-    # 3. Conversations (Split by Guest vs Registered)
-    # Guests have user_id starting with 'guest_'
-    guest_chats = await chat_repo.count({"user_id": {"$regex": "^guest_"}})
-    # Registered users have UUIDs (do NOT start with 'guest_')
-    user_chats = await chat_repo.count({"user_id": {"$regex": "^(?!guest_)"}})
-    total_chats = guest_chats + user_chats
+    # Parallel queries for better performance
+    total_docs, registered_users, guest_chats, user_chats = await asyncio.gather(
+        doc_repo.count(),
+        UserRepository.count(),
+        chat_repo.count({"user_id": {"$regex": "^guest_"}}),
+        chat_repo.count({"user_id": {"$regex": "^(?!guest_)"}}),
+    )
     
     return SystemStatsResponse(
         total_documents=total_docs,
         registered_users=registered_users,
         user_conversations=user_chats,
         guest_conversations=guest_chats,
-        total_conversations=total_chats,
+        total_conversations=guest_chats + user_chats,
         status="operational",
         timestamp=datetime.now(timezone.utc).isoformat()
     )
@@ -81,23 +79,25 @@ async def list_all_documents(
     List all documents in the system.
     """
     doc_repo = await Repositories.docs()
-    docs = await doc_repo.get_all_documents(limit=limit, offset=offset)
+    docs, total = await asyncio.gather(
+        doc_repo.get_all_documents(limit=limit, offset=offset),
+        doc_repo.count()
+    )
     
-    document_items = []
-    for doc in docs:
-        document_items.append(
-            DocumentListItem(
-                id=doc.get("id"),
-                original_filename=doc.get("original_filename", "Unknown"),
-                public_url=doc.get("public_url", ""),
-                status=doc.get("status", "unknown"),
-                uploaded_at=doc.get("created_at") # Simplified for admin raw view
-            )
+    document_items = [
+        DocumentListItem(
+            id=doc.get("id"),
+            original_filename=doc.get("original_filename", "Unknown"),
+            public_url=doc.get("public_url", ""),
+            status=doc.get("status", "unknown"),
+            uploaded_at=doc.get("created_at")
         )
+        for doc in docs
+    ]
         
     return DocumentListResponse(
         documents=document_items,
-        total=await doc_repo.count()
+        total=total
     )
 
 @router.delete("/documents/{document_id}")
@@ -107,6 +107,7 @@ async def admin_delete_document(
 ):
     """
     Administratively delete any document from the system.
+    Optimized with parallel deletion from stores.
     """
     doc_repo = await Repositories.docs()
     document = await doc_repo.get_by_id(document_id)
@@ -115,38 +116,43 @@ async def admin_delete_document(
         raise HTTPException(status_code=404, detail="Document not found")
         
     storage_path = document.get("storage_path")
+    error_results = []
     
-    # 1. Delete from Vector Store (Qdrant)
-    if storage_path:
-        try:
-            # Determine which collection this document belongs to
-            doc_metadata = document.get("source_metadata", {}) # Correct field is 'source_metadata'
-            category = doc_metadata.get("category")
-            from app.rag.constants import get_collection_name
-            target_collection = get_collection_name(category)
-            
-            if collection_exists(target_collection):
-                client = get_qdrant_client()
-                # Metadata key in indexer is 'file_path'
-                client.delete(
-                    collection_name=target_collection,
-                    points_selector=models.Filter(
-                        must=[models.FieldCondition(key="file_path", match=models.MatchValue(value=storage_path))]
+    # Parallel deletion from Qdrant and Supabase
+    async def delete_from_qdrant():
+        if storage_path:
+            try:
+                doc_metadata = document.get("source_metadata", {})
+                category = doc_metadata.get("category")
+                from app.rag.constants import get_collection_name
+                target_collection = get_collection_name(category)
+                
+                if collection_exists(target_collection):
+                    client = get_qdrant_client()
+                    client.delete(
+                        collection_name=target_collection,
+                        points_selector=models.Filter(
+                            must=[models.FieldCondition(key="file_path", match=models.MatchValue(value=storage_path))]
+                        )
                     )
-                )
-                logger.info(f"Vectors deleted from collection: {target_collection}")
-        except Exception as e:
-            logger.error(f"Vector deletion failed for {storage_path}: {e}")
+                    logger.info(f"Vectors deleted from collection: {target_collection}")
+            except Exception as e:
+                logger.error(f"Vector deletion failed for {storage_path}: {e}")
+                error_results.append(e)
 
-    # 2. Delete from Supabase Storage
+    async def delete_from_supabase():
+        if storage_path:
+            try:
+                await supabase_delete_document(storage_path)
+                logger.info(f"Binary file deleted from Supabase: {storage_path}")
+            except Exception as e:
+                logger.error(f"Supabase deletion failed for {storage_path}: {e}")
+                error_results.append(e)
+    
     if storage_path:
-        try:
-            await supabase_delete_document(storage_path)
-            logger.info(f"Binary file deleted from Supabase: {storage_path}")
-        except Exception as e:
-            logger.error(f"Supabase deletion failed for {storage_path}: {e}")
-            
-    # 3. Delete from MongoDB
+        await asyncio.gather(delete_from_qdrant(), delete_from_supabase())
+    
+    # Delete from MongoDB
     await doc_repo.delete(document_id)
     logger.info(f"Record deleted from MongoDB: {document_id}")
     
@@ -160,34 +166,32 @@ async def admin_upload_document(
 ):
     """
     [ADMIN ONLY] Upload a document to Supabase Storage and index it.
-    Metadata is persisted in MongoDB.
+    Returns immediately, indexing runs in background.
     """
     try:
         if not file.filename:
             raise HTTPException(status_code=400, detail="Filename is required")
         
+        # Read file content upfront
+        content = await file.read()
+        file_size = len(content)
+        
         original_filename = file.filename
         file_ext = Path(original_filename).suffix
         file_base = Path(original_filename).stem
         
-        # Sanitize filename for storage path
         safe_base = slugify_filename(file_base)
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         unique_file_path = f"{safe_base}_{timestamp}{file_ext}"
         
+        # Calculate file size string
         file_size_str = None
-        try:
-            content = await file.read()
-            file_size = len(content)
-            if file_size > 0:
-                size_mb = file_size / (1024 * 1024)
-                if size_mb < 1:
-                    file_size_str = f"{file_size / 1024:.2f} KB"
-                else:
-                    file_size_str = f"{size_mb:.2f} MB"
-            await file.seek(0)
-        except Exception:
-            file_size_str = "Unknown"
+        if file_size > 0:
+            size_mb = file_size / (1024 * 1024)
+            if size_mb < 1:
+                file_size_str = f"{file_size / 1024:.2f} KB"
+            else:
+                file_size_str = f"{size_mb:.2f} MB"
         
         doc_metadata: dict = {}
         if metadata:
@@ -200,7 +204,6 @@ async def admin_upload_document(
         doc_metadata["filename"] = original_filename
         doc_metadata["uploaded_at"] = datetime.now(timezone.utc).isoformat()
         
-        # 1. Initial State: Uploading
         doc_repo = await Repositories.docs()
         doc_id = str(uuid.uuid4())
         await doc_repo.create({
@@ -208,45 +211,49 @@ async def admin_upload_document(
             "user_id": admin_id,
             "original_filename": original_filename,
             "unique_path": unique_file_path,
-            "public_url": "", # Will update after upload
+            "public_url": "",
             "metadata": doc_metadata,
             "status": "uploading",
             "created_at": datetime.now(timezone.utc).isoformat()
         })
         
-        try:
-            # 2. Upload binary to Supabase Storage
-            public_url = await upload_document(file, unique_file_path, overwrite=False)
-            await doc_repo.update(doc_id, {"status": "uploaded", "public_url": public_url})
-            
-            # 3. Transition to Indexing
-            await doc_repo.update(doc_id, {"status": "indexing"})
-            
-            # 4. Perform the actual indexing
-            await index_document_from_storage(unique_file_path, doc_metadata)
-            
-            # 5. Success: Indexed
-            await doc_repo.update(doc_id, {"status": "indexed"})
-            
-            category_msg = f" as category '{doc_metadata.get('category', 'general')}'" if 'category' in doc_metadata else ""
-            
-            return UploadResponse(
-                status="success",
-                file_name=original_filename,
-                file_size=file_size_str,
-                message=f"✅ Document version '{unique_file_path}' uploaded and indexed successfully{category_msg}!",
-                file_url=public_url,
-                next_step="This version is now added to the archive."
-            )
-        except Exception as upload_error:
-            # Fail gracefully by updating document status to error
-            await doc_repo.update(doc_id, {"status": "error"})
-            raise upload_error
+        from io import BytesIO
+        from fastapi import UploadFile
+        
+        # Upload to Supabase first
+        temp_file = UploadFile(filename=unique_file_path, file=BytesIO(content))
+        public_url = await upload_document(temp_file, unique_file_path, overwrite=False)
+        await doc_repo.update(doc_id, {"status": "uploaded", "public_url": public_url})
+        
+        # Background indexing task
+        async def process_document():
+            """Background task for indexing (file already uploaded)."""
+            try:
+                await doc_repo.update(doc_id, {"status": "indexing"})
+                await index_document_from_storage(unique_file_path, doc_metadata)
+                await doc_repo.update(doc_id, {"status": "indexed"})
+                logger.info(f"Document indexed successfully: {doc_id}")
+            except Exception as e:
+                logger.error(f"Background indexing failed for {doc_id}: {e}")
+                await doc_repo.update(doc_id, {"status": "error"})
+        
+        asyncio.create_task(process_document())
+        
+        category_msg = f" as category '{doc_metadata.get('category', 'general')}'" if 'category' in doc_metadata else ""
+        
+        return UploadResponse(
+            status="success",
+            file_name=original_filename,
+            file_size=file_size_str,
+            message=f"✅ Document '{unique_file_path}' uploaded. Indexing in progress{category_msg}...",
+            file_url=public_url,
+            next_step="Document will be searchable shortly."
+        )
 
     except Exception as e:
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Cumulative upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
 @router.post("/refine/preview", response_model=RefinementPreviewResponse)

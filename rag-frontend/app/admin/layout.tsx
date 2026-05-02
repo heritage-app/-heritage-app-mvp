@@ -11,10 +11,26 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, createContext, useContext } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api/client";
+import { useUserStore } from "@/store/userStore";
+
+interface AdminUser {
+  id: string;
+  email: string;
+  role: string;
+  display_name: string;
+  first_name?: string;
+  last_name?: string;
+}
+
+const AdminContext = createContext<AdminUser | null>(null);
+
+export function useAdminUser() {
+  return useContext(AdminContext);
+}
 
 export default function AdminLayout({
   children,
@@ -25,6 +41,8 @@ export default function AdminLayout({
   const router = useRouter();
   const [isVerifying, setIsVerifying] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
+  const { setProfile } = useUserStore();
 
   // Filtered navigation based on role
   const filteredNav = [
@@ -41,18 +59,20 @@ export default function AdminLayout({
         const response = await apiClient.get('/auth/me');
         const user = response.data;
         
-        const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || "").split(",").map(id => id.trim());
-        const isWhitelisted = ADMIN_IDS.includes(user.id);
         const hasAdminRole = user.role === 'admin' || user.role === 'moderator';
 
-        if (!hasAdminRole && !isWhitelisted) {
+        console.log("Admin check - User:", user.id, "Role:", user.role);
+
+        if (!hasAdminRole) {
           console.log("Access Denied for user:", user.id, "Role:", user.role);
           toast.error("Access Denied: Administrative privileges required.");
           router.push("/");
           return;
         }
 
-        setUserRole(user.role || (isWhitelisted ? 'admin' : null));
+        setUserRole(user.role);
+        setAdminUser(user);
+        setProfile(user);
         setIsVerifying(false);
       } catch (error) {
         console.error("Critical auth check failure:", error);
@@ -79,7 +99,8 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0d0d0d]">
+    <AdminContext.Provider value={adminUser}>
+      <div className="flex h-screen overflow-hidden bg-[#0d0d0d]">
       {/* Admin Sidebar */}
       <div className="w-64 shrink-0 bg-[#0d0d0d] border-r border-white/5 flex flex-col z-40">
         <div className="p-6 flex items-center gap-3">
@@ -143,6 +164,6 @@ export default function AdminLayout({
           {children}
         </main>
       </div>
-    </div>
+    </AdminContext.Provider>
   );
 }

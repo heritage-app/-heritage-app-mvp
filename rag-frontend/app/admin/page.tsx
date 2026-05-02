@@ -21,29 +21,22 @@ interface SystemStats {
 export default function AdminDashboard() {
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const { profile, setProfile } = useUserStore();
+  const { profile } = useUserStore();
 
   useEffect(() => {
-    const init = async () => {
+    const fetchStats = async () => {
       try {
-        // 1. Fetch/Verify Profile if not in store
-        if (!profile) {
-          const profileRes = await apiClient.get('/auth/me');
-          setProfile(profileRes.data);
-        }
-
-        // 2. Fetch Stats
         const statsRes = await apiClient.get('/admin/stats');
         setStats(statsRes.data);
       } catch (error) {
-        console.error("Dashboard initialization failed:", error);
+        console.error("Failed to fetch stats:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    init();
-  }, [profile, setProfile]);
+    fetchStats();
+  }, []);
 
   const statCards = [
     { label: "Registered Users", value: stats?.registered_users || 0, icon: Users, color: "text-blue-400", bg: "bg-blue-400/10", href: "/admin/users" },
