@@ -10,11 +10,12 @@ import { resolveGaCitation } from "./ga";
 import { isFormattableBibleRecord, formatBibleQuote } from "./validator";
 import { retrieveContext, formatRetrievedContext, type RetrieveFilters } from "./retriever";
 import { listChapters, listVerses } from "./discovery";
-import { getVerse } from "../db/bibleVerses";
+import { getVerse, listBooks } from "../db/bibleVerses";
 import { chat, streamChat } from "./llm";
 import {
   NII_OBODAI_PERSONA_PROMPT,
   STRICT_GUARDRAIL_PROMPT,
+  NOT_IN_ARCHIVE,
   fill,
 } from "./prompts";
 import { initializeSession, updateActivity } from "../db/sessions";
@@ -63,22 +64,25 @@ async function* streamPersona(
   }
 }
 
-/** Grounding helper: run the strict guardrail prompt over retrieved context. */
+/**
+ * Grounding helper: run the strict guardrail prompt over retrieved context.
+ * Returns the grounded answer, or NOT_IN_ARCHIVE if the context doesn't answer it.
+ */
 async function groundWithGuardrail(
   env: Env,
   query: string,
   contextText: string,
   model?: string
 ): Promise<string> {
-  const prompt = fill(STRICT_GUARDRAIL_PROMPT, {
-    query,
-    context_text: contextText,
-    reference_display: "",
-    ga: "",
-    en: "",
-    source_name: "",
-  });
+  const prompt = fill(STRICT_GUARDRAIL_PROMPT, { query, context_text: contextText });
   return chat(env, [{ role: "user", content: prompt }], { temperature: 0, model });
+}
+
+/** True when the grounding model signalled the answer isn't in the archive. */
+function isNotFound(answer: string): boolean {
+  const a = answer.trim().toUpperCase();
+  // Bare sentinel, or a short reply that contains it (model occasionally adds punctuation).
+  return a === NOT_IN_ARCHIVE || (a.includes(NOT_IN_ARCHIVE) && a.length <= NOT_IN_ARCHIVE.length + 12);
 }
 
 /** Dedicated Bible RAG engine with strict archival fidelity. */
@@ -91,6 +95,38 @@ async function* askBible(
   model?: string
 ): AsyncGenerator<string> {
   const qLow = query.toLowerCase();
+  const archiveLabelTop = "📍 **Archive Focus: Bible**\n\n";
+
+  // --- Archive overview: "what's in here / what do you have" → list indexed books ---
+  const isOverview =
+    !/\d/.test(qLow) &&
+    [
+      "what is there", "what's there", "whats there",
+      "what do you have", "what have you", "what can you",
+      "what is in", "what's in", "whats in",
+      "what is available", "what's available", "whats available",
+      "what books", "which books", "what is here", "what's here",
+      "show me what", "what can i ask", "contents", "overview",
+    ].some((p) => qLow.includes(p));
+
+  if (isOverview) {
+    const books = await listBooks(env);
+    if (books.length === 0) {
+      yield archiveLabelTop + "My Ga Bible archive is currently empty — no books have been indexed yet.";
+    } else {
+      const lines = books.map(
+        (b) =>
+          `- **${b.book}**${b.traditional_book ? ` (${b.traditional_book})` : ""} — ${b.chapters} chapter${b.chapters !== 1 ? "s" : ""}, ${b.verses} verse${b.verses !== 1 ? "s" : ""}`
+      );
+      yield (
+        archiveLabelTop +
+        "Here is what is currently in my Ga Bible archive:\n\n" +
+        lines.join("\n") +
+        "\n\nAsk for a specific verse (e.g. *Genesis 1:1*), or *list verses in Genesis 1*."
+      );
+    }
+    return;
+  }
 
   const isSingular = ["a verse", "any verse", "quote a verse"].some((p) => qLow.includes(p));
   const isPlural = ["verses", "multiple", "list", "all", "chapters"].some((w) => qLow.includes(w));
@@ -186,11 +222,8 @@ async function* askBible(
   }
 
   const archiveLabel = "📍 **Archive Focus: Bible**\n\n";
+  const NOT_FOUND = "This is not in my Ga Bible archives.";
   let grounded: string;
-  // Deterministic answers (refusals, exact quotes, numeric facts) are emitted
-  // verbatim — never sent through the persona LLM, which could otherwise
-  // hallucinate scripture or reformat a verse.
-  let deterministic = true;
 
   if (isIncomplete) {
     grounded = "The reference is incomplete. Please provide book, chapter, and verse.";
@@ -198,25 +231,33 @@ async function* askBible(
     grounded = "This exact verse or chapter is not in my indexed Bible archive.";
   } else if (matchedMeta && isFormattableBibleRecord(matchedMeta)) {
     grounded = `Hɛloo naanyo! Here is the verse you requested:\n\n${formatBibleQuote(matchedMeta)}`;
-  } else if (nodes.length === 0) {
-    const numMatch = query.match(/\b(\d+)\b/);
-    if (numMatch) {
-      const num = parseInt(numMatch[1], 10);
-      grounded = `The number ${num} in Ga follows the operational counting logic: **${numToGa(num)}**.`;
-    } else {
-      grounded = "This is not in my Ga Bible archives.";
-    }
   } else {
-    // We have real retrieved context — let the persona humanize it.
-    grounded = await groundWithGuardrail(env, query, formatRetrievedContext(nodes), model);
-    deterministic = false;
+    // Non-exact bible request ("quote a verse", "a verse about light", etc.).
+    const relevant = nodes.filter((n) => (n.score ?? 0) >= MIN_RELEVANCE_SCORE);
+    if (relevant.length === 0) {
+      grounded = NOT_FOUND;
+    } else {
+      // The archive is verse-based: quote the most relevant verse(s) with the exact
+      // deterministic citation block — never let the LLM re-serialize scripture
+      // (which drops the citation/English/source and can truncate).
+      const formattable = relevant.filter((n) => isFormattableBibleRecord(n.metadata));
+      if (formattable.length) {
+        const count = isPlural ? Math.min(formattable.length, 5) : 1;
+        const quotes = formattable
+          .slice(0, count)
+          .map((n) => formatBibleQuote(n.metadata as VerseRecord))
+          .join("\n\n———\n\n");
+        grounded = `Hɛloo naanyo! Here ${count > 1 ? "are some verses" : "is a verse"} from the archive:\n\n${quotes}`;
+      } else {
+        const answer = await groundWithGuardrail(env, query, formatRetrievedContext(relevant), model);
+        grounded = isNotFound(answer) ? NOT_FOUND : answer;
+      }
+    }
   }
 
-  if (deterministic) {
-    yield archiveLabel + grounded;
-  } else {
-    yield* streamPersona(env, query, archiveLabel + grounded, memoryWindow, model, stream);
-  }
+  // Every bible answer is grounded/deterministic — never routed through the
+  // creative persona LLM, which could otherwise introduce outside knowledge.
+  yield archiveLabel + grounded;
 }
 
 /** General-knowledge engine for history, stories, phrases, numerics. */
@@ -249,14 +290,25 @@ async function* askGeneral(
   nodes = nodes.filter((n) => (n.score ?? 0) >= MIN_RELEVANCE_SCORE);
 
   const singleNums = [...query.matchAll(/\b(\d+)\b/g)].map((m) => m[1]);
+  // Only treat a query as a number-translation request when it explicitly asks —
+  // an incidental number ("the 2022 World Cup") must NOT trigger a translation.
+  const qLow = query.toLowerCase();
+  const wantsNumber =
+    /\b(?:in|to)\s+ga\b/.test(qLow) ||
+    /\b(?:translate|translation|number|count|spell)\b/.test(qLow) ||
+    /^\s*\d+\s*$/.test(query.trim());
 
   if (nodes.length === 0) {
-    // No retrieved context — refuse / give the numeric fact directly, never via the LLM.
-    if (singleNums.length) {
+    // No retrieved context. Only answer if a number translation was actually requested.
+    if (wantsNumber && singleNums.length) {
       const num = parseInt(singleNums[0], 10);
-      yield `**${num}** in Ga is **${numToGa(num)}**.`;
+      const ga = numToGa(num);
+      yield ga === String(num)
+        ? `I can translate Ga numbers from 1 to 999 — **${num}** is outside that range.`
+        : `**${num}** in Ga is **${ga}**.`;
       return;
     }
+    // Otherwise: strict RAG — not in the archive, so refuse without guessing.
     yield "This one is not in my archives yet.";
     return;
   }
@@ -295,8 +347,9 @@ async function* askGeneral(
     return;
   }
 
-  const grounded = await groundWithGuardrail(env, query, formatRetrievedContext(nodes), model);
-  yield* streamPersona(env, query, grounded, memoryWindow, model, stream);
+  // Real retrieved context — answer strictly from it, or refuse (never guess).
+  const answer = await groundWithGuardrail(env, query, formatRetrievedContext(nodes), model);
+  yield isNotFound(answer) ? "This one is not in my archives yet." : answer;
 }
 
 /**
@@ -345,7 +398,7 @@ export async function* ask(
   let targetMode = mode;
   if (targetMode === "auto") {
     const isBible =
-      ["genesis", "exodus", "leviticus", "numbers", "deuteronomy", "mose", "verse", "chapter", "scripture"].some(
+      ["bible", "bibele", "genesis", "exodus", "leviticus", "numbers", "deuteronomy", "mose", "verse", "chapter", "scripture"].some(
         (b) => qLow.includes(b)
       ) || (qLow.includes(":") && /\d/.test(qLow));
     targetMode = isBible ? "bible" : "general";

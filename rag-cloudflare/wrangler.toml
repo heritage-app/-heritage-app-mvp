@@ -3,6 +3,11 @@ main = "src/index.ts"
 compatibility_date = "2024-12-18"
 compatibility_flags = ["nodejs_compat"]
 
+# Static demo UI served from ./public (same-origin as the API at /api/v1, so
+# auth cookies just work). Non-asset paths fall through to the Worker.
+[assets]
+directory = "./public"
+
 # Workers AI (embeddings + LLM)
 [ai]
 binding = "AI"

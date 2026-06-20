@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Heritage RAG</title>
+<style>
+  :root {
+    --paper:#ffffff; --paper-2:#fafafa; --paper-3:#f4f4f5;
+    --ink:#0b0b0c; --ink-2:#3f3f46; --muted:#8a8a93; --faint:#b8b8be;
+    --line:#e7e7ea; --line-2:#d6d6da;
+    --radius:10px; --shadow:0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.05);
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --serif:"Iowan Old Style","Palatino Linotype",Georgia,serif;
+  }
+  * { box-sizing:border-box; }
+  html,body { height:100%; }
+  body { margin:0; font:15px/1.6 var(--sans); color:var(--ink); background:var(--paper);
+    -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; }
+  ::selection { background:var(--ink); color:#fff; }
+
+  /* Header */
+  header { position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:14px;
+    padding:14px 22px; background:rgba(255,255,255,.82); backdrop-filter:saturate(180%) blur(12px);
+    border-bottom:1px solid var(--line); }
+  .brand { display:flex; align-items:baseline; gap:9px; }
+  .brand .mark { width:26px; height:26px; border:1.5px solid var(--ink); border-radius:7px;
+    display:grid; place-items:center; font:600 14px var(--mono); align-self:center; }
+  .brand h1 { margin:0; font:500 19px/1 var(--serif); letter-spacing:.2px; }
+  .brand .sub { font:500 11px var(--mono); color:var(--muted); letter-spacing:.14em; text-transform:uppercase; }
+  .spacer { flex:1; }
+  .tag { font:500 11px var(--mono); letter-spacing:.06em; color:var(--ink-2);
+    border:1px solid var(--line-2); border-radius:999px; padding:5px 11px; background:var(--paper); }
+  .tag.live::before { content:""; display:inline-block; width:6px; height:6px; border-radius:50%;
+    background:var(--ink); margin-right:7px; vertical-align:middle; }
+  .iconbtn { border:1px solid var(--line-2); background:var(--paper); color:var(--ink);
+    border-radius:8px; padding:7px 13px; font:500 13px var(--sans); cursor:pointer; transition:.15s; }
+  .iconbtn:hover { background:var(--ink); color:#fff; border-color:var(--ink); }
+
+  main { flex:1; display:flex; min-height:0; }
+
+  /* Chat column */
+  .chat { flex:1; display:flex; flex-direction:column; min-width:0; }
+  .stream { flex:1; overflow-y:auto; scroll-behavior:smooth; }
+  .stream-inner { max-width:760px; margin:0 auto; padding:30px 22px 12px; display:flex; flex-direction:column; gap:22px; }
+
+  /* Empty / hero state */
+  .hero { margin:auto; max-width:560px; padding:60px 22px; text-align:center; }
+  .hero h2 { font:400 30px/1.2 var(--serif); letter-spacing:-.4px; margin:0 0 10px; }
+  .hero p { color:var(--muted); margin:0 0 26px; font-size:15px; }
+  .chips { display:flex; flex-wrap:wrap; gap:9px; justify-content:center; }
+  .chip { border:1px solid var(--line-2); background:var(--paper); border-radius:999px;
+    padding:8px 14px; font:500 13px var(--sans); color:var(--ink-2); cursor:pointer; transition:.15s; }
+  .chip:hover { border-color:var(--ink); color:var(--ink); transform:translateY(-1px); }
+  .chip .k { font:500 12px var(--mono); color:var(--muted); }
+
+  /* Messages */
+  .turn { display:flex; flex-direction:column; gap:6px; }
+  .turn .who { font:600 11px var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--faint); }
+  .bubble { padding:13px 16px; border-radius:var(--radius); word-wrap:break-word;
+    line-height:1.65; font-size:14.5px; }
+  .bubble.streaming { white-space:pre-wrap; }
+  .turn.user { align-items:flex-end; }
+  .turn.user .bubble { background:var(--ink); color:#fff; border-bottom-right-radius:3px; max-width:80%; white-space:pre-wrap; }
+  .turn.bot .bubble { background:var(--paper); color:var(--ink); border:1px solid var(--line);
+    border-bottom-left-radius:3px; box-shadow:var(--shadow); }
+
+  /* Rendered markdown inside assistant bubbles */
+  .bubble > :first-child { margin-top:0; } .bubble > :last-child { margin-bottom:0; }
+  .bubble p { margin:0 0 10px; }
+  .bubble strong { font-weight:700; }
+  .bubble em { font-style:italic; }
+  .bubble code { font:12.5px var(--mono); background:var(--paper-3); border:1px solid var(--line);
+    border-radius:5px; padding:1px 5px; }
+  .bubble ul { margin:8px 0; padding-left:20px; } .bubble li { margin:3px 0; }
+  .bubble hr { border:0; border-top:1px solid var(--line-2); margin:14px 0; }
+  .bubble table { border-collapse:collapse; margin:10px 0; font-size:13.5px; }
+  .bubble th, .bubble td { border:1px solid var(--line-2); padding:6px 13px; text-align:left; }
+  .bubble th { background:var(--paper-3); font-weight:600; }
+  .typing span { display:inline-block; width:6px; height:6px; margin-right:4px; border-radius:50%;
+    background:var(--faint); animation:blink 1.2s infinite both; }
+  .typing span:nth-child(2){ animation-delay:.2s; } .typing span:nth-child(3){ animation-delay:.4s; }
+  @keyframes blink { 0%,80%,100%{ opacity:.25; transform:translateY(0);} 40%{ opacity:1; transform:translateY(-2px);} }
+
+  /* Composer */
+  .composer-wrap { border-top:1px solid var(--line); background:linear-gradient(to top,var(--paper),var(--paper) 60%,transparent); }
+  .composer { max-width:760px; margin:0 auto; padding:14px 22px 20px; }
+  .inputbar { display:flex; align-items:flex-end; gap:10px; border:1px solid var(--line-2);
+    border-radius:14px; padding:8px 8px 8px 14px; background:var(--paper); transition:.15s; box-shadow:var(--shadow); }
+  .inputbar:focus-within { border-color:var(--ink); }
+  .inputbar textarea { flex:1; border:0; outline:0; resize:none; background:transparent; color:var(--ink);
+    font:15px/1.5 var(--sans); max-height:180px; padding:6px 0; }
+  .inputbar textarea::placeholder { color:var(--faint); }
+  .seg { display:inline-flex; border:1px solid var(--line-2); border-radius:9px; overflow:hidden; }
+  .seg button { border:0; background:var(--paper); color:var(--muted); font:500 12px var(--sans);
+    padding:7px 11px; cursor:pointer; transition:.12s; }
+  .seg button[aria-pressed="true"] { background:var(--ink); color:#fff; }
+  .send { width:38px; height:38px; flex:none; border:0; border-radius:10px; background:var(--ink); color:#fff;
+    cursor:pointer; display:grid; place-items:center; transition:.15s; }
+  .send:hover { transform:translateY(-1px); } .send:disabled { opacity:.35; cursor:not-allowed; transform:none; }
+  .composer .meta { display:flex; align-items:center; gap:10px; margin-top:9px; }
+  .composer .meta .hint { font:500 11px var(--mono); color:var(--faint); letter-spacing:.04em; }
+
+  /* Sidebar */
+  aside { width:330px; flex:none; border-left:1px solid var(--line); background:var(--paper-2);
+    overflow-y:auto; padding:22px; display:flex; flex-direction:column; gap:16px; }
+  .panel { background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); padding:16px; }
+  .panel h3 { margin:0 0 13px; font:600 11px var(--mono); letter-spacing:.14em; text-transform:uppercase; color:var(--muted);
+    display:flex; align-items:center; justify-content:space-between; }
+  .field { display:flex; flex-direction:column; gap:6px; margin-bottom:11px; }
+  .field label { font:500 12px var(--sans); color:var(--ink-2); }
+  .field input, .field select { border:1px solid var(--line-2); border-radius:8px; padding:9px 11px;
+    font:14px var(--sans); background:var(--paper); color:var(--ink); outline:0; transition:.15s; }
+  .field input:focus, .field select:focus { border-color:var(--ink); }
+  .btn { width:100%; border:0; border-radius:9px; background:var(--ink); color:#fff; padding:10px;
+    font:600 13px var(--sans); cursor:pointer; transition:.15s; }
+  .btn:hover { opacity:.9; } .btn.secondary { background:var(--paper); color:var(--ink); border:1px solid var(--line-2); }
+  .btnrow { display:flex; gap:8px; }
+  .note { font:500 12px/1.5 var(--sans); color:var(--muted); margin-top:4px; }
+  .status { font:500 12px var(--mono); min-height:15px; margin-top:8px; color:var(--muted); }
+  .status.ok { color:var(--ink); } .status.err { color:var(--ink); font-weight:700; }
+  .doc { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 0;
+    border-top:1px solid var(--line); font-size:13px; }
+  .doc:first-of-type { border-top:0; }
+  .doc .nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .doc .st { font:600 10px var(--mono); letter-spacing:.1em; text-transform:uppercase; padding:3px 8px;
+    border:1px solid var(--line-2); border-radius:999px; color:var(--muted); flex:none; }
+  .doc .st.indexed { color:var(--ink); border-color:var(--ink); }
+  .doc .st.indexing, .doc .st.uploaded, .doc .st.uploading { color:var(--ink-2); }
+  .mini { background:transparent; border:1px solid var(--line-2); color:var(--ink-2); border-radius:7px;
+    font:500 11px var(--mono); padding:3px 8px; cursor:pointer; }
+  .mini:hover { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .hidden { display:none !important; }
+
+  /* Upload dropzone */
+  .dropzone { display:flex; flex-direction:column; align-items:center; gap:8px; padding:22px 14px;
+    border:1.5px dashed var(--line-2); border-radius:10px; background:var(--paper-2); cursor:pointer;
+    text-align:center; color:var(--muted); transition:.15s; }
+  .dropzone:hover, .dropzone.drag { border-color:var(--ink); color:var(--ink); background:var(--paper); }
+  .dropzone.drag { transform:scale(1.01); }
+  .dropzone svg { color:var(--faint); transition:.15s; }
+  .dropzone:hover svg, .dropzone.has-file svg { color:var(--ink); }
+  .dropzone.has-file { border-style:solid; border-color:var(--ink); color:var(--ink); background:var(--paper); }
+  .dropzone .dz-main { font:500 13px var(--sans); }
+  .dropzone .dz-sub { font:500 11px var(--mono); color:var(--faint); }
+  .dropzone.has-file .dz-main { font-family:var(--mono); font-size:12.5px; word-break:break-all; }
+
+  @media (max-width:880px){ aside{ display:none; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="mark">H</span>
+    <h1>Heritage</h1>
+    <span class="sub">Ga Archive RAG</span>
+  </div>
+  <div class="spacer"></div>
+  <span class="tag live" id="userPill">Guest</span>
+  <button class="iconbtn" id="newChatBtn">New chat</button>
+</header>
+
+<main>
+  <section class="chat">
+    <div class="stream" id="stream">
+      <div class="stream-inner" id="streamInner">
+        <div class="hero" id="hero">
+          <h2>Grounded answers from the Ga heritage archive.</h2>
+          <p>Strictly retrieval-based — if it isn't in the archive, it says so. No guessing.</p>
+          <div class="chips" id="chips">
+            <button class="chip" data-q="Genesis 1:1" data-m="bible"><span class="k">bible</span> &nbsp;Genesis 1:1</button>
+            <button class="chip" data-q="count from 1 to 10" data-m="general"><span class="k">numerics</span> &nbsp;Count 1 to 10 in Ga</button>
+            <button class="chip" data-q="list verses in Genesis 1" data-m="bible"><span class="k">discover</span> &nbsp;List verses in Genesis 1</button>
+            <button class="chip" data-q="hello" data-m="auto"><span class="k">say</span> &nbsp;Hello</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="composer-wrap">
+      <div class="composer">
+        <div class="inputbar">
+          <textarea id="input" rows="1" placeholder="Ask the archive…"></textarea>
+          <button class="send" id="sendBtn" title="Send (Enter)" aria-label="Send">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+          </button>
+        </div>
+        <div class="meta">
+          <div class="seg" role="group" aria-label="Mode">
+            <button data-mode="auto" aria-pressed="true">Auto</button>
+            <button data-mode="bible" aria-pressed="false">Bible</button>
+            <button data-mode="general" aria-pressed="false">General</button>
+          </div>
+          <span class="hint">Enter ↵ to send · Shift+Enter for newline</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <aside>
+    <div class="panel" id="loginPanel">
+      <h3>Account</h3>
+      <div class="field"><label>Email</label><input type="email" id="email" placeholder="you@example.com" autocomplete="username" /></div>
+      <div class="field"><label>Password</label><input type="password" id="password" placeholder="••••••••" autocomplete="current-password" /></div>
+      <div class="btnrow">
+        <button class="btn" id="loginBtn">Log in</button>
+        <button class="btn secondary" id="signupBtn">Sign up</button>
+      </div>
+      <div class="status" id="authStatus"></div>
+      <div class="note">Browse as a guest, or sign in for saved history. Admins can manage the archive.</div>
+    </div>
+
+    <div class="panel hidden" id="uploadPanel">
+      <h3>Add to archive</h3>
+      <div class="field"><label>Category</label>
+        <select id="upCategory">
+          <option value="">Auto-detect</option>
+          <option value="bible">Bible</option>
+          <option value="heritage">Heritage</option>
+          <option value="stories">Stories</option>
+        </select>
+      </div>
+      <div class="field"><label>Document</label>
+        <label class="dropzone" id="dropzone">
+          <input type="file" id="upFile" hidden />
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span class="dz-main" id="dropText">Drop a file or click to browse</span>
+          <span class="dz-sub">txt · md · json · jsonl · pdf</span>
+        </label>
+      </div>
+      <button class="btn" id="uploadBtn">Upload &amp; index</button>
+      <div class="status" id="upStatus"></div>
+    </div>
+
+    <div class="panel hidden" id="docsPanel">
+      <h3>Archive <button class="mini" id="refreshDocs">refresh</button></h3>
+      <div id="docsList"><div class="note">—</div></div>
+    </div>
+  </aside>
+</main>
+
+<script>
+const API = "/api/v1";
+let conversationId = null, me = null, mode = "auto", busy = false;
+let anonId = localStorage.getItem("anonId");
+if (!anonId) { anonId = "demo-" + Math.random().toString(36).slice(2, 10); localStorage.setItem("anonId", anonId); }
+
+const $ = (id) => document.getElementById(id);
+const stream = $("stream"), inner = $("streamInner"), input = $("input");
+
+function headers(json = true) {
+  const h = {};
+  if (json) h["Content-Type"] = "application/json";
+  if (!me) h["X-Anonymous-ID"] = anonId;
+  return h;
+}
+function scrollDown() { stream.scrollTop = stream.scrollHeight; }
+function clearHero() { const h = $("hero"); if (h) h.remove(); }
+
+function addTurn(role) {
+  clearHero();
+  const turn = document.createElement("div");
+  turn.className = "turn " + (role === "user" ? "user" : "bot");
+  const who = document.createElement("div");
+  who.className = "who"; who.textContent = role === "user" ? "You" : "Nii Obodai";
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+  turn.append(who, bubble);
+  inner.appendChild(turn);
+  scrollDown();
+  return bubble;
+}
+function setTyping(bubble) {
+  bubble.innerHTML = '<span class="typing"><span></span><span></span><span></span></span>';
+}
+
+/* ---- Minimal, safe GitHub-flavored markdown renderer (escapes HTML first) ---- */
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function inlineMd(s) {
+  return s
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>");
+}
+function splitRow(line) {
+  return line.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((c) => c.trim());
+}
+function isTableSep(line) {
+  return /\|/.test(line) && /^[\s:|–—-]+$/.test(line.replace(/\|/g, "")) && /-/.test(line);
+}
+function renderMarkdown(md) {
+  const lines = escapeHtml(md).split("\n");
+  let html = "", i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^\s*([-–—]\s*){3,}$/.test(line)) { html += "<hr>"; i++; continue; }      // rule
+    if (line.includes("|") && i + 1 < lines.length && isTableSep(lines[i + 1])) {   // table
+      const head = splitRow(line); i += 2; const rows = [];
+      while (i < lines.length && lines[i].includes("|")) { rows.push(splitRow(lines[i])); i++; }
+      html += "<table><thead><tr>" + head.map((h) => `<th>${inlineMd(h)}</th>`).join("") +
+        "</tr></thead><tbody>" + rows.map((r) => "<tr>" + r.map((c) => `<td>${inlineMd(c)}</td>`).join("") + "</tr>").join("") +
+        "</tbody></table>"; continue;
+    }
+    if (/^\s*[-*]\s+/.test(line)) {                                                 // list
+      const items = [];
+      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) { items.push(lines[i].replace(/^\s*[-*]\s+/, "")); i++; }
+      html += "<ul>" + items.map((it) => `<li>${inlineMd(it)}</li>`).join("") + "</ul>"; continue;
+    }
+    if (/^\s*$/.test(line)) { i++; continue; }                                      // blank
+    const para = [];                                                                // paragraph
+    while (i < lines.length && !/^\s*$/.test(lines[i]) && !/^\s*[-*]\s+/.test(lines[i]) &&
+           !/^\s*([-–—]\s*){3,}$/.test(lines[i]) &&
+           !(lines[i].includes("|") && i + 1 < lines.length && isTableSep(lines[i + 1]))) {
+      para.push(lines[i]); i++;
+    }
+    html += "<p>" + para.map(inlineMd).join("<br>") + "</p>";
+  }
+  return html;
+}
+function render(bubble, text) { bubble.classList.remove("streaming"); bubble.innerHTML = renderMarkdown(text); }
+
+async function send(text) {
+  text = (text ?? input.value).trim();
+  if (!text || busy) return;
+  busy = true; $("sendBtn").disabled = true;
+  input.value = ""; autosize();
+  addTurn("user").textContent = text;
+  const bubble = addTurn("bot"); setTyping(bubble);
+
+  const path = conversationId ? `/chat/${conversationId}` : "/chat/new";
+  try {
+    const res = await fetch(`${API}${path}?stream=true`, {
+      method: "POST", headers: headers(), credentials: "include",
+      body: JSON.stringify({ query: text, mode }),
+    });
+    if (!res.ok) { render(bubble, `[${res.status}] ${await res.text()}`); return; }
+    const cid = res.headers.get("X-Conversation-Id"); if (cid) conversationId = cid;
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let acc = "", first = true;
+    while (true) {
+      const { done, value } = await reader.read(); if (done) break;
+      acc += dec.decode(value, { stream: true });
+      if (first && acc) { bubble.innerHTML = ""; bubble.classList.add("streaming"); first = false; }
+      bubble.textContent = acc; scrollDown(); // plain text while streaming (no half-parsed markdown)
+    }
+    render(bubble, acc || "(no response)"); // format markdown once complete
+  } catch (e) { render(bubble, "Network error: " + e.message); }
+  finally { busy = false; $("sendBtn").disabled = false; input.focus(); }
+}
+
+// Composer
+function autosize() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 180) + "px"; }
+input.addEventListener("input", autosize);
+input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
+$("sendBtn").onclick = () => send();
+document.querySelectorAll(".seg button").forEach((b) => b.onclick = () => {
+  mode = b.dataset.mode;
+  document.querySelectorAll(".seg button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+});
+$("chips") && $("chips").addEventListener("click", (e) => {
+  const c = e.target.closest(".chip"); if (!c) return;
+  mode = c.dataset.m || "auto";
+  document.querySelectorAll(".seg button").forEach((x) => x.setAttribute("aria-pressed", x.dataset.mode === mode));
+  send(c.dataset.q);
+});
+$("newChatBtn").onclick = () => {
+  conversationId = null; busy = false; $("sendBtn").disabled = false;
+  inner.innerHTML = `<div class="hero" id="hero"><h2>New session.</h2><p>Ask the archive anything.</p></div>`;
+};
+
+// Auth
+async function refreshMe() {
+  try { const r = await fetch(`${API}/auth/me`, { credentials: "include" }); me = r.ok ? await r.json() : null; }
+  catch { me = null; }
+  renderAuth();
+}
+function renderAuth() {
+  const pill = $("userPill");
+  if (me) {
+    pill.textContent = me.role === "admin" ? `${me.email} · admin` : me.email;
+    $("loginPanel").classList.add("hidden");
+    const admin = me.role === "admin";
+    $("uploadPanel").classList.toggle("hidden", !admin);
+    $("docsPanel").classList.toggle("hidden", !admin);
+    if (admin) loadDocs();
+  } else {
+    pill.textContent = "Guest";
+    $("loginPanel").classList.remove("hidden");
+    $("uploadPanel").classList.add("hidden");
+    $("docsPanel").classList.add("hidden");
+  }
+}
+async function doAuth(kind) {
+  const status = $("authStatus"); status.className = "status"; status.textContent = "…";
+  try {
+    const r = await fetch(`${API}/auth/${kind}`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ email: $("email").value.trim(), password: $("password").value }),
+    });
+    const d = await r.json();
+    if (!r.ok) { status.className = "status err"; status.textContent = d.detail || "Failed"; return; }
+    status.className = "status ok"; status.textContent = "Signed in"; await refreshMe();
+  } catch (e) { status.className = "status err"; status.textContent = e.message; }
+}
+$("loginBtn").onclick = () => doAuth("login");
+$("signupBtn").onclick = () => doAuth("signup");
+$("userPill").onclick = async () => {
+  if (!me) return;
+  await fetch(`${API}/auth/logout`, { method: "POST", credentials: "include" });
+  me = null; renderAuth();
+};
+
+// Admin — dropzone
+const dz = $("dropzone"), upFile = $("upFile"), dropText = $("dropText");
+function showFile(f) {
+  if (f) { dropText.textContent = f.name; dz.classList.add("has-file"); }
+  else { dropText.textContent = "Drop a file or click to browse"; dz.classList.remove("has-file"); }
+}
+upFile.addEventListener("change", () => showFile(upFile.files[0]));
+["dragover", "dragenter"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add("drag"); }));
+["dragleave", "dragend"].forEach((ev) => dz.addEventListener(ev, () => dz.classList.remove("drag")));
+dz.addEventListener("drop", (e) => {
+  e.preventDefault(); dz.classList.remove("drag");
+  if (e.dataTransfer.files.length) { upFile.files = e.dataTransfer.files; showFile(upFile.files[0]); }
+});
+
+$("uploadBtn").onclick = async () => {
+  const file = upFile.files[0], status = $("upStatus");
+  if (!file) { status.className = "status err"; status.textContent = "Choose a file"; return; }
+  status.className = "status"; status.textContent = "Uploading…";
+  const fd = new FormData(); fd.append("file", file);
+  const cat = $("upCategory").value; if (cat) fd.append("metadata", JSON.stringify({ category: cat }));
+  try {
+    const r = await fetch(`${API}/admin/upload`, { method: "POST", credentials: "include", body: fd });
+    const d = await r.json();
+    if (!r.ok) { status.className = "status err"; status.textContent = d.detail || "Failed"; return; }
+    status.className = "status ok"; status.textContent = "Indexing started"; upFile.value = ""; showFile(null);
+    setTimeout(loadDocs, 1500); setTimeout(loadDocs, 5000);
+  } catch (e) { status.className = "status err"; status.textContent = e.message; }
+};
+async function loadDocs() {
+  const list = $("docsList");
+  try {
+    const r = await fetch(`${API}/admin/documents`, { credentials: "include" });
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d.documents.length) { list.innerHTML = '<div class="note">No documents yet.</div>'; return; }
+    list.innerHTML = "";
+    for (const doc of d.documents) {
+      const row = document.createElement("div"); row.className = "doc";
+      const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = doc.original_filename;
+      const st = document.createElement("span"); st.className = "st " + doc.status; st.textContent = doc.status;
+      row.append(nm, st); list.appendChild(row);
+    }
+  } catch {}
+}
+$("refreshDocs").onclick = loadDocs;
+
+autosize();
+refreshMe();
+</script>
+</body>
+</html>

@@ -91,6 +91,27 @@ export async function listVerses(
   return map;
 }
 
+export interface BookSummary {
+  book: string;
+  traditional_book: string | null;
+  chapters: number;
+  verses: number;
+}
+
+/** Catalog of indexed books with chapter/verse counts (for archive-overview queries). */
+export async function listBooks(env: Env): Promise<BookSummary[]> {
+  const res = await env.DB.prepare(
+    `SELECT book,
+            MAX(traditional_book) AS traditional_book,
+            COUNT(DISTINCT chapter_num) AS chapters,
+            COUNT(*) AS verses
+       FROM bible_verses
+      GROUP BY book
+      ORDER BY book ASC`
+  ).all<BookSummary>();
+  return res.results ?? [];
+}
+
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 }
