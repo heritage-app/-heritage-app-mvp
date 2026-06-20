@@ -1,0 +1,47 @@
+name = "heritage-rag"
+main = "src/index.ts"
+compatibility_date = "2024-12-18"
+compatibility_flags = ["nodejs_compat"]
+
+# Workers AI (embeddings + LLM)
+[ai]
+binding = "AI"
+
+# Vectorize index for semantic retrieval.
+# Create it once with:
+#   wrangler vectorize create heritage-index --dimensions=768 --metric=cosine
+# Then create metadata indexes so we can filter by category/book/chapter/verse:
+#   wrangler vectorize create-metadata-index heritage-index --property-name=category --type=string
+#   wrangler vectorize create-metadata-index heritage-index --property-name=book --type=string
+#   wrangler vectorize create-metadata-index heritage-index --property-name=chapter_num --type=number
+#   wrangler vectorize create-metadata-index heritage-index --property-name=verse_num --type=number
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "heritage-index"
+
+# D1 (users, chat sessions, interactions, documents, bible_verses).
+# Create it with:  wrangler d1 create heritage-db
+# Then paste the returned database_id below and run the schema:
+#   npm run db:schema:remote
+[[d1_databases]]
+binding = "DB"
+database_name = "heritage-db"
+database_id = "a248a54f-b9c1-4c7f-9c4b-e082332786b4"
+
+# R2 bucket for original document binaries.
+# Create it with:  wrangler r2 bucket create heritage-documents
+[[r2_buckets]]
+binding = "DOCS_BUCKET"
+bucket_name = "heritage-documents"
+
+[vars]
+# Non-secret config. Secrets (JWT_SECRET) go in .dev.vars locally and
+# `wrangler secret put JWT_SECRET` in production.
+# Llama 3.3 70B (fp8, latency-optimized) handles the multi-scenario persona +
+# strict guardrail prompts well. For lower cost, swap to @cf/meta/llama-3.2-3b-instruct
+# or @cf/meta/llama-3.1-8b-instruct-fp8.
+LLM_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+EMBEDDING_MODEL = "@cf/baai/bge-base-en-v1.5"
+CORS_ORIGINS = "http://localhost:3000,http://localhost:5173"
+SUPER_ADMIN_EMAIL = "ekowfirmino@gmail.com"
+ACCESS_TOKEN_EXPIRE_MINUTES = "1440"

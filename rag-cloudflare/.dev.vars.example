@@ -1,0 +1,8 @@
+# Copy to .dev.vars for local development (wrangler loads it automatically).
+# In production set these with: wrangler secret put <NAME>
+
+# REQUIRED: signing secret for JWT auth cookies (use a long random string)
+JWT_SECRET="change-me-to-a-long-random-secret"
+
+# OPTIONAL: password for the auto-provisioned super admin (paired with SUPER_ADMIN_EMAIL in wrangler.toml)
+SUPER_ADMIN_PASSWORD=""

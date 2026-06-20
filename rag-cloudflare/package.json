@@ -1,0 +1,33 @@
+{
+  "name": "rag-cloudflare",
+  "version": "1.0.0",
+  "description": "Heritage RAG backend on Cloudflare Workers (Ga-language assistant: Bible + general modes)",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "cf-typegen": "wrangler types",
+    "db:schema:local": "wrangler d1 execute heritage-db --local --file=./schema.sql",
+    "db:schema:remote": "wrangler d1 execute heritage-db --remote --file=./schema.sql"
+  },
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "rag",
+    "vectorize",
+    "hono"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "hono": "^4.6.14",
+    "unpdf": "^0.12.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "typescript": "^5.7.2",
+    "wrangler": "^3.95.0"
+  }
+}
