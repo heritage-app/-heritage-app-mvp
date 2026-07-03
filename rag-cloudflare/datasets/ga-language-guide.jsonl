@@ -118,10 +118,10 @@
 {"english":"Yam","ga":"Yɛlɛ","topic":"food"}
 {"english":"Salt","ga":"Ŋoo","topic":"food"}
 {"english":"Water","ga":"Nu","topic":"food"}
-{"english":"Drink","ga":"Nunumɔ","topic":"food"}
-{"english":"Alcohol","ga":"Daa","topic":"food"}
-{"english":"Palm wine","ga":"Ngɔngmɛ","topic":"food"}
-{"english":"Akpeteshie","ga":"Akpeteshi","topic":"food"}
+{"english":"Drink","ga":"Nunumɔ","topic":"drinks"}
+{"english":"Alcohol","ga":"Daa","topic":"drinks"}
+{"english":"Palm wine","ga":"Ngɔngmɛ","topic":"drinks"}
+{"english":"Akpeteshie","ga":"Akpeteshi","topic":"drinks"}
 {"english":"Fish","ga":"Loo","topic":"food"}
 {"english":"Egg","ga":"Wolɔ","topic":"food"}
 {"english":"Food","ga":"Niyeenii","topic":"food"}
