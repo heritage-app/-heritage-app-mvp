@@ -5,12 +5,18 @@
  */
 import type { Env, ChatMessage, RagMode, VerseRecord } from "../types";
 import { DEFAULT_TOP_K, MIN_RELEVANCE_SCORE, BOOK_MAP, BIBLE_BOOK_TOKENS } from "../config";
-import { numToGa } from "./ga";
-import { resolveGaCitation } from "./ga";
+import { numToGa, foldGa, resolveGaCitation } from "./ga";
 import { isFormattableBibleRecord, formatBibleQuote } from "./validator";
+import { getTradBook } from "./refiner";
 import { retrieveContext, formatRetrievedContext, type RetrieveFilters } from "./retriever";
+import { retrieveWithExpansion, analyzeQueryComplexity } from "./query-expansion";
+import { 
+  logKnowledgeGap, 
+  generateLearningNotFoundResponse,
+  handleUserContribution 
+} from "./learning-from-gaps";
 import { listChapters, listVerses } from "./discovery";
-import { getVerse, listBooks } from "../db/bibleVerses";
+import { getVerse, listBooks, getRandomVerse } from "../db/bibleVerses";
 import { chat, streamChat } from "./llm";
 import {
   NII_OBODAI_PERSONA_PROMPT,
@@ -23,6 +29,8 @@ import { saveInteraction } from "../db/messages";
 import { summarizeConversation, generateTitle } from "./memory";
 
 const GHOSTS = ["Linguistic Engine", "inguistic Engine", "Engine"];
+const NOT_FOUND_GENERAL =
+  "Hmm, I don't have that in my archives yet — try a Ga word, a phrase, or a Bible verse like Genesis 1:1.";
 
 export interface AskParams {
   query: string;
@@ -95,7 +103,6 @@ async function* askBible(
   model?: string
 ): AsyncGenerator<string> {
   const qLow = query.toLowerCase();
-  const archiveLabelTop = "📍 **Archive Focus: Bible**\n\n";
 
   // --- Archive overview: "what's in here / what do you have" → list indexed books ---
   const isOverview =
@@ -112,14 +119,13 @@ async function* askBible(
   if (isOverview) {
     const books = await listBooks(env);
     if (books.length === 0) {
-      yield archiveLabelTop + "My Ga Bible archive is currently empty — no books have been indexed yet.";
+      yield "My Ga Bible archive is currently empty — no books have been indexed yet.";
     } else {
       const lines = books.map(
         (b) =>
           `- **${b.book}**${b.traditional_book ? ` (${b.traditional_book})` : ""} — ${b.chapters} chapter${b.chapters !== 1 ? "s" : ""}, ${b.verses} verse${b.verses !== 1 ? "s" : ""}`
       );
       yield (
-        archiveLabelTop +
         "Here is what is currently in my Ga Bible archive:\n\n" +
         lines.join("\n") +
         "\n\nAsk for a specific verse (e.g. *Genesis 1:1*), or *list verses in Genesis 1*."
@@ -130,7 +136,9 @@ async function* askBible(
 
   const isSingular = ["a verse", "any verse", "quote a verse"].some((p) => qLow.includes(p));
   const isPlural = ["verses", "multiple", "list", "all", "chapters"].some((w) => qLow.includes(w));
-  const effectiveTopK = isSingular ? 1 : isPlural ? 25 : topK;
+  const complexity = analyzeQueryComplexity(query);
+  const dynamicTopK = complexity === 'high' ? 10 : complexity === 'medium' ? 5 : 3;
+  const effectiveTopK = isSingular ? 1 : isPlural ? 25 : dynamicTopK;
 
   const incompleteMatch = /^\s*(?:kuku\s+ni\s+ji|verse|chapter|yitso)\s+\d+\s*$/.test(qLow);
   const isIncomplete = incompleteMatch && !BIBLE_BOOK_TOKENS.some((b) => qLow.includes(b));
@@ -158,6 +166,34 @@ async function* askBible(
       }
     }
     requestedBook = rawBook ? BOOK_MAP[rawBook] ?? cap(rawBook) : "Genesis";
+  }
+
+  // --- Random verse: "quote/give me a (random/any) verse" → pull a fresh one from D1 ---
+  const isRandomVerse =
+    !isSpecific &&
+    /\bverse\b/.test(qLow) &&
+    /\b(quote|random|any|give|show|read|another|some)\b/.test(qLow) &&
+    !/\b(list|how many|count|chapters?|verses\s+in)\b/.test(qLow);
+  if (isRandomVerse) {
+    let book: string | null = null;
+    for (const b of BIBLE_BOOK_TOKENS) if (qLow.includes(b)) { book = BOOK_MAP[b] ?? cap(b); break; }
+    const v = await getRandomVerse(env, book ?? undefined);
+    yield v
+      ? `Hɛloo naanyo! Here is a verse from the archive:\n\n${formatBibleQuote(v)}`
+      : "This is not in my Ga Bible archives.";
+    return;
+  }
+
+  // --- Book-name translation: "what is Genesis in Ga / Genesis ga name" ---
+  // (These Pentateuch books route to the Bible engine; other books resolve in General.)
+  if (!isSpecific && /\bin ga\b|\bga name\b|how do you say|\bcalled\b/.test(qLow)) {
+    for (const t of ["genesis", "exodus", "leviticus", "numbers", "deuteronomy"]) {
+      if (qLow.includes(t)) {
+        const eng = t.charAt(0).toUpperCase() + t.slice(1);
+        yield `In Ga, the book of **${eng}** is **${getTradBook(t)}**.`;
+        return;
+      }
+    }
   }
 
   // --- Structural discovery (chapter/verse listing, counting) ---
@@ -221,21 +257,24 @@ async function* askBible(
     validationFailed = true;
   }
 
-  const archiveLabel = "📍 **Archive Focus: Bible**\n\n";
   const NOT_FOUND = "This is not in my Ga Bible archives.";
   let grounded: string;
 
   if (isIncomplete) {
     grounded = "The reference is incomplete. Please provide book, chapter, and verse.";
   } else if (isSpecific && (nodes.length === 0 || validationFailed) && !matchedMeta) {
-    grounded = "This exact verse or chapter is not in my indexed Bible archive.";
+    // Log the knowledge gap for learning
+    await logKnowledgeGap(env, query, 'bible_citation', 'Bible verse/chapter not found');
+    grounded = generateLearningNotFoundResponse(query, 'bible');
   } else if (matchedMeta && isFormattableBibleRecord(matchedMeta)) {
     grounded = `Hɛloo naanyo! Here is the verse you requested:\n\n${formatBibleQuote(matchedMeta)}`;
   } else {
     // Non-exact bible request ("quote a verse", "a verse about light", etc.).
     const relevant = nodes.filter((n) => (n.score ?? 0) >= MIN_RELEVANCE_SCORE);
     if (relevant.length === 0) {
-      grounded = NOT_FOUND;
+      // Log the knowledge gap for learning
+      await logKnowledgeGap(env, query, 'bible_general', 'Bible content not found');
+      grounded = generateLearningNotFoundResponse(query, 'bible');
     } else {
       // The archive is verse-based: quote the most relevant verse(s) with the exact
       // deterministic citation block — never let the LLM re-serialize scripture
@@ -257,7 +296,7 @@ async function* askBible(
 
   // Every bible answer is grounded/deterministic — never routed through the
   // creative persona LLM, which could otherwise introduce outside knowledge.
-  yield archiveLabel + grounded;
+  yield grounded;
 }
 
 /** General-knowledge engine for history, stories, phrases, numerics. */
@@ -282,74 +321,110 @@ async function* askGeneral(
     }
   }
 
-  const phraseTopK = Math.max(topK, 20);
-  let nodes = await retrieveContext(env, query, {
-    topK: phraseTopK,
-    allowedCategories: ["heritage", "stories"],
-  });
-  nodes = nodes.filter((n) => (n.score ?? 0) >= MIN_RELEVANCE_SCORE);
-
-  const singleNums = [...query.matchAll(/\b(\d+)\b/g)].map((m) => m[1]);
-  // Only treat a query as a number-translation request when it explicitly asks —
-  // an incidental number ("the 2022 World Cup") must NOT trigger a translation.
   const qLow = query.toLowerCase();
+  const singleNums = [...query.matchAll(/\b(\d+)\b/g)].map((m) => m[1]);
+
+  // Tokens that don't count as "content" when deciding what the query is about.
+  const stop = new Set([
+    "in", "ga", "the", "a", "an", "is", "are", "what", "how", "do", "does", "you",
+    "say", "said", "tell", "me", "to", "of", "for", "your", "my", "i", "we", "they",
+    "translate", "translation", "number", "numeral", "count", "spell", "word",
+    "mean", "means", "meaning", "language", "english",
+  ]);
+  // Content words: exclude stopwords AND bare numbers. Folded (ŋ→n, ɛ→e, ɔ→o) so
+  // Ga words typed on a standard keyboard compare equal to archive spelling.
+  const queryWords = [...foldGa(qLow).matchAll(/[\p{L}\p{N}'-]+/gu)]
+    .map((m) => m[0])
+    .filter((w) => w.length > 1 && !stop.has(w) && !/^\d+$/.test(w));
+
+  // --- Number translation: fire only when a number is the actual subject (no other
+  // content words), so "21 in Ga" works but "1 Samuel" / "21st May" don't misfire. ---
   const wantsNumber =
     /\b(?:in|to)\s+ga\b/.test(qLow) ||
     /\b(?:translate|translation|number|count|spell)\b/.test(qLow) ||
     /^\s*\d+\s*$/.test(query.trim());
-
-  if (nodes.length === 0) {
-    // No retrieved context. Only answer if a number translation was actually requested.
-    if (wantsNumber && singleNums.length) {
-      const num = parseInt(singleNums[0], 10);
-      const ga = numToGa(num);
-      yield ga === String(num)
-        ? `I can translate Ga numbers from 1 to 999 — **${num}** is outside that range.`
-        : `**${num}** in Ga is **${ga}**.`;
-      return;
-    }
-    // Otherwise: strict RAG — not in the archive, so refuse without guessing.
-    yield "This one is not in my archives yet.";
+  if (wantsNumber && singleNums.length && queryWords.length === 0) {
+    const num = parseInt(singleNums[0], 10);
+    const ga = numToGa(num);
+    yield ga === String(num)
+      ? `I can translate Ga numbers from 1 to 999 — **${num}** is outside that range.`
+      : `**${num}** in Ga is **${ga}**.`;
     return;
   }
 
-  // Phrase-aware scan across JSONL chunks
-  const stop = new Set(["in", "ga", "the", "a", "an", "is", "are", "what", "how", "do", "you", "say", "tell", "me", "to"]);
-  const queryWords = new Set([...query.toLowerCase().matchAll(/\b\w+\b/g)].map((m) => m[0]).filter((w) => !stop.has(w)));
+  const phraseTopK = Math.max(topK, 20);
+  const complexity = analyzeQueryComplexity(query);
+  const dynamicTopK = complexity === 'high' ? 25 : complexity === 'medium' ? 15 : phraseTopK;
+  
+  // Use intelligent retrieval with expansion
+  const { nodes: expandedNodes } = await retrieveWithExpansion(env, query, {
+    topK: dynamicTopK,
+    allowedCategories: ["heritage", "stories"],
+  });
 
-  const phraseHits: Array<[number, string, string]> = [];
-  for (const node of nodes) {
-    const src = String(node.metadata.filename ?? "");
-    if (!(src.toLowerCase().endsWith(".jsonl") || src.toLowerCase().includes("phrase"))) continue;
-    for (const rawLine of node.text.split("\n")) {
-      const line = rawLine.trim();
-      if (!line) continue;
-      try {
-        const rec = JSON.parse(line);
-        const eng = String(rec.english ?? "").trim();
-        const ga = String(rec.ga ?? "").trim();
-        if (!eng || !ga) continue;
-        const engLower = eng.toLowerCase();
-        let matchCount = 0;
-        for (const w of queryWords) if (engLower.includes(w)) matchCount++;
-        if (matchCount > 0) phraseHits.push([matchCount, eng, ga]);
-      } catch {
-        // not JSON
-      }
+  const nodes = expandedNodes.filter((n) => (n.score ?? 0) >= MIN_RELEVANCE_SCORE);
+
+  // --- Phrase-pair lookup: answer with a pair only when the query names the English
+  // or the Ga term (folded whole-word overlap), not merely a loose embedding match.
+  // Scans below-threshold candidates too: Ga-word queries embed poorly with the
+  // English embedding model, but an exact folded word match is the stronger signal. ---
+
+  const hits: Array<{ mc: number; score: number; eng: string; ga: string; gaSide: boolean }> = [];
+  const seen = new Set<string>();
+  for (const n of expandedNodes) {
+    const eng = String(n.metadata?.english ?? "").trim();
+    const ga = String(n.metadata?.ga ?? "").trim();
+    if (!eng || !ga) continue;
+    const key = eng.toLowerCase();
+    if (seen.has(key)) continue;
+    const engWords = new Set(foldGa(eng.toLowerCase()).match(/[\p{L}\p{N}'-]+/gu) ?? []);
+    const gaWords = new Set(foldGa(ga.toLowerCase()).match(/[\p{L}\p{N}'-]+/gu) ?? []);
+    let mcEn = 0;
+    let mcGa = 0;
+    for (const w of queryWords) {
+      if (engWords.has(w)) mcEn++; // whole-word overlap, either direction
+      if (gaWords.has(w)) mcGa++;
     }
+    const mc = Math.max(mcEn, mcGa);
+    if (mc > 0) { seen.add(key); hits.push({ mc, score: n.score ?? 0, eng, ga, gaSide: mcGa > mcEn }); }
   }
 
-  if (phraseHits.length) {
-    phraseHits.sort((a, b) => b[0] - a[0]);
-    const best = phraseHits.slice(0, 5);
-    const grounded = best.map(([, eng, ga]) => `English: ${eng} → Ga: ${ga}`).join("\n");
-    yield grounded; // exact phrase pairs — preserve verbatim
+  if (hits.length) {
+    hits.sort((a, b) => b.mc - a.mc || b.score - a.score);
+    const top = hits[0];
+    const asLine = (h: (typeof hits)[number]) =>
+      h.gaSide ? `**${h.ga}** is Ga for “${h.eng}”.` : `In Ga, “${h.eng}” is **${h.ga}**.`;
+    // A clear winner = only hit, or it matches more query words than the runner-up.
+    const clearWinner = hits.length === 1 || top.mc > hits[1].mc;
+    if (clearWinner) {
+      yield asLine(top);
+    } else {
+      // Genuinely ambiguous: list only the equally-best matches, not weaker partials.
+      const tied = hits.filter((h) => h.mc === top.mc).slice(0, 5);
+      yield tied.length === 1
+        ? asLine(tied[0])
+        : `Here's what I have in Ga:\n\n` +
+          tied.map((h) => (h.gaSide ? `- **${h.ga}** → “${h.eng}”` : `- “${h.eng}” → **${h.ga}**`)).join("\n");
+    }
+    return;
+  }
+
+  if (nodes.length === 0) {
+    // Log the knowledge gap for learning
+    await logKnowledgeGap(env, query, 'general', 'General content not found');
+    yield generateLearningNotFoundResponse(query, 'general');
     return;
   }
 
   // Real retrieved context — answer strictly from it, or refuse (never guess).
   const answer = await groundWithGuardrail(env, query, formatRetrievedContext(nodes), model);
-  yield isNotFound(answer) ? "This one is not in my archives yet." : answer;
+  if (isNotFound(answer)) {
+    // Log the knowledge gap for learning
+    await logKnowledgeGap(env, query, 'general', 'Grounding failed - content not in context');
+    yield generateLearningNotFoundResponse(query, 'general');
+  } else {
+    yield answer;
+  }
 }
 
 /**
