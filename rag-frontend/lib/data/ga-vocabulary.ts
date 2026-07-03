@@ -55,6 +55,7 @@ export const GA_VOCABULARY: GaSuggestion[] = [
   { text: 'nmɛdaa', type: 'phrase', description: 'Corn wine', phonetic: 'n-meh-DAH', english: 'corn wine' },
   { text: 'asaana', type: 'phrase', description: 'Caramelized corn drink', phonetic: 'ah-SAH-nah', english: 'asaana' },
   { text: 'sobolo', type: 'phrase', description: 'Spiced hibiscus drink', phonetic: 'soh-BOH-loh', english: 'sobolo' },
+  { text: 'lamugin', type: 'phrase', description: 'Spiced ginger drink', phonetic: 'lah-moo-GEEN', english: 'lamugin' },
   { text: 'akwei', type: 'phrase', description: 'Thank you', phonetic: 'ah-KWAY', english: 'thank you' },
   { text: 'ɛdzɛ', type: 'phrase', description: 'Good/fine', phonetic: 'eh-DZEH', english: 'good' },
   { text: 'heɛ', type: 'phrase', description: 'Yes', phonetic: 'hay', english: 'yes' },
