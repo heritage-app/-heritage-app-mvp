@@ -12,13 +12,14 @@ import type { AskRequest } from "@/types";
 import { cn } from "@/lib/utils";
 import { useRef, useEffect, useState } from "react";
 import { UploadModal } from "@/components/upload/UploadModal";
+import { GaAutocomplete } from "@/components/chat/GaAutocomplete";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, Sparkles, Brain, Book, History, Wand2 } from "lucide-react";
+import { ChevronDown, Sparkles, Brain, Book, History, Wand2, Globe } from "lucide-react";
 
 interface FilePreview {
   file: File;
@@ -40,13 +41,15 @@ export function ChatInput({
   isStatic = false,
   variant = "hero"
 }: ChatInputProps) {
-  const { isLoading, isStreaming, currentConversationId, selectedMode, setMode } = useChatStore();
+  const { isLoading, isStreaming, currentConversationId, selectedMode, setMode, messages } = useChatStore();
   const { sendMessage } = useMessages(currentConversationId);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FilePreview[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("gemini-3-flash-preview");
+  const [inputLanguage, setInputLanguage] = useState<"gaa" | "en">("gaa");
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
   const prevConversationIdRef = useRef<string | null>(null);
 
   // Auto-focus input when starting a new conversation
@@ -59,6 +62,38 @@ export function ChatInput({
     }
     prevConversationIdRef.current = currentConversationId;
   }, [currentConversationId]);
+
+  // Refocus input when language changes to trigger keyboard switch
+  useEffect(() => {
+    if (textareaRef.current && document.activeElement === textareaRef.current) {
+      // Blur and refocus to trigger keyboard language change
+      textareaRef.current.blur();
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 50);
+    }
+  }, [inputLanguage]);
+
+  // Show autocomplete when typing in Ga mode
+  useEffect(() => {
+    if (inputLanguage === "gaa" && query && query.length >= 1) {
+      setShowAutocomplete(true);
+    } else {
+      setShowAutocomplete(false);
+    }
+  }, [query, inputLanguage]);
+
+  const handleSuggestionSelect = (suggestion: string) => {
+    setValue("query", suggestion);
+    setShowAutocomplete(false);
+    textareaRef.current?.focus();
+  };
+
+  // Build conversation context for AI suggestions
+  const conversationContext = messages
+    .slice(-3) // Last 3 messages for context
+    .map(m => `${m.role}: ${m.content}`)
+    .join('\n');
 
   const {
     register,
@@ -179,7 +214,7 @@ export function ChatInput({
                 >
                   <CirclePlus className={cn(variant === "hero" ? "h-4.5 w-4.5 sm:h-5 w-5" : "h-3.5 w-3.5 sm:h-4 w-4")} />
                 </Button>
-                <div className="flex-1">
+                <div className="flex-1 relative">
                   <textarea
                     {...registerProps}
                     ref={(e) => {
@@ -190,6 +225,12 @@ export function ChatInput({
                     disabled={isDisabled}
                     rows={1}
                     onPaste={handlePaste}
+                    lang={inputLanguage}
+                    inputMode="text"
+                    autoCapitalize="sentences"
+                    autoComplete="on"
+                    autoCorrect="on"
+                    spellCheck="true"
                     className={cn(
                       "w-full resize-none bg-transparent py-1.5 transition-all scrollbar-hide",
                       variant === "hero" 
@@ -210,6 +251,13 @@ export function ChatInput({
                       }
                     }}
                   />
+                  <GaAutocomplete
+                    input={query || ""}
+                    onSelect={handleSuggestionSelect}
+                    isVisible={showAutocomplete && inputLanguage === "gaa"}
+                    onClose={() => setShowAutocomplete(false)}
+                    conversationContext={conversationContext}
+                  />
                 </div>
               </div>
 
@@ -219,6 +267,53 @@ export function ChatInput({
                 variant === "hero" ? "pt-2 sm:pt-4" : "pt-0.5 sm:pt-1"
               )}>
                 <div className="flex items-center gap-1.5 ml-2">
+                  {/* Language Selector */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={cn(
+                          "shrink-0 rounded-full text-foreground/20 hover:text-foreground/40 hover:bg-black/5 transition-colors",
+                          inputLanguage === "gaa" && "text-primary hover:text-primary/80 hover:bg-primary/10",
+                          variant === "hero" ? "h-8 w-8 sm:h-9 w-9" : "h-6 w-6 sm:h-7 w-7"
+                        )}
+                        title={inputLanguage === "gaa" ? "Ga keyboard active (with autocomplete)" : "Switch Keyboard Language"}
+                      >
+                        <Globe className={cn(variant === "hero" ? "h-4 w-4 sm:h-4.5 w-4.5" : "h-3 w-3 sm:h-3.5 w-3.5")} />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="bg-background/95 backdrop-blur-xl border border-primary/20">
+                      <DropdownMenuItem 
+                        onClick={() => setInputLanguage("gaa")}
+                        className={cn(
+                          "cursor-pointer",
+                          inputLanguage === "gaa" && "bg-primary/20 text-primary"
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Globe className="h-4 w-4" />
+                          <div className="flex flex-col">
+                            <span className="font-medium">Ga (Gaa)</span>
+                            <span className="text-[10px] text-foreground/50">With autocomplete</span>
+                          </div>
+                        </div>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setInputLanguage("en")}
+                        className={cn(
+                          "cursor-pointer",
+                          inputLanguage === "en" && "bg-primary/20 text-primary"
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">🇬🇧</span>
+                          <span className="font-medium">English</span>
+                        </div>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button 

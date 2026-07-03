@@ -18,6 +18,8 @@ import user from "./routes/user";
 import chat from "./routes/chat";
 import conversations from "./routes/conversations";
 import admin from "./routes/admin";
+import { handleSuggestions } from "./routes/suggestions";
+import { handleLearningInsights, handleUserContribution } from "./routes/learning";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -49,6 +51,10 @@ api.route("/user", user);
 api.route("/", chat);
 api.route("/", conversations);
 api.route("/admin", admin);
+// These handlers take a raw (Request, Env) pair — adapt from the Hono context.
+api.post("/suggestions", (c) => handleSuggestions(c.req.raw, c.env));
+api.get("/learning/insights", (c) => handleLearningInsights(c.req.raw, c.env));
+api.post("/learning/contribute", (c) => handleUserContribution(c.req.raw, c.env));
 
 app.route("/api/v1", api);
 
