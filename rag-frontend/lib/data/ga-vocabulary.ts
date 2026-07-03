@@ -48,6 +48,7 @@ export const GA_VOCABULARY: GaSuggestion[] = [
 
   // Additional Common Ga Words
   { text: 'niyeenii', type: 'phrase', description: 'Food', phonetic: 'nee-YEH-nee', english: 'food' },
+  { text: 'nunumɔ', type: 'phrase', description: 'Drink', phonetic: 'noo-NOO-maw', english: 'drink' },
   { text: 'akwei', type: 'phrase', description: 'Thank you', phonetic: 'ah-KWAY', english: 'thank you' },
   { text: 'ɛdzɛ', type: 'phrase', description: 'Good/fine', phonetic: 'eh-DZEH', english: 'good' },
   { text: 'heɛ', type: 'phrase', description: 'Yes', phonetic: 'hay', english: 'yes' },
