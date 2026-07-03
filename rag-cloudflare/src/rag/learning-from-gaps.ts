@@ -200,8 +200,7 @@ function isGaQuery(query: string): boolean {
 function generateGaLearningResponse(query: string): string {
   const greeting = getLearningGreeting();
   
-  return `${greeting} I don't know "${query}" yet. Know what it means? Share it and I'll add it.
-[LEARNING_OPPORTUNITY:true]`;
+  return `${greeting} I don't know "${query}" yet. Know what it means? Share it and I'll add it.`;
 }
 
 /**
@@ -210,18 +209,12 @@ function generateGaLearningResponse(query: string): string {
 export function generateLearningNotFoundResponse(
   query: string,
   queryType: string,
-  canContribute: boolean = true
 ): string {
   if (isGaQuery(query)) {
     return generateGaLearningResponse(query);
   }
   
   const baseResponse = generateHelpfulNotFoundResponse(query, queryType);
-  
-  if (canContribute) {
-    return `${baseResponse}
-[LEARNING_OPPORTUNITY:true]`;
-  }
   
   return baseResponse;
 }

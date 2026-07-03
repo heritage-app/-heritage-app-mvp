@@ -4,8 +4,9 @@ import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
 import { useChatStore } from "@/store/chatStore";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Spinner } from "@/components/ui/spinner";
+import { ContributionPrompt } from "./ContributionPrompt";
 
 interface ChatWindowProps {
   conversationId?: string;
@@ -16,6 +17,33 @@ export function ChatWindow({ conversationId, sidebarOpen = false }: ChatWindowPr
   const { setConversationId, clearChat, isLoading, messages, currentConversationId } = useChatStore();
   const prevConversationIdRef = useRef<string | undefined>(undefined);
   const normalizedConversationId = conversationId === "new" ? undefined : conversationId;
+  
+  const [showContributionPrompt, setShowContributionPrompt] = useState(false);
+  const [pendingQuery, setPendingQuery] = useState("");
+  const [pendingCategory, setPendingCategory] = useState<'bible' | 'cultural' | 'translation' | 'general'>('general');
+
+  const handleContribution = useCallback(async (answer: string) => {
+    try {
+      const response = await fetch('/api/v1/learning/contribute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: pendingQuery,
+          userAnswer: answer,
+          category: pendingCategory
+        })
+      });
+
+      if (response.ok) {
+        // Success - could show a toast notification
+        console.log('Contribution submitted successfully');
+      }
+    } catch (error) {
+      console.error('Failed to submit contribution:', error);
+    }
+  }, [pendingQuery, pendingCategory]);
+
+
 
   useEffect(() => {
     // CRITICAL: Always react to conversationId changes
@@ -93,6 +121,15 @@ export function ChatWindow({ conversationId, sidebarOpen = false }: ChatWindowPr
           </div>
         </div>
       </div>
+      
+      {/* Contribution Prompt for Learning Opportunities */}
+      <ContributionPrompt
+        query={pendingQuery}
+        isVisible={showContributionPrompt}
+        onClose={() => setShowContributionPrompt(false)}
+        onSubmit={handleContribution}
+        category={pendingCategory}
+      />
     </div>
   );
 }
