@@ -69,10 +69,10 @@ export function generateHelpfulNotFoundResponse(
   const greeting = getLearningGreeting();
   
   const responses: Record<string, string> = {
-    bible: `${greeting} I don't have this Bible verse yet. I have Genesis–Deuteronomy. Know it? Share it and I'll add it.`,
-    cultural: `${greeting} I don't have "${query}" in my cultural archives yet. Know about it? Teach me and I'll add it.`,
-    translation: `${greeting} I don't know "${query}" yet. Know the Ga word? Share it and I'll add it.`,
-    general: `${greeting} I don't have "${query}" yet. Know about it? Share it and I'll add it.`
+    bible: `${greeting} I don't have this Bible verse yet. I have Genesis–Deuteronomy. Know it? Share the Ga and English version and I'll add it.`,
+    cultural: `${greeting} I don't have "${query}" in my cultural archives yet. Know about it? Share the Ga and English version and I'll add it.`,
+    translation: `${greeting} I don't know "${query}" yet. Know the Ga word? Share both Ga and English and I'll add it.`,
+    general: `${greeting} I don't have "${query}" yet. Know about it? Share the Ga and English version and I'll add it.`
   };
 
   return responses[queryType] || responses.general;
@@ -200,7 +200,7 @@ function isGaQuery(query: string): boolean {
 function generateGaLearningResponse(query: string): string {
   const greeting = getLearningGreeting();
   
-  return `${greeting} I don't know "${query}" yet. Know what it means? Share it and I'll add it.`;
+  return `${greeting} I don't know "${query}" yet. Know what it means? Share both Ga and English and I'll add it.`;
 }
 
 /**
