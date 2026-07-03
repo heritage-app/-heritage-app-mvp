@@ -1,0 +1,387 @@
+{"english":"I","ga":"Mi","topic":"pronouns"}
+{"english":"You (thou)","ga":"Bo","topic":"pronouns"}
+{"english":"He / She / It","ga":"Lɛ","topic":"pronouns"}
+{"english":"We / Us","ga":"Wɔ","topic":"pronouns"}
+{"english":"You (plural)","ga":"Nyɛ","topic":"pronouns"}
+{"english":"They / Them","ga":"Amɛ","topic":"pronouns"}
+{"english":"Sunday","ga":"Hɔgbaa","topic":"days"}
+{"english":"Monday","ga":"Ju","topic":"days"}
+{"english":"Tuesday","ga":"Jufɔ","topic":"days"}
+{"english":"Wednesday","ga":"Shɔ","topic":"days"}
+{"english":"Thursday","ga":"Soo","topic":"days"}
+{"english":"Friday","ga":"Sohaa","topic":"days"}
+{"english":"Saturday","ga":"Hɔɔ","topic":"days"}
+{"english":"January","ga":"Aharabata","topic":"months"}
+{"english":"February","ga":"Oflɔ","topic":"months"}
+{"english":"March","ga":"Otsokrikri","topic":"months"}
+{"english":"April","ga":"Abɛibe","topic":"months"}
+{"english":"May","ga":"Agbɛnaa","topic":"months"}
+{"english":"June","ga":"Otukwajaŋ","topic":"months"}
+{"english":"July","ga":"Maawɛ","topic":"months"}
+{"english":"August","ga":"Manyawale","topic":"months"}
+{"english":"September","ga":"Gbo","topic":"months"}
+{"english":"October","ga":"Antɔŋ","topic":"months"}
+{"english":"November","ga":"Alemle","topic":"months"}
+{"english":"December","ga":"Afuabe","topic":"months"}
+{"english":"Half","ga":"Fã","topic":"numerals"}
+{"english":"One","ga":"Ekome","topic":"numerals"}
+{"english":"Two","ga":"Enyɔ","topic":"numerals"}
+{"english":"Three","ga":"Etɛ","topic":"numerals"}
+{"english":"Four","ga":"Ejwɛ","topic":"numerals"}
+{"english":"Five","ga":"Enumɔ","topic":"numerals"}
+{"english":"Six","ga":"Ekpaa","topic":"numerals"}
+{"english":"Seven","ga":"Kpawo","topic":"numerals"}
+{"english":"Eight","ga":"Kpaanyɔ","topic":"numerals"}
+{"english":"Nine","ga":"Nɛɛhu","topic":"numerals"}
+{"english":"Ten","ga":"Nyɔŋma","topic":"numerals"}
+{"english":"Eleven","ga":"Nyɔŋma kɛ ekome","topic":"numerals"}
+{"english":"Twelve","ga":"Nyɔŋma kɛ enyɔ","topic":"numerals"}
+{"english":"Thirteen","ga":"Nyɔŋma kɛ etɛ","topic":"numerals"}
+{"english":"Fourteen","ga":"Nyɔŋma kɛ ejwɛ","topic":"numerals"}
+{"english":"Fifteen","ga":"Nyɔŋma kɛ enumɔ","topic":"numerals"}
+{"english":"Sixteen","ga":"Nyɔŋma kɛ ekpaa","topic":"numerals"}
+{"english":"Seventeen","ga":"Nyɔŋma kɛ kpawo","topic":"numerals"}
+{"english":"Eighteen","ga":"Nyɔŋma kɛ kpaanyɔ","topic":"numerals"}
+{"english":"Nineteen","ga":"Nyɔŋma kɛ nɛɛhu","topic":"numerals"}
+{"english":"Twenty","ga":"Nyɔŋmai-enyɔ","topic":"numerals"}
+{"english":"Twenty-one","ga":"Nyɔŋmai-enyɔ kɛ ekome","topic":"numerals"}
+{"english":"Thirty","ga":"Nyɔŋmai-etɛ","topic":"numerals"}
+{"english":"Forty","ga":"Nyɔŋmai-ejwɛ","topic":"numerals"}
+{"english":"Fifty","ga":"Nyɔŋmai-enumɔ","topic":"numerals"}
+{"english":"Sixty","ga":"Nyɔŋmai-ekpaa","topic":"numerals"}
+{"english":"Seventy","ga":"Nyɔŋmai-kpawo","topic":"numerals"}
+{"english":"Eighty","ga":"Nyɔŋmai-kpaanyɔ","topic":"numerals"}
+{"english":"Ninety","ga":"Nyɔŋmai-nɛɛhu","topic":"numerals"}
+{"english":"Hundred","ga":"Oha","topic":"numerals"}
+{"english":"Two hundred","ga":"Ohai enyɔ","topic":"numerals"}
+{"english":"Three hundred","ga":"Ohai etɛ","topic":"numerals"}
+{"english":"Four hundred","ga":"Ohai ejwɛ","topic":"numerals"}
+{"english":"Five hundred","ga":"Ohai enumɔ","topic":"numerals"}
+{"english":"Six hundred","ga":"Ohai ekpaa","topic":"numerals"}
+{"english":"Seven hundred","ga":"Ohai kpawo","topic":"numerals"}
+{"english":"Eight hundred","ga":"Ohai kpaanyɔ","topic":"numerals"}
+{"english":"Nine hundred","ga":"Ohai nɛɛhu","topic":"numerals"}
+{"english":"Thousand","ga":"Akpe","topic":"numerals"}
+{"english":"Two thousand","ga":"Akpei enyɔ","topic":"numerals"}
+{"english":"Ten thousand","ga":"Akpei nyɔŋma","topic":"numerals"}
+{"english":"One million","ga":"Milio / Akpei-akpe","topic":"numerals"}
+{"english":"First","ga":"Klɛŋklɛŋ","topic":"numerals"}
+{"english":"Second","ga":"Nɔ ni ji enyɔ","topic":"numerals"}
+{"english":"Once","ga":"Shi kome","topic":"numerals"}
+{"english":"Twice","ga":"Shii enyɔ","topic":"numerals"}
+{"english":"Many times","ga":"Shii abɔ","topic":"numerals"}
+{"english":"Half-pesewa","ga":"Pɛsɛwa fã","topic":"currency"}
+{"english":"Pesewa","ga":"Pɛsɛwa","topic":"currency"}
+{"english":"Five pesewas","ga":"Pɛsɛwai enumɔ","topic":"currency"}
+{"english":"Ten pesewas","ga":"Pɛsɛwai nyɔŋma","topic":"currency"}
+{"english":"One cedi","ga":"Sidi kome","topic":"currency"}
+{"english":"Two cedis","ga":"Sidii enyɔ","topic":"currency"}
+{"english":"Five cedis","ga":"Sidii enumɔ","topic":"currency"}
+{"english":"Ten cedis","ga":"Sidii nyɔŋma","topic":"currency"}
+{"english":"Day","ga":"Gbi","topic":"time"}
+{"english":"Week","ga":"Otsi","topic":"time"}
+{"english":"Fortnight","ga":"Otsii enyɔ","topic":"time"}
+{"english":"Month","ga":"Nyɔɔŋ kome","topic":"time"}
+{"english":"Year","ga":"Afi","topic":"time"}
+{"english":"When","ga":"Mɛɛbe","topic":"time"}
+{"english":"Dawn","ga":"Hiɛfutɛfutɛ","topic":"time"}
+{"english":"Morning","ga":"Leebi","topic":"time"}
+{"english":"Noon","ga":"Shwane","topic":"time"}
+{"english":"Afternoon","ga":"Shwane","topic":"time"}
+{"english":"Evening","ga":"Gbɛkɛ naashi","topic":"time"}
+{"english":"Night","ga":"Gbɛkɛ","topic":"time"}
+{"english":"Midnight","ga":"Nyɔɔŋtɛŋ","topic":"time"}
+{"english":"Last year","ga":"Nyɛsɛɛ afi lɛ","topic":"time"}
+{"english":"This year","ga":"Afi nɛɛ","topic":"time"}
+{"english":"Last month","ga":"Nyɛsɛɛ nyɔɔŋ lɛ","topic":"time"}
+{"english":"This month","ga":"Nyɔɔŋ nɛɛ","topic":"time"}
+{"english":"Yesterday","ga":"Nyɛ","topic":"time"}
+{"english":"Last night","ga":"Nyɛ gbɛkɛ","topic":"time"}
+{"english":"Today","ga":"Ŋmɛnɛ","topic":"time"}
+{"english":"This morning","ga":"Leebi nɛɛ","topic":"time"}
+{"english":"Tonight","ga":"Gbɛkɛ nɛɛ","topic":"time"}
+{"english":"Tomorrow","ga":"Wɔ","topic":"time"}
+{"english":"Tomorrow morning","ga":"Wɔ leebi","topic":"time"}
+{"english":"Next week","ga":"Wɔsɛɛ otsi","topic":"time"}
+{"english":"Next year","ga":"Wɔsɛɛ afi","topic":"time"}
+{"english":"Next Christmas","ga":"Wɔsɛɛ blonya","topic":"time"}
+{"english":"Always","ga":"Daa nɛɛ","topic":"time"}
+{"english":"Already","ga":"Jeeŋmɔ","topic":"time"}
+{"english":"Every time","ga":"Daa","topic":"time"}
+{"english":"Quickly","ga":"Oya","topic":"time"}
+{"english":"It is raining","ga":"Nugbɔ miinɛ","topic":"weather"}
+{"english":"It is drizzling","ga":"Nugbɔ miishwa","topic":"weather"}
+{"english":"The weather is clear","ga":"Jeŋ tse","topic":"weather"}
+{"english":"It is windy","ga":"Kɔɔyɔɔ miitswa","topic":"weather"}
+{"english":"The sun is rising","ga":"Hulu lɛ miije","topic":"weather"}
+{"english":"The sun is setting","ga":"Hulu lɛ miinyɔ shi","topic":"weather"}
+{"english":"The sun is overhead","ga":"Hulu edamɔ","topic":"weather"}
+{"english":"Good morning","ga":"Ojekoo / Owɔŋ","topic":"greetings"}
+{"english":"Good afternoon","ga":"Oshwiee","topic":"greetings"}
+{"english":"Good evening","ga":"M'naokoo","topic":"greetings"}
+{"english":"Good night","ga":"Wɔ jogbaŋŋ / Okɛ wɔ jurɔ","topic":"greetings"}
+{"english":"Welcome","ga":"Miifala / miihere bo","topic":"greetings"}
+{"english":"How are you?","ga":"Te oyɔɔ tɛŋ?","topic":"greetings"}
+{"english":"I am fine","ga":"Miyɛ jogbaŋŋ","topic":"greetings"}
+{"english":"Congratulations","ga":"Omanye","topic":"greetings"}
+{"english":"Goodbye","ga":"Yaaba jogbaŋŋ","topic":"greetings"}
+{"english":"Left","ga":"Abɛku","topic":"directions"}
+{"english":"Right","ga":"Ninejurɔ","topic":"directions"}
+{"english":"Road","ga":"Gbɛ","topic":"directions"}
+{"english":"Street","ga":"Oshigenti","topic":"directions"}
+{"english":"Path","ga":"Nanegbɛ","topic":"directions"}
+{"english":"Road junction","ga":"Gbɛnta","topic":"directions"}
+{"english":"Sign post","ga":"Gbɛtsɔɔmɔ okadi","topic":"directions"}
+{"english":"Straight ahead","ga":"Hiɛ tɛɛ","topic":"directions"}
+{"english":"I am a stranger","ga":"Gbɔ ji mi","topic":"directions"}
+{"english":"Bed","ga":"Saa","topic":"household"}
+{"english":"Bedding","ga":"Saanɔboi","topic":"household"}
+{"english":"Bedroom","ga":"Pia","topic":"household"}
+{"english":"Bed-sheet","ga":"Saanɔbo","topic":"household"}
+{"english":"Blanket","ga":"Kuutu","topic":"household"}
+{"english":"Brush","ga":"Brɔshi","topic":"household"}
+{"english":"Chair","ga":"Sɛi","topic":"household"}
+{"english":"Cloth","ga":"Mama / Hebo","topic":"household"}
+{"english":"Clothes","ga":"Mamai / Heboi","topic":"household"}
+{"english":"Comb","ga":"Osɛrɛ","topic":"household"}
+{"english":"Door","ga":"Shinaa","topic":"household"}
+{"english":"Fan","ga":"Papa","topic":"household"}
+{"english":"Gun","ga":"Tu","topic":"household"}
+{"english":"Handkerchief","ga":"Klaladuku","topic":"household"}
+{"english":"Hat","ga":"Fai","topic":"household"}
+{"english":"Key","ga":"Samfee","topic":"household"}
+{"english":"Lantern","ga":"Kane / Lantrɛ","topic":"household"}
+{"english":"Mirror","ga":"Ashwishwɛ","topic":"household"}
+{"english":"Pillow","ga":"Sune","topic":"household"}
+{"english":"Pillow-case","ga":"Sunehebo","topic":"household"}
+{"english":"Sandal","ga":"Tokota","topic":"household"}
+{"english":"Shoe","ga":"Aspaatere","topic":"household"}
+{"english":"Socks","ga":"Astaagere","topic":"household"}
+{"english":"Table","ga":"Okpɔlɔ","topic":"household"}
+{"english":"Window","ga":"Samfɛlɛ","topic":"household"}
+{"english":"Broom","ga":"Bɔlɔ","topic":"household"}
+{"english":"Bucket","ga":"Goga","topic":"household"}
+{"english":"Calabash","ga":"Tsene","topic":"household"}
+{"english":"Cutlass","ga":"Klante","topic":"household"}
+{"english":"Ladle","ga":"Ato","topic":"household"}
+{"english":"Matches","ga":"Maŋtsesi","topic":"household"}
+{"english":"Mortar","ga":"Fufuitso / Waduru","topic":"household"}
+{"english":"Pestle","ga":"Fufuitso-mlibi / Wadurubi","topic":"household"}
+{"english":"Plate","ga":"Plɛte","topic":"household"}
+{"english":"Sieve","ga":"Sɔɔhi","topic":"household"}
+{"english":"Spoon","ga":"Awale","topic":"household"}
+{"english":"Water","ga":"Nu","topic":"household"}
+{"english":"Umbrella","ga":"Akataŋwia","topic":"household"}
+{"english":"Underwear","ga":"Shishiwoonii","topic":"household"}
+{"english":"Father","ga":"Tsɛ","topic":"family"}
+{"english":"Mother","ga":"Nyɛ","topic":"family"}
+{"english":"Brother","ga":"Nyɛmi nuu","topic":"family"}
+{"english":"Sister","ga":"Nyɛmi yoo","topic":"family"}
+{"english":"Child","ga":"Bi","topic":"family"}
+{"english":"Baby","ga":"Abifao","topic":"family"}
+{"english":"Boy","ga":"Gbɛkɛ nuu","topic":"family"}
+{"english":"Girl","ga":"Gbɛkɛ yoo","topic":"family"}
+{"english":"Husband","ga":"Wu","topic":"family"}
+{"english":"Wife","ga":"Ŋa","topic":"family"}
+{"english":"Man","ga":"Nuu","topic":"family"}
+{"english":"Woman","ga":"Yoo","topic":"family"}
+{"english":"Grandfather","ga":"Nii","topic":"family"}
+{"english":"Grandmother","ga":"Naa","topic":"family"}
+{"english":"Grandchild","ga":"Nabi","topic":"family"}
+{"english":"Maternal aunt","ga":"Nyɛsɛɛ nyɛkwɛ","topic":"family"}
+{"english":"Maternal uncle","ga":"Nyɛsɛɛ tsɛkwɛ","topic":"family"}
+{"english":"Paternal aunt","ga":"Tsɛsɛɛ nyɛkwɛ","topic":"family"}
+{"english":"Paternal uncle","ga":"Tsɛsɛɛ tsɛkwɛ","topic":"family"}
+{"english":"Nephew","ga":"Nyɛmi binuu","topic":"family"}
+{"english":"Niece","ga":"Nyɛmi biyoo","topic":"family"}
+{"english":"Son","ga":"Binuu","topic":"family"}
+{"english":"Daughter","ga":"Biyoo","topic":"family"}
+{"english":"Orphan","ga":"Awusã","topic":"family"}
+{"english":"Parent","ga":"Fɔlɔ","topic":"family"}
+{"english":"Bachelor","ga":"Oshija","topic":"family"}
+{"english":"Widow","ga":"Yoo okulafo","topic":"family"}
+{"english":"Widower","ga":"Nuu okulafo","topic":"family"}
+{"english":"Twins","ga":"Haaji","topic":"family"}
+{"english":"Triplets","ga":"Haaji etɛ","topic":"family"}
+{"english":"Head","ga":"Yitso","topic":"body"}
+{"english":"Hand","ga":"Nine","topic":"body"}
+{"english":"Arm","ga":"Nine","topic":"body"}
+{"english":"Heart","ga":"Tsui","topic":"body"}
+{"english":"Ear","ga":"Toi","topic":"body"}
+{"english":"Eye","ga":"Hiŋmɛi","topic":"body"}
+{"english":"Face","ga":"Hiɛ","topic":"body"}
+{"english":"Chest","ga":"Tsitsi","topic":"body"}
+{"english":"Chin","ga":"Tsɛŋ","topic":"body"}
+{"english":"Knee","ga":"Nakutso","topic":"body"}
+{"english":"Neck","ga":"Kuɛ","topic":"body"}
+{"english":"Tooth","ga":"Nyanyɔŋ","topic":"body"}
+{"english":"Thumb","ga":"Gɔnti","topic":"body"}
+{"english":"Finger","ga":"Wao","topic":"body"}
+{"english":"Foot","ga":"Nane-tokota","topic":"body"}
+{"english":"Legs","ga":"Naji","topic":"body"}
+{"english":"Thigh","ga":"Shuɔ","topic":"body"}
+{"english":"Throat","ga":"Sɛ","topic":"body"}
+{"english":"Stomach","ga":"Musu","topic":"body"}
+{"english":"Soul","ga":"Susuma","topic":"body"}
+{"english":"Shoulder","ga":"Kɔŋ","topic":"body"}
+{"english":"Forehead","ga":"Hiɛnaa","topic":"body"}
+{"english":"Heel","ga":"Nanetsitsi","topic":"body"}
+{"english":"Intestine","ga":"Mlinii","topic":"body"}
+{"english":"Asthma","ga":"Fɛfɛ","topic":"sickness"}
+{"english":"Chicken-pox","ga":"Frankopete","topic":"sickness"}
+{"english":"Cough","ga":"Wɔlɔmɔ","topic":"sickness"}
+{"english":"Malaria","ga":"Atiridii","topic":"sickness"}
+{"english":"Headache","ga":"Yitsogbamɔ","topic":"sickness"}
+{"english":"Measles","ga":"Osɛgɛɛ","topic":"sickness"}
+{"english":"Smallpox","ga":"Kpate","topic":"sickness"}
+{"english":"Mumps","ga":"Kpoobo / Ŋkpoobi","topic":"sickness"}
+{"english":"Medicine","ga":"Tsofa","topic":"sickness"}
+{"english":"Drugs","ga":"Tsofai","topic":"sickness"}
+{"english":"Hospital","ga":"Helatsamɔhe","topic":"sickness"}
+{"english":"Doctor","ga":"Datrɛ / Dɔkita","topic":"sickness"}
+{"english":"Drum","ga":"Obonu","topic":"chief"}
+{"english":"Drummer","ga":"Miyilɔ","topic":"chief"}
+{"english":"Executioner","ga":"Oblafo","topic":"chief"}
+{"english":"Gong","ga":"Ŋoŋo","topic":"chief"}
+{"english":"Linguist","ga":"Otsaamɛ","topic":"chief"}
+{"english":"Palace","ga":"Maŋtsɛwe","topic":"chief"}
+{"english":"Palanquin","ga":"Akpakãi","topic":"chief"}
+{"english":"Paramount Chief","ga":"Maŋtsɛ-nukpa","topic":"chief"}
+{"english":"Queenmother","ga":"Maŋnyɛ","topic":"chief"}
+{"english":"Servant","ga":"Tsulɔ","topic":"chief"}
+{"english":"State Umbrella","ga":"Akatamanso","topic":"chief"}
+{"english":"Sub-chief","ga":"Maŋtsɛ","topic":"chief"}
+{"english":"Talisman","ga":"Sɛbɛ","topic":"chief"}
+{"english":"Throne","ga":"Maŋtsɛ-sɛi","topic":"chief"}
+{"english":"Banana","ga":"Akwadu","topic":"food"}
+{"english":"Bean","ga":"Yɔɔ","topic":"food"}
+{"english":"Bread","ga":"Bodobodo","topic":"food"}
+{"english":"Cassava","ga":"Duade","topic":"food"}
+{"english":"Coconut","ga":"Akokooshi","topic":"food"}
+{"english":"Cocoyam","ga":"Amaŋkani","topic":"food"}
+{"english":"Corn","ga":"Abele","topic":"food"}
+{"english":"Egg","ga":"Wolɔ","topic":"food"}
+{"english":"Fish","ga":"Loo","topic":"food"}
+{"english":"Ginger","ga":"Kakaotsofa","topic":"food"}
+{"english":"Groundnut","ga":"Ŋkatiɛ","topic":"food"}
+{"english":"Kenkey","ga":"Otim / Kɔmi","topic":"food"}
+{"english":"Mutton","ga":"Too loo","topic":"food"}
+{"english":"Okro","ga":"Eŋmɔmi","topic":"food"}
+{"english":"Onion","ga":"Sabolai","topic":"food"}
+{"english":"Orange","ga":"Akutu","topic":"food"}
+{"english":"Palm oil","ga":"Mutsuru","topic":"food"}
+{"english":"Pepper","ga":"Shitɔ","topic":"food"}
+{"english":"Pineapple","ga":"Blɔfɔŋme","topic":"food"}
+{"english":"Plantain","ga":"Amadaa","topic":"food"}
+{"english":"Pork","ga":"Kplotoo loo","topic":"food"}
+{"english":"Rice","ga":"Omɔ","topic":"food"}
+{"english":"Salt","ga":"Ŋoo","topic":"food"}
+{"english":"Sugar-cane","ga":"Shɛ","topic":"food"}
+{"english":"Tomato","ga":"Ameo","topic":"food"}
+{"english":"Water-yam","ga":"Afaseo","topic":"food"}
+{"english":"Yam","ga":"Yɛlɛ","topic":"food"}
+{"english":"Biscuit","ga":"Akpaanɔ","topic":"food"}
+{"english":"Butter","ga":"Butru","topic":"food"}
+{"english":"Cheese","ga":"Keesuu","topic":"food"}
+{"english":"Food","ga":"Niyeenii","topic":"food"}
+{"english":"Black","ga":"Ediŋ / Diŋ","topic":"colours"}
+{"english":"Blue","ga":"Bluu / Akasesu","topic":"colours"}
+{"english":"Brown","ga":"Asrasu","topic":"colours"}
+{"english":"Green","ga":"Eŋɔli","topic":"colours"}
+{"english":"Grey","ga":"Lamululamulu","topic":"colours"}
+{"english":"Red","ga":"Etsuru / Tsuru","topic":"colours"}
+{"english":"Spotted","ga":"Truntrai","topic":"colours"}
+{"english":"White","ga":"Wuɔfɔ","topic":"colours"}
+{"english":"Yellow","ga":"Eyɛŋ Yɛŋ","topic":"colours"}
+{"english":"Bull","ga":"Tsina nuu","topic":"animals"}
+{"english":"Cat","ga":"Alɔnte","topic":"animals"}
+{"english":"Cow","ga":"Tsina","topic":"animals"}
+{"english":"Dog","ga":"Gbee","topic":"animals"}
+{"english":"Donkey","ga":"Teji","topic":"animals"}
+{"english":"Goat","ga":"Too abotia","topic":"animals"}
+{"english":"Hare","ga":"Kpɛnkpɛlɛ","topic":"animals"}
+{"english":"Horse","ga":"Okpɔŋɔ","topic":"animals"}
+{"english":"Lamb","ga":"Too gwantɛŋbi","topic":"animals"}
+{"english":"Pig","ga":"Kplotoo","topic":"animals"}
+{"english":"Sheep","ga":"Too gwantɛŋ","topic":"animals"}
+{"english":"Bat","ga":"Afutufata","topic":"animals"}
+{"english":"Crocodile","ga":"Baa","topic":"animals"}
+{"english":"Deer","ga":"Ofrote","topic":"animals"}
+{"english":"Elephant","ga":"Shwuɔ","topic":"animals"}
+{"english":"Fox","ga":"Osɔ","topic":"animals"}
+{"english":"Grasscutter","ga":"Kpiŋ","topic":"animals"}
+{"english":"Hippopotamus","ga":"Nuŋshwuɔ","topic":"animals"}
+{"english":"Leopard","ga":"Mlaŋtswi","topic":"animals"}
+{"english":"Lion","ga":"Jata","topic":"animals"}
+{"english":"Monkey","ga":"Aduŋ","topic":"animals"}
+{"english":"Mouse","ga":"Kwakwe","topic":"animals"}
+{"english":"Rat","ga":"Obishi","topic":"animals"}
+{"english":"Scorpion","ga":"Nyɔŋmɔŋ-klaklo","topic":"animals"}
+{"english":"Snail","ga":"Waa","topic":"animals"}
+{"english":"Snake","ga":"Onufu","topic":"animals"}
+{"english":"Spider","ga":"Anaanu","topic":"animals"}
+{"english":"Squirrel","ga":"Sɔne","topic":"animals"}
+{"english":"Tortoise","ga":"Akpokplonto","topic":"animals"}
+{"english":"Wolf","ga":"Klaŋ","topic":"animals"}
+{"english":"Chicken","ga":"Wuɔbi","topic":"birds"}
+{"english":"Cock","ga":"Wuɔ nuu","topic":"birds"}
+{"english":"Hen","ga":"Wuɔ yoo","topic":"birds"}
+{"english":"Dove","ga":"Okpo","topic":"birds"}
+{"english":"Duck","ga":"Dɔkɔdɔkɔ","topic":"birds"}
+{"english":"Guinea-fowl","ga":"Ansaŋ","topic":"birds"}
+{"english":"Turkey","ga":"Klakunu","topic":"birds"}
+{"english":"Parrot","ga":"Akoo","topic":"birds"}
+{"english":"Eagle","ga":"Okropɔŋ","topic":"birds"}
+{"english":"Hawk","ga":"Akroma","topic":"birds"}
+{"english":"Vulture","ga":"Akpaŋa","topic":"birds"}
+{"english":"Ant","ga":"Tsatsu","topic":"insects"}
+{"english":"Bedbug","ga":"Kpuluka / Ŋkpuluka","topic":"insects"}
+{"english":"Bee","ga":"Wobi","topic":"insects"}
+{"english":"Butterfly","ga":"Abɛi","topic":"insects"}
+{"english":"Cockroach","ga":"Kaklaka / Kakalika","topic":"insects"}
+{"english":"Housefly","ga":"Adodoŋ","topic":"insects"}
+{"english":"Locust","ga":"Baalabi","topic":"insects"}
+{"english":"Mosquito","ga":"Tɔŋtɔŋ","topic":"insects"}
+{"english":"Praying mantis","ga":"Ligɔligɔ","topic":"insects"}
+{"english":"Termite","ga":"Fote","topic":"insects"}
+{"english":"Tsetsefly","ga":"Ofɔi","topic":"insects"}
+{"english":"Wasp","ga":"Ashagba","topic":"insects"}
+{"english":"Crab","ga":"Kaa","topic":"fish"}
+{"english":"Eel","ga":"Ŋwaŋwajaŋ","topic":"fish"}
+{"english":"Herring","ga":"Maŋ","topic":"fish"}
+{"english":"Lobster","ga":"Sɔŋ","topic":"fish"}
+{"english":"Mud-fish","ga":"Ajwɛŋ","topic":"fish"}
+{"english":"Shark","ga":"Tsaflɔbi","topic":"fish"}
+{"english":"Tilapia","ga":"Didɛi","topic":"fish"}
+{"english":"Thank you","ga":"Oyiwaladɔŋ","topic":"expressions"}
+{"english":"Please","ga":"Ofainɛ","topic":"expressions"}
+{"english":"Yes","ga":"Hɛɛ","topic":"expressions"}
+{"english":"No","ga":"Dabi","topic":"expressions"}
+{"english":"What is your name?","ga":"Te atsɛɔ bo tɛŋ?","topic":"expressions"}
+{"english":"My name is Tete","ga":"Atsɛɔ mi Tete","topic":"expressions"}
+{"english":"How old are you?","ga":"Afii enyiɛ oye?","topic":"expressions"}
+{"english":"Where do you come from?","ga":"Nɛgbɛ ojɛ?","topic":"expressions"}
+{"english":"Where are you going?","ga":"Nɛgbɛ oyaa?","topic":"expressions"}
+{"english":"I am going home","ga":"Miiya shia","topic":"expressions"}
+{"english":"I am hungry","ga":"Homɔ miiye mi","topic":"expressions"}
+{"english":"I am thirsty","ga":"Kumai miiye mi","topic":"expressions"}
+{"english":"I am tired","ga":"Etɔ mi","topic":"expressions"}
+{"english":"I am glad","ga":"Mimii eshɛ mihe","topic":"expressions"}
+{"english":"I am angry","ga":"Mimli efu","topic":"expressions"}
+{"english":"I am afraid","ga":"Miishe gbeyei","topic":"expressions"}
+{"english":"Come here","ga":"Ba biɛ","topic":"expressions"}
+{"english":"I don't understand it","ga":"Minuuu shishi","topic":"expressions"}
+{"english":"I am learning Ga","ga":"Miikase Ga","topic":"expressions"}
+{"english":"Do you speak English?","ga":"Ani ole Blɔfo wiemɔ?","topic":"expressions"}
+{"english":"Say it again","ga":"Wiemɔ ekoŋŋ / Kɛɛmɔ ekoŋŋ","topic":"expressions"}
+{"english":"What do you call this?","ga":"Te atsɛɔ enɛ tɛŋ?","topic":"expressions"}
+{"english":"Today is my birthday","ga":"Mifɔmɔgbi ji ŋmɛnɛ","topic":"expressions"}
+{"english":"It is good to see you","ga":"Ehi akɛ mina bo","topic":"expressions"}
+{"english":"I like you","ga":"Miisumɔ osane","topic":"expressions"}
+{"english":"Don't cry","ga":"Kaafo","topic":"expressions"}
+{"english":"Help me to do this","ga":"Ofainɛ, wa mi kɛfee nii nɛɛ","topic":"expressions"}
+{"english":"Everybody","ga":"Mɔ fɛɛ mɔ","topic":"expressions"}
+{"english":"Everything","ga":"Nɔ fɛɛ nɔ","topic":"expressions"}
+{"english":"Everywhere","ga":"He fɛɛ he","topic":"expressions"}
+{"english":"Where are you?","ga":"Nɛgbɛ bo yɔɔ?","topic":"expressions"}
+{"english":"I want to go there","ga":"Miitao maya jɛmɛ","topic":"expressions"}
