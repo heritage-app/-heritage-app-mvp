@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { getGaSuggestions, type GaSuggestion } from "@/lib/data/ga-vocabulary";
+import { useGaSuggestions } from "@/hooks/use-ga-suggestions";
 import { cn } from "@/lib/utils";
 import { ChevronRight, Book, Hash, MessageSquare, Globe, Volume2, Sparkles } from "lucide-react";
 
@@ -22,21 +22,15 @@ const TYPE_ICONS = {
 };
 
 export function GaAutocomplete({ input, onSelect, isVisible, onClose, conversationContext = "" }: GaAutocompleteProps) {
-  const [suggestions, setSuggestions] = useState<GaSuggestion[]>([]);
+  const { suggestions, getSuggestions, isLoading, source, justUpgraded } = useGaSuggestions();
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [isAIPowered, setIsAIPowered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isVisible && input.length >= 1) {
-      const newSuggestions = getGaSuggestions(input, 8);
-      setSuggestions(newSuggestions);
-      setSelectedIndex(0);
-      setIsAIPowered(false); // Will be true when AI suggestions are integrated
-    } else {
-      setSuggestions([]);
+      getSuggestions(input, conversationContext);
     }
-  }, [input, isVisible]);
+  }, [input, isVisible, conversationContext, getSuggestions]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -66,7 +60,8 @@ export function GaAutocomplete({ input, onSelect, isVisible, onClose, conversati
         setSelectedIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length);
       } else if (event.key === 'Enter' || event.key === 'Tab') {
         event.preventDefault();
-        onSelect(suggestions[selectedIndex].text);
+        const idx = Math.min(selectedIndex, suggestions.length - 1);
+        onSelect(suggestions[idx].text);
       } else if (event.key === 'Escape') {
         event.preventDefault();
         onClose();
@@ -77,18 +72,19 @@ export function GaAutocomplete({ input, onSelect, isVisible, onClose, conversati
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isVisible, suggestions, selectedIndex, onSelect, onClose]);
 
-  const speakPhonetic = (text: string, phonetic: string) => {
+  const speakPhonetic = (text: string) => {
     if ('speechSynthesis' in window) {
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'gaa'; // Try to use Ga language if available
-      utterance.rate = 0.8; // Slower for clarity
+      utterance.lang = 'gaa';
+      utterance.rate = 0.8;
       speechSynthesis.speak(utterance);
     }
   };
 
   if (!isVisible || suggestions.length === 0) return null;
 
-  const Icon = TYPE_ICONS[suggestions[selectedIndex]?.type] || MessageSquare;
+  const effectiveIndex = Math.min(selectedIndex, suggestions.length - 1);
+  const Icon = TYPE_ICONS[suggestions[effectiveIndex]?.type] || MessageSquare;
 
   return (
     <div
@@ -96,26 +92,38 @@ export function GaAutocomplete({ input, onSelect, isVisible, onClose, conversati
       className="absolute bottom-full left-0 right-0 mb-2 z-50"
     >
       <div className="bg-background/95 backdrop-blur-xl border border-primary/20 rounded-xl shadow-2xl overflow-hidden">
+        {isLoading && (
+          <div className="h-0.5 w-full bg-primary/10 overflow-hidden">
+            <div className="h-full bg-primary/60 animate-[progress-bar_1.5s_ease-in-out_infinite] w-2/3" />
+          </div>
+        )}
         <div className="px-3 py-2 border-b border-primary/10 bg-primary/5">
           <div className="flex items-center gap-2 text-xs font-medium text-primary/60">
-            {isAIPowered ? (
+            {source === "api" ? (
               <Sparkles className="h-3.5 w-3.5 text-primary" />
             ) : (
               <Icon className="h-3.5 w-3.5" />
             )}
-            <span>{isAIPowered ? "AI-Powered" : "Ga"} Suggestions</span>
+            <span>{source === "api" ? "Knowledge Base" : "Ga"} Suggestions</span>
+            {isLoading && (
+              <span className="text-foreground/40 animate-pulse">updating...</span>
+            )}
             <span className="text-foreground/40">•</span>
             <span className="text-foreground/40">{suggestions.length} found</span>
           </div>
         </div>
-        <div className="max-h-64 overflow-y-auto">
+        <div className={cn(
+          "max-h-64 overflow-y-auto transition-all duration-300 ease-out",
+          justUpgraded && "animate-suggestion-upgrade"
+        )}>
           {suggestions.map((suggestion, index) => {
             const ItemIcon = TYPE_ICONS[suggestion.type] || MessageSquare;
-            const isSelected = index === selectedIndex;
-            
+            const isSelected = index === effectiveIndex;
+            const matchTier = suggestion.category; // backend stores match type here
+
             return (
               <button
-                key={index}
+                key={suggestion.text}
                 type="button"
                 onClick={() => onSelect(suggestion.text)}
                 className={cn(
@@ -128,11 +136,23 @@ export function GaAutocomplete({ input, onSelect, isVisible, onClose, conversati
                   isSelected ? "text-primary" : "text-foreground/40"
                 )} />
                 <div className="flex-1 min-w-0">
-                  <div className={cn(
-                    "font-medium truncate",
-                    isSelected ? "text-primary" : "text-foreground/90"
-                  )}>
-                    {suggestion.text}
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "font-medium truncate",
+                      isSelected ? "text-primary" : "text-foreground/90"
+                    )}>
+                      {suggestion.text}
+                    </span>
+                    {matchTier && (
+                      <span className={cn(
+                        "text-[9px] px-1.5 py-0.5 rounded-full font-mono",
+                        matchTier === "exact" ? "bg-green-500/20 text-green-400" :
+                        matchTier === "prefix" ? "bg-blue-500/20 text-blue-400" :
+                        "bg-foreground/10 text-foreground/40"
+                      )}>
+                        {matchTier}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
                     {suggestion.phonetic && (
@@ -142,7 +162,7 @@ export function GaAutocomplete({ input, onSelect, isVisible, onClose, conversati
                     )}
                     {suggestion.english && (
                       <div className="text-[10px] text-foreground/40">
-                        "{suggestion.english}"
+                        &quot;{suggestion.english}&quot;
                       </div>
                     )}
                   </div>
@@ -158,7 +178,7 @@ export function GaAutocomplete({ input, onSelect, isVisible, onClose, conversati
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        speakPhonetic(suggestion.text, suggestion.phonetic!);
+                        speakPhonetic(suggestion.text);
                       }}
                       className={cn(
                         "p-1.5 rounded-full transition-colors",

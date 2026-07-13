@@ -1,94 +1,160 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { getGaSuggestions, type GaSuggestion } from "@/lib/data/ga-vocabulary";
 
-interface AISuggestion {
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://heritage-backend.ekowlabs.space/api/v1";
+
+interface BackendSuggestion {
   text: string;
   phonetic?: string;
   english?: string;
   context?: string;
   confidence: number;
+  match?: string;
 }
 
-export function useGaSuggestions() {
-  const [aiSuggestions, setAiSuggestions] = useState<AISuggestion[]>([]);
-  const [isLoadingAI, setIsLoadingAI] = useState(false);
+interface CacheEntry {
+  data: GaSuggestion[];
+  timestamp: number;
+}
 
-  /**
-   * Get hybrid suggestions: static vocabulary + AI-powered suggestions
-   */
-  const getSuggestions = useCallback(async (input: string, conversationContext?: string) => {
-    if (!input || input.length < 1) {
-      return [];
-    }
+const CACHE_TTL_MS = 60_000; // 1 minute
+const DEBOUNCE_MS = 250;
+const MAX_CACHE_SIZE = 50;
 
-    // 1. Get static vocabulary suggestions
-    const staticSuggestions = getGaSuggestions(input, 5);
+const suggestionCache = new Map<string, CacheEntry>();
 
-    // 2. If input is substantial, try to get AI-powered suggestions
-    if (input.length >= 2 && conversationContext) {
-      try {
-        setIsLoadingAI(true);
-        const aiResults = await fetchAISuggestions(input, conversationContext);
-        setAiSuggestions(aiResults);
-        
-        // Combine static and AI suggestions, prioritizing AI ones
-        const combined = [
-          ...aiResults.map(ai => ({
-            text: ai.text,
-            type: 'phrase' as const,
-            phonetic: ai.phonetic,
-            description: ai.context,
-            english: ai.english,
-          })),
-          ...staticSuggestions
-        ].slice(0, 8); // Limit to 8 total suggestions
+function cacheKey(input: string, context?: string): string {
+  return context ? `${input}::${context}` : input;
+}
 
-        return combined;
-      } catch (error) {
-        console.error('AI suggestions failed, falling back to static:', error);
-        return staticSuggestions;
-      } finally {
-        setIsLoadingAI(false);
-      }
-    }
+function getFromCache(key: string): GaSuggestion[] | null {
+  const entry = suggestionCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+    suggestionCache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
 
-    return staticSuggestions;
-  }, []);
+function setCache(key: string, data: GaSuggestion[]): void {
+  if (suggestionCache.size >= MAX_CACHE_SIZE) {
+    const oldest = suggestionCache.keys().next().value;
+    if (oldest !== undefined) suggestionCache.delete(oldest);
+  }
+  suggestionCache.set(key, { data, timestamp: Date.now() });
+}
 
+function mapBackendSuggestion(s: BackendSuggestion): GaSuggestion {
   return {
-    getSuggestions,
-    aiSuggestions,
-    isLoadingAI,
+    text: s.text,
+    type: "phrase",
+    phonetic: s.phonetic,
+    english: s.english,
+    description: s.context,
+    ...(s.match ? { category: s.match } : {}),
   };
 }
 
-/**
- * Call the backend AI to generate contextually relevant Ga suggestions
- */
-async function fetchAISuggestions(input: string, context: string): Promise<AISuggestion[]> {
-  try {
-    const response = await fetch('/api/suggestions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        input,
-        context,
-        language: 'ga',
-      }),
-    });
+export function useGaSuggestions() {
+  const [suggestions, setSuggestions] = useState<GaSuggestion[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [source, setSource] = useState<"static" | "api">("static");
+  const [justUpgraded, setJustUpgraded] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const upgradeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch AI suggestions');
-    }
+  const fetchFromAPI = useCallback(
+    async (input: string, conversationContext?: string): Promise<GaSuggestion[] | null> => {
+      const key = cacheKey(input, conversationContext);
+      const cached = getFromCache(key);
+      if (cached) return cached;
 
-    const data = await response.json();
-    return data.suggestions || [];
-  } catch (error) {
-    console.error('Error fetching AI suggestions:', error);
-    return [];
-  }
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      try {
+        const response = await fetch(`${API_URL}/suggestions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            input,
+            context: conversationContext || "",
+            language: "ga",
+          }),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) return null;
+
+        const data = await response.json();
+        const mapped = (data.suggestions || []).map(mapBackendSuggestion);
+        if (mapped.length > 0) setCache(key, mapped);
+        return mapped.length > 0 ? mapped : null;
+      } catch {
+        return null;
+      }
+    },
+    []
+  );
+
+  const getSuggestions = useCallback(
+    async (input: string, conversationContext?: string) => {
+      if (!input || input.length < 1) {
+        setSuggestions([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // Static fallback is instant — show it immediately
+      const staticResults = getGaSuggestions(input, 8);
+      setSuggestions(staticResults);
+      setSource("static");
+      setIsLoading(false);
+
+      // Debounce the API call
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+
+      debounceRef.current = setTimeout(async () => {
+        if (input.length < 2) return; // API needs at least 2 chars for prefix matching
+
+        setIsLoading(true);
+        const apiResults = await fetchFromAPI(input, conversationContext);
+
+        if (apiResults && apiResults.length > 0) {
+          // Merge: API results first (verified KB), then fill with static
+          const apiTexts = new Set(apiResults.map((r) => r.text));
+          const fillers = staticResults.filter((s) => !apiTexts.has(s.text));
+          setSuggestions([...apiResults, ...fillers].slice(0, 8));
+          setSource("api");
+          setJustUpgraded(true);
+          if (upgradeTimeoutRef.current) clearTimeout(upgradeTimeoutRef.current);
+          upgradeTimeoutRef.current = setTimeout(() => setJustUpgraded(false), 400);
+        }
+        setIsLoading(false);
+      }, DEBOUNCE_MS);
+    },
+    [fetchFromAPI]
+  );
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (upgradeTimeoutRef.current) clearTimeout(upgradeTimeoutRef.current);
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  return {
+    suggestions,
+    getSuggestions,
+    isLoading,
+    source,
+    justUpgraded,
+  };
 }
