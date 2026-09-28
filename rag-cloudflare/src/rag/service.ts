@@ -24,6 +24,7 @@ import {
   isOurAsk,
   askedAboutFromAsk,
   cleanEnglish,
+  parseEqualsPair,
   isNotFoundResponse,
   previousUserQuery,
   previousAssistantAnswer,
@@ -432,7 +433,11 @@ async function* askGeneral(
     try {
       const vocabSearch = await env.DB.prepare(
         `SELECT headword, headword_normalized, meanings, translations FROM vocabulary
-         WHERE (headword_normalized = ? OR translations LIKE ? OR meanings LIKE ?)
+         WHERE (headword_normalized = ?
+                -- Apostrophes stripped DB-side too: the probe has none, so
+                -- "lets" could otherwise never reach a stored "let's eat".
+                OR REPLACE(REPLACE(translations, '''', ''), '’', '') LIKE ?
+                OR REPLACE(REPLACE(meanings, '''', ''), '’', '') LIKE ?)
            AND source IS NOT NULL AND TRIM(source) <> ''
            AND verified_at IS NOT NULL AND TRIM(verified_at) <> ''
          ORDER BY LENGTH(translations) ASC
@@ -1131,17 +1136,46 @@ Respond ONLY with valid JSON:
 {"english": "the english word or phrase", "ga": "the correct ga word or phrase"}
 If you cannot determine both terms, return {"english": "", "ga": ""}.`;
 
+  // Deterministic first: "X = Y" names its own sides, and the side carrying Ga
+  // letters is the Ga. The model is only asked when the direction is genuinely
+  // unclear — and if it is unavailable (the free-tier daily allowance runs
+  // out), the pair is still kept rather than searched and lost.
+  const eq = parseEqualsPair(query);
+  let pair: { english: string; ga: string; assumed: boolean } | null =
+    eq && !eq.assumed ? eq : null;
+
+  if (!pair) {
+    try {
+      const response = await chat(env, [{ role: 'system', content: prompt }], { temperature: 0 });
+      const match = response.match(/\{[\s\S]*\}/);
+      if (match) {
+        const json = JSON.parse(match[0]);
+        if (json.english?.trim() && json.ga?.trim()) {
+          pair = { english: json.english.trim(), ga: json.ga.trim(), assumed: false };
+        }
+      }
+    } catch (e) {
+      console.error("Correction model unavailable:", e);
+    }
+  }
+  // Model unavailable or unsure, but the user plainly wrote a pair: keep it
+  // with the "english = ga" convention and let a reviewer confirm the order.
+  if (!pair && eq) pair = eq;
+
   try {
-    const response = await chat(env, [{ role: 'system', content: prompt }], { temperature: 0 });
-    const match = response.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    const json = JSON.parse(match[0]);
-    if (json.english && json.ga && json.english.trim() && json.ga.trim()) {
-      const eng = json.english.trim();
-      const ga = json.ga.trim();
+    if (pair) {
+      const eng = pair.english;
+      const ga = pair.ga;
 
       // Record the contribution
       const contribResult = await handleUserContribution(env, eng, ga, "general", userId);
+
+      // Never claim to have learned something that was not saved. On the free
+      // tier D1 refuses writes once the daily limit is hit.
+      if (!contribResult.success) {
+        return `Oyiwaladɔŋ for teaching me **${eng}** → **${ga}** — but I couldn't save it just now. ` +
+          `Please send it again a little later so it isn't lost.`;
+      }
 
       // Tiered auto-promotion: a single user's correction should NOT enter the
       // verified KB on its own — it could be wrong. Instead:
@@ -1216,7 +1250,12 @@ If you cannot determine both terms, return {"english": "", "ga": ""}.`;
         : query;
 
       const wasStaged = !contribResult.hasConflict;
-      return `Oyiwaladɔŋ (Thank you)! I've learned that **${eng}** is **${ga}** in Ga.
+      const orderNote = pair.assumed
+        ? `
+
+(I read it as English = Ga. If it's the other way round, say so and a reviewer will swap it.)`
+        : "";
+      return `Oyiwaladɔŋ (Thank you)! I've noted that **${eng}** is **${ga}** in Ga.${orderNote}
 
 ${contribResult.hasConflict
   ? `Note: This differs from a previous answer, so it will be reviewed by an admin.`

@@ -95,6 +95,35 @@ export function isAffirmative(query: string): boolean {
     .test(query.trim());
 }
 
+/**
+ * Read an explicit "X = Y" teaching without a model.
+ *
+ * This used to go straight to the LLM, and on the free tier the daily
+ * Workers AI allowance runs out: the call threw, the error was swallowed, and
+ * the teaching fell through to search and was logged as a knowledge gap. Two
+ * owner teachings were lost that way on 2026-09-28.
+ *
+ * The side carrying Ga letters (ɛ ɔ ŋ, or tone marks) is the Ga. When neither
+ * or both do, the caller may still ask the model — and if that fails too, the
+ * convention "english = ga" is used and marked as assumed.
+ */
+export function parseEqualsPair(
+  query: string
+): { english: string; ga: string; assumed: boolean } | null {
+  const parts = query.split("=");
+  if (parts.length !== 2) return null;
+  const tidy = (s: string) => s.replace(/\s+([,.;!?])/g, "$1").replace(/[.!?]+$/, "").replace(/\s+/g, " ").trim();
+  const left = tidy(parts[0]);
+  const right = tidy(parts[1]);
+  if (!left || !right || left.length > 120 || right.length > 120) return null;
+
+  const hasGa = (s: string) => /[ɛɔŋƐƆŊ]/.test(s) || /[̀-ͯ]/.test(s.normalize("NFD"));
+  const lGa = hasGa(left), rGa = hasGa(right);
+  if (lGa && !rGa) return { english: right, ga: left, assumed: false };
+  if (rGa && !lGa) return { english: left, ga: right, assumed: false };
+  return { english: left, ga: right, assumed: true };
+}
+
 /** Our own question text — the two asks the chat layer produces. */
 const ASK_MARKERS = ["Do you know the right Ga for", "Do you know what it should say"];
 

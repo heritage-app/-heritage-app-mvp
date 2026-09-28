@@ -1356,10 +1356,17 @@ async function streamInto(bubble, query) {
     while (true) {
       const r = await reader.read(); if (r.done) break;
       acc += dec.decode(r.value, { stream: true });
-      // Strip __META__ marker immediately so it never shows in the stream
+      // Strip __META__ marker immediately so it never shows in the stream.
+      // Keep EVERYTHING it carries: this used to keep only interactionId and
+      // drop `flag`, so the contribution card never rendered in the browser —
+      // finish() found the trailer already gone.
       const metaHit = META_RE.exec(acc);
       if (metaHit) {
-        try { const m = JSON.parse(metaHit[1]); lastInteractionId = m.interactionId; } catch {}
+        try {
+          const m = JSON.parse(metaHit[1]);
+          lastInteractionId = m.interactionId;
+          lastFlag = m.flag || null;
+        } catch {}
         acc = acc.replace(META_RE, "");
       }
     }
