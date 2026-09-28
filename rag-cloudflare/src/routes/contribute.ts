@@ -24,9 +24,12 @@ import {
 } from "./attachments";
 
 export interface ContributeRequest {
-  type: "translation" | "bible_verse" | "correction" | "cultural_note";
+  type: "translation" | "bible_verse" | "correction" | "cultural_note" | "document";
+  /** Required for every type except `document`. */
   english: string;
   ga: string;
+  /** `document` only — what the uploaded source contains. */
+  description?: string;
   category?: "bible" | "heritage" | "stories" | "general";
   source?: "user" | "expert" | "book" | "oral_tradition";
   notes?: string;
@@ -76,6 +79,7 @@ async function readBody(
         ga: str("ga") || "",
         category: str("category") as ContributeRequest["category"],
         source: str("source") as ContributeRequest["source"],
+        description: str("description"),
         notes: str("notes"),
         interaction_id: str("interaction_id"),
         contributor_name: str("contributor_name"),
@@ -102,20 +106,32 @@ export async function handleContribute(request: Request, env: Env): Promise<Resp
   const { body, files } = parsed;
 
   const { type, english, ga } = body;
-  if (!type || !english?.trim() || !ga?.trim()) {
-    return json({
-      error: "Missing required fields: type, english, ga",
-      received: { type, english: !!english, ga: !!ga },
-    }, 400);
-  }
 
-  const validTypes = ["translation", "bible_verse", "correction", "cultural_note"];
-  if (!validTypes.includes(type)) {
+  const validTypes = ["translation", "bible_verse", "correction", "cultural_note", "document"];
+  if (!type || !validTypes.includes(type)) {
     return json({ error: `type must be one of: ${validTypes.join(", ")}` }, 400);
   }
 
-  if (type === "bible_verse") {
-    if (!body.book || !body.chapter || !body.verse) {
+  // A `document` submission is a SOURCE, not a word pair: the contributor hands
+  // over a scan or a file and describes it, and a reviewer transcribes it later.
+  // It therefore carries no english/ga, and must never reach the vocabulary
+  // insert on approval (see admin.ts).
+  const isDocument = type === "document";
+  if (isDocument) {
+    if (!files.length) {
+      return json({ error: "A document contribution needs at least one file." }, 400);
+    }
+    if (!body.description?.trim()) {
+      return json({ error: "Describe what the document contains." }, 400);
+    }
+  } else {
+    if (!english?.trim() || !ga?.trim()) {
+      return json({
+        error: "Missing required fields: type, english, ga",
+        received: { type, english: !!english, ga: !!ga },
+      }, 400);
+    }
+    if (type === "bible_verse" && (!body.book || !body.chapter || !body.verse)) {
       return json({ error: "bible_verse requires book, chapter, verse" }, 400);
     }
   }
@@ -172,10 +188,16 @@ export async function handleContribute(request: Request, env: Env): Promise<Resp
   // Build the canonical query/answer pair. For corrections, `english` is the
   // existing KB term and `ga` is the user's corrected Ga. For translations,
   // they're a new pair. For bible_verse, we store the structured ref too.
-  const queryText = type === "bible_verse"
-    ? `${body.book} ${body.chapter}:${body.verse}`
-    : english.trim();
-  const answerText = ga.trim();
+  const queryText = isDocument
+    ? body.description!.trim()
+    : type === "bible_verse"
+      ? `${body.book} ${body.chapter}:${body.verse}`
+      : english.trim();
+  // A document has no Ga answer. The filenames stand in so the review queue
+  // reads sensibly and two unrelated submissions never look like agreement.
+  const answerText = isDocument
+    ? attachments.map((a) => a.name).join(", ")
+    : ga.trim();
 
   // Store as a user_contribution with enriched metadata.
   const metadata = JSON.stringify({
@@ -188,7 +210,8 @@ export async function handleContribute(request: Request, env: Env): Promise<Resp
     verse: body.verse || null,
     // For bible_verse, `english` is the English verse text — original_query
     // holds the reference ("John 3:16"), so keep the text here for approval.
-    english_text: english.trim(),
+    english_text: (english || "").trim(),
+    description: isDocument ? body.description!.trim() : null,
     contributor_id: userId,
     contributor_name: isGuest ? body.contributor_name!.trim() : null,
     contributor_email: isGuest ? body.contributor_email!.trim() : null,

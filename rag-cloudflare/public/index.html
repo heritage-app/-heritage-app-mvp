@@ -504,6 +504,13 @@
   .quiz .q-chips { display:flex; flex-wrap:wrap; gap:5px; }
   .quiz .q-chip { border:1px solid var(--line-2); padding:6px 9px; font:500 12px var(--sans); }
 
+  /* Contribute: two separate submissions, not one form with an optional file */
+  .cf-tabs { display:flex; gap:0; margin:0 0 2px; border-bottom:1px solid var(--line); }
+  .cf-tab { flex:1; border:0; border-bottom:2px solid transparent; background:transparent; color:var(--muted);
+    padding:11px 8px; font:700 10px var(--mono); letter-spacing:.14em; cursor:pointer; transition:.12s; min-height:44px; }
+  .cf-tab:hover { color:var(--ink-2); }
+  .cf-tab.on { color:var(--ink); border-bottom-color:var(--ink); }
+
   /* --- Contribution evidence: files a reviewer reads, never indexed --- */
   .drop { width:100%; margin-top:5px; min-height:86px; border:1px dashed var(--line-2); background:var(--paper);
     color:var(--ink); cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -736,46 +743,67 @@
         <span>CONTRIBUTE KNOWLEDGE</span>
         <button class="ovl-x" data-close type="button" aria-label="Close">✕</button>
       </div>
-      <p class="ovl-sub">Add a Ga word, phrase or cultural note. It lands in the review queue — once verified it becomes searchable for everyone.</p>
+      <div class="cf-tabs" role="tablist" aria-label="Contribution kind">
+        <button class="cf-tab on" id="cfTabText" type="button" role="tab" aria-selected="true" aria-controls="cfPaneText">TEXT ENTRY</button>
+        <button class="cf-tab" id="cfTabDoc" type="button" role="tab" aria-selected="false" aria-controls="cfPaneDoc">DOCUMENT</button>
+      </div>
+      <p class="ovl-sub" id="cfSub">Type a Ga word, phrase or cultural note. It lands in the review queue — once verified it becomes searchable for everyone.</p>
       <form id="contribForm">
-        <div class="f-row">
-          <label class="f-lab">TYPE
-            <select id="cfType">
-              <option value="translation">Translation (word / phrase)</option>
-              <option value="cultural_note">Cultural note</option>
-              <option value="bible_verse">Bible verse</option>
-            </select>
-          </label>
-        </div>
-        <div class="f-row f-bible hidden" id="cfBibleRow">
-          <label class="f-lab">BOOK <input id="cfBook" type="text" placeholder="Genesis" /></label>
-          <label class="f-lab">CH <input id="cfChapter" type="number" min="1" placeholder="1" /></label>
-          <label class="f-lab">V <input id="cfVerse" type="number" min="1" placeholder="1" /></label>
-        </div>
-        <div class="f-row">
-          <label class="f-lab">ENGLISH <input id="cfEnglish" type="text" placeholder="good morning" required /></label>
-        </div>
-        <div class="f-row">
-          <label class="f-lab">GA <input id="cfGa" type="text" placeholder="Ojekoo" required /></label>
-        </div>
-        <div class="f-row">
-          <label class="f-lab">NOTE (SOURCE / CONTEXT — OPTIONAL) <input id="cfNote" type="text" placeholder="e.g. heard from grandmother, Nii 1959" /></label>
-        </div>
-        <div class="f-row" id="cfEvidenceRow">
-          <div class="f-lab" style="display:flex;align-items:baseline;gap:8px">
-            <span>EVIDENCE — OPTIONAL</span>
-            <span style="margin-left:auto;text-transform:none;letter-spacing:0" id="cfFileCount"></span>
+        <!-- Pane 1: a word pair typed in directly. No file fields here — a text
+             entry and a source document are separate submissions. -->
+        <div id="cfPaneText" role="tabpanel" aria-labelledby="cfTabText">
+          <div class="f-row">
+            <label class="f-lab">TYPE
+              <select id="cfType">
+                <option value="translation">Translation (word / phrase)</option>
+                <option value="cultural_note">Cultural note</option>
+                <option value="bible_verse">Bible verse</option>
+              </select>
+            </label>
           </div>
-          <button class="drop" id="cfDrop" type="button">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <b>Add a photo or document</b>
-            <i>JPG · PNG · PDF · DOCX · XLSX — up to 10 MB each, 4 files</i>
-          </button>
-          <input id="cfFiles" type="file" multiple class="hidden"
-                 accept=".jpg,.jpeg,.png,.webp,.heic,.pdf,.doc,.docx,.xls,.xlsx,image/*,application/pdf" />
-          <div id="cfFileList"></div>
-          <div class="f-note" id="cfEvidenceNote">A person reads your file. Nothing in it is published or searchable until a reviewer approves the entry.</div>
+          <div class="f-row f-bible hidden" id="cfBibleRow">
+            <label class="f-lab">BOOK <input id="cfBook" type="text" placeholder="Genesis" /></label>
+            <label class="f-lab">CH <input id="cfChapter" type="number" min="1" placeholder="1" /></label>
+            <label class="f-lab">V <input id="cfVerse" type="number" min="1" placeholder="1" /></label>
+          </div>
+          <div class="f-row">
+            <label class="f-lab">ENGLISH <input id="cfEnglish" type="text" placeholder="good morning" /></label>
+          </div>
+          <div class="f-row">
+            <label class="f-lab">GA <input id="cfGa" type="text" placeholder="Ojekoo" /></label>
+          </div>
+          <div class="f-row">
+            <label class="f-lab">NOTE (SOURCE / CONTEXT — OPTIONAL) <input id="cfNote" type="text" placeholder="e.g. heard from grandmother, Nii 1959" /></label>
+          </div>
         </div>
+
+        <!-- Pane 2: a source handed over for a reviewer to transcribe. No
+             English/Ga fields — the words come out of the document, not a form. -->
+        <div id="cfPaneDoc" class="hidden" role="tabpanel" aria-labelledby="cfTabDoc">
+          <div class="f-row">
+            <div class="f-lab" style="display:flex;align-items:baseline;gap:8px">
+              <span>FILES</span>
+              <span style="margin-left:auto;text-transform:none;letter-spacing:0" id="cfFileCount"></span>
+            </div>
+            <button class="drop" id="cfDrop" type="button">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <b>Add a photo or document</b>
+              <i>JPG · PNG · PDF · DOCX · XLSX — up to 10 MB each, 4 files</i>
+            </button>
+            <input id="cfFiles" type="file" multiple class="hidden"
+                   accept=".jpg,.jpeg,.png,.webp,.heic,.pdf,.doc,.docx,.xls,.xlsx,image/*,application/pdf" />
+            <div id="cfFileList"></div>
+          </div>
+          <div class="f-row">
+            <label class="f-lab">WHAT IS IT? <input id="cfDesc" type="text" placeholder="e.g. my grandmother's word list, page 12" /></label>
+          </div>
+          <div class="f-row">
+            <label class="f-lab">SOURCE / CONTEXT — OPTIONAL <input id="cfDocNote" type="text" placeholder="e.g. written in Jamestown, 1959" /></label>
+          </div>
+          <div class="f-note">A person reads your file and types the entries out. Nothing in it is published or searchable until they do.</div>
+          <div class="f-note hidden" id="cfDocSignin">Sign in to upload a document — file submissions are tied to an account.</div>
+        </div>
+
         <div class="f-guest" id="cfGuestRow">
           <div class="f-guest-lab">YOUR DETAILS — so we can credit you (required when not signed in)</div>
           <div class="f-row">
@@ -2599,21 +2627,56 @@ $("contributeBtn").onclick = () => {
   closeDrawer();
   // Guest contributors identify themselves; signed-in users are credited via account.
   $("cfGuestRow").classList.toggle("hidden", !!me);
-  // Evidence uploads are for signed-in accounts only — the server refuses guest
-  // files, so don't offer the control and then reject the submission.
-  $("cfEvidenceRow").classList.toggle("hidden", !me);
-  if (!me) { cfFiles = []; renderCfFiles(); }
+  setCfTab("text");
   openOverlay("contribOvl");
 };
 $("cfType").addEventListener("change", (e) =>
   $("cfBibleRow").classList.toggle("hidden", e.target.value !== "bible_verse"));
 
+/* ---- Contribute tabs: a typed entry and an uploaded source are separate
+   submissions, so each pane owns its own fields and its own validation. ---- */
+let cfTab = "text";
+
+function setCfTab(which) {
+  cfTab = which;
+  const isDoc = which === "doc";
+  $("cfTabText").classList.toggle("on", !isDoc);
+  $("cfTabDoc").classList.toggle("on", isDoc);
+  $("cfTabText").setAttribute("aria-selected", String(!isDoc));
+  $("cfTabDoc").setAttribute("aria-selected", String(isDoc));
+  $("cfPaneText").classList.toggle("hidden", isDoc);
+  $("cfPaneDoc").classList.toggle("hidden", !isDoc);
+  $("cfSub").textContent = isDoc
+    ? "Hand over a scan, photo or file. A reviewer reads it and types the entries out."
+    : "Type a Ga word, phrase or cultural note. It lands in the review queue — once verified it becomes searchable for everyone.";
+  // Uploads are tied to an account; say so up front instead of rejecting later.
+  const guestOnDoc = isDoc && !me;
+  $("cfDocSignin").classList.toggle("hidden", !guestOnDoc);
+  $("cfDrop").classList.toggle("hidden", guestOnDoc || cfFiles.length >= CF_MAX_FILES);
+  $("contribForm").querySelector('button[type="submit"]').disabled = guestOnDoc;
+}
+
+$("cfTabText").onclick = () => setCfTab("text");
+$("cfTabDoc").onclick = () => setCfTab("doc");
+
 $("contribForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const type = $("cfType").value;
-  const english = $("cfEnglish").value.trim(), ga = $("cfGa").value.trim();
-  if (!english || !ga) return;
-  const body = { type, english, ga, notes: $("cfNote").value.trim() || undefined };
+  const isDoc = cfTab === "doc";
+  let body;
+
+  if (isDoc) {
+    if (!me) { toast("Sign in to upload a document"); return; }
+    if (!cfFiles.length) { toast("Add at least one file"); return; }
+    const description = $("cfDesc").value.trim();
+    if (!description) { toast("Say what the document contains"); return; }
+    body = { type: "document", description, notes: $("cfDocNote").value.trim() || undefined };
+  } else {
+    const type = $("cfType").value;
+    const english = $("cfEnglish").value.trim(), ga = $("cfGa").value.trim();
+    if (!english || !ga) { toast("Both English and Ga are needed"); return; }
+    body = { type, english, ga, notes: $("cfNote").value.trim() || undefined };
+  }
+
   if (!me) {
     body.contributor_name = $("cfName").value.trim();
     body.contributor_email = $("cfEmail").value.trim();
@@ -2622,16 +2685,16 @@ $("contribForm").addEventListener("submit", async (e) => {
       toast("Guests: add your name, email and location so we can credit you"); return;
     }
   }
-  if (type === "bible_verse") {
+  if (body.type === "bible_verse") {
     body.book = $("cfBook").value.trim();
     body.chapter = parseInt($("cfChapter").value, 10) || undefined;
     body.verse = parseInt($("cfVerse").value, 10) || undefined;
     if (!body.book || !body.chapter || !body.verse) { toast("Bible verse needs book, chapter and verse"); return; }
   }
-  // With evidence attached the request becomes multipart; without it, JSON.
-  // The scalar field names are identical either way.
+  // The document tab posts multipart; the text tab posts JSON. Field names are
+  // the same either way.
   let init;
-  if (cfFiles.length) {
+  if (isDoc) {
     const fd = new FormData();
     for (const [k, v] of Object.entries(body)) if (v !== undefined) fd.append(k, v);
     for (const f of cfFiles) fd.append("files", f, f.name);
@@ -2654,7 +2717,10 @@ $("contribForm").addEventListener("submit", async (e) => {
     $("contribForm").reset();
     $("cfBibleRow").classList.add("hidden");
     cfFiles = []; renderCfFiles();
-    toast(d.has_conflict ? "Recorded — conflicts with an existing entry, queued for admin review" : "Submitted — staged for review");
+    setCfTab("text");
+    toast(isDoc ? "Document submitted — a reviewer will transcribe it"
+        : d.has_conflict ? "Recorded — conflicts with an existing entry, queued for admin review"
+        : "Submitted — staged for review");
     refreshReviewCount();
   } catch { toast("Failed to submit — try again"); }
   finally { submitBtn.disabled = false; submitBtn.textContent = label; }
@@ -2678,7 +2744,8 @@ function renderCfFiles() {
   const list = $("cfFileList"), count = $("cfFileCount");
   list.innerHTML = "";
   count.textContent = cfFiles.length ? `${cfFiles.length} of ${CF_MAX_FILES}` : "";
-  $("cfDrop").classList.toggle("hidden", cfFiles.length >= CF_MAX_FILES);
+  // Stays hidden for a signed-out visitor on the document tab, who can't upload.
+  $("cfDrop").classList.toggle("hidden", (cfTab === "doc" && !me) || cfFiles.length >= CF_MAX_FILES);
   cfFiles.forEach((f, i) => {
     const ext = (f.name.split(".").pop() || "").toUpperCase().slice(0, 4);
     const row = document.createElement("div");

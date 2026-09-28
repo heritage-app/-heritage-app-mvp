@@ -607,6 +607,22 @@ app.post("/contributions/:id/approve", async (c) => {
       ? c.json({ detail: "D1 daily write limit reached — approve can't complete right now. It resets at midnight UTC; upgrading to Workers Paid removes the cap." }, 503)
       : null;
 
+  // A `document` submission is a source awaiting transcription, not a word
+  // pair — it has no Ga answer. Approving it only marks the source accepted;
+  // writing it to vocabulary would create a headword from a filename.
+  if (meta.type === "document") {
+    try {
+      await statusUpdate.run();
+    } catch (e) {
+      return quotaResponse(e) ?? (() => { throw e; })();
+    }
+    return c.json({
+      status: "success",
+      message: "Document accepted. Transcribe it into entries to add them to the archive.",
+      corpus_written: false,
+    });
+  }
+
   // bible_verse contributions go to bible_verses, NOT vocabulary — a verse
   // reference must never become an English headword.
   if (meta.type === "bible_verse" && meta.book && meta.chapter && meta.verse) {
