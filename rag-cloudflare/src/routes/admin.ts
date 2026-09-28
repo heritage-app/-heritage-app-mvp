@@ -954,4 +954,196 @@ app.post("/reindex", async (c) => {
   return c.json({ offset, processed: results.length, results });
 });
 
+// --- Word alignments: English↔Ga word pairs inferred from sentence-pair
+// co-occurrence (Dice). /build recomputes from live R2 heritage docs; rows a
+// reviewer already promoted/rejected keep their status across rebuilds. ---
+
+const ALIGN_STOP_EN = new Set([
+  "in", "ga", "the", "a", "an", "is", "are", "was", "were", "what", "how", "do",
+  "does", "did", "you", "your", "yours", "say", "said", "tell", "me", "to",
+  "of", "for", "my", "i", "we", "they", "he", "she", "it", "this", "that",
+  "these", "those", "and", "or", "but", "not", "no", "yes", "on", "at", "by",
+  "with", "from", "about", "as", "so", "if", "then", "there", "here", "where",
+  "when", "why", "who", "which", "can", "could", "would", "should", "will",
+  "shall", "may", "might", "must", "have", "has", "had", "be", "been", "being",
+  "am", "into", "over", "under", "up", "down", "out", "off", "very", "too",
+  "also", "just", "now", "than", "then", "please", "lets", "let", "us",
+]);
+const ALIGN_STOP_GA = new Set([
+  "le", "ni", "ke", "mo", "no", "a", "e", "o", "shi", "mli", "he", "koni",
+  "saa", "ye", "wo", "bo", "mi", "wo", "noo", "fee", "haa",
+]);
+
+function alignWords(s: string): string[] {
+  return foldGa(s.toLowerCase()).match(/[\p{L}\p{N}'-]+/gu) ?? [];
+}
+
+app.post("/alignments/build", async (c) => {
+  const docs = await c.env.DB.prepare(
+    "SELECT unique_path FROM documents WHERE category = 'heritage' AND unique_path LIKE '%.jsonl'"
+  ).all<{ unique_path: string }>();
+
+  // Collect every english/ga sentence pair in the archive.
+  const pairs: Array<{ eng: string; ga: string }> = [];
+  for (const row of docs.results ?? []) {
+    const obj = await c.env.DOCS_BUCKET.get(row.unique_path);
+    if (!obj) continue;
+    for (const line of (await obj.text()).split("\n")) {
+      const t = line.trim();
+      if (!t.startsWith("{")) continue;
+      try {
+        const rec = JSON.parse(t);
+        const eng = String(rec.english ?? "").trim();
+        const ga = String(rec.ga ?? "").trim();
+        if (eng && ga) pairs.push({ eng, ga });
+      } catch { /* skip malformed */ }
+    }
+  }
+  if (!pairs.length) return c.json({ detail: "no heritage pairs found" }, 400);
+
+  // English words already covered by verified vocabulary don't need inferring.
+  const covered = new Set<string>();
+  const vocabRows = await c.env.DB.prepare(
+    "SELECT translations, meanings FROM vocabulary WHERE verified_at IS NOT NULL AND TRIM(verified_at) <> ''"
+  ).all<{ translations: string; meanings: string }>();
+  for (const r of vocabRows.results ?? []) {
+    for (const field of [r.translations, r.meanings]) {
+      try {
+        for (const t of JSON.parse(field || "[]")) {
+          for (const w of alignWords(String(t))) covered.add(w);
+        }
+      } catch { /* skip */ }
+    }
+  }
+
+  // Co-occurrence matrix on folded words.
+  const cntE = new Map<string, number>();
+  const cntG = new Map<string, number>();
+  const cooccur = new Map<string, number>(); // "e|g" -> count
+  const examples = new Map<string, Array<{ english: string; ga: string }>>();
+  // folded -> lowercase surface form, so stored words keep their diacritics
+  const dispE = new Map<string, string>();
+  const dispG = new Map<string, string>();
+  for (const p of pairs) {
+    const ew = new Set(alignWords(p.eng));
+    const gw = new Set(alignWords(p.ga));
+    for (const w of p.eng.toLowerCase().match(/[\p{L}\p{N}'-]+/gu) ?? [])
+      if (!dispE.has(foldGa(w))) dispE.set(foldGa(w), w);
+    for (const w of p.ga.toLowerCase().match(/[\p{L}\p{N}'-]+/gu) ?? [])
+      if (!dispG.has(foldGa(w))) dispG.set(foldGa(w), w);
+    for (const e of ew) cntE.set(e, (cntE.get(e) ?? 0) + 1);
+    for (const g of gw) cntG.set(g, (cntG.get(g) ?? 0) + 1);
+    for (const e of ew) {
+      if (ALIGN_STOP_EN.has(e) || covered.has(e) || e.length < 2 || /^\d+$/.test(e)) continue;
+      for (const g of gw) {
+        if (ALIGN_STOP_GA.has(g) || g.length < 2) continue;
+        const key = `${e}|${g}`;
+        cooccur.set(key, (cooccur.get(key) ?? 0) + 1);
+        const ex = examples.get(key) ?? [];
+        if (ex.length < 3) ex.push({ english: p.eng, ga: p.ga });
+        examples.set(key, ex);
+      }
+    }
+  }
+
+  // Dice per pair; keep each English word's top-3 Ga candidates.
+  const byEnglish = new Map<string, Array<{ g: string; dice: number; n: number }>>();
+  for (const [key, n] of cooccur) {
+    const [e, g] = key.split("|");
+    const dice = (2 * n) / ((cntE.get(e) ?? 1) + (cntG.get(g) ?? 1));
+    if (n < 2 && dice < 0.4) continue; // single weak sighting — noise
+    const arr = byEnglish.get(e) ?? [];
+    arr.push({ g, dice, n });
+    byEnglish.set(e, arr);
+  }
+
+  const now = nowIso();
+  const rows: Array<[string, string, string, string, string, number, number, string]> = [];
+  for (const [e, cands] of byEnglish) {
+    cands.sort((a, b) => b.dice - a.dice || b.n - a.n);
+    for (const { g, dice, n } of cands.slice(0, 3)) {
+      rows.push([`wa:${e}:${g}`, dispE.get(e) ?? e, dispG.get(g) ?? g, e, g, Number(dice.toFixed(3)), n, JSON.stringify(examples.get(`${e}|${g}`) ?? [])]);
+    }
+  }
+
+  // Upsert in batches; promoted/rejected rows keep their status on rebuild.
+  const stmt = c.env.DB.prepare(
+    `INSERT INTO word_alignments (id, english_word, ga_word, english_normalized, ga_normalized, confidence, evidence_count, examples, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       confidence = excluded.confidence,
+       evidence_count = excluded.evidence_count,
+       examples = excluded.examples,
+       status = CASE WHEN word_alignments.status IN ('promoted','rejected')
+                 THEN word_alignments.status ELSE 'inferred' END`
+  );
+  for (let i = 0; i < rows.length; i += 50) {
+    await c.env.DB.batch(rows.slice(i, i + 50).map((r) => stmt.bind(...r, now)));
+  }
+
+  return c.json({ pairs_scanned: pairs.length, alignments: rows.length });
+});
+
+app.get("/alignments", async (c) => {
+  const status = c.req.query("status") || "inferred";
+  const minConf = parseFloat(c.req.query("min_confidence") ?? "0") || 0;
+  const limit = Math.min(Math.max(parseInt(c.req.query("limit") ?? "100", 10) || 100, 1), 500);
+  const rows = await c.env.DB.prepare(
+    `SELECT * FROM word_alignments WHERE status = ? AND confidence >= ?
+     ORDER BY evidence_count DESC, confidence DESC LIMIT ?`
+  ).bind(status, minConf, limit).all();
+  return c.json({ alignments: rows.results ?? [], total: rows.results?.length ?? 0 });
+});
+
+app.post("/alignments/:id/promote", async (c) => {
+  const adminId = c.get("adminId")!;
+  const id = c.req.param("id");
+  const row = await c.env.DB.prepare("SELECT * FROM word_alignments WHERE id = ?").bind(id).first<any>();
+  if (!row) return c.json({ detail: "Alignment not found" }, 404);
+  if (row.status === "promoted") return c.json({ detail: "Already promoted" }, 409);
+
+  const now = nowIso();
+  const vid = `vocab:align:${row.english_word}:${row.ga_word}`;
+  const stmts = [
+    c.env.DB.prepare(
+      `INSERT OR REPLACE INTO vocabulary
+         (id, headword, headword_normalized, part_of_speech, meanings, translations,
+          examples, variants, phonetic, category, source, verified_by, verified_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, '[]', NULL, 'phrase', ?, ?, ?)`
+    ).bind(
+      vid,
+      row.ga_word,
+      foldGa(row.ga_word.toLowerCase()),
+      null,
+      JSON.stringify([row.english_word]),
+      JSON.stringify([row.english_word]),
+      row.examples,
+      `corpus-alignment (inferred, confidence ${row.confidence}, n=${row.evidence_count})`,
+      adminId,
+      now
+    ),
+    c.env.DB.prepare(
+      "UPDATE word_alignments SET status = 'promoted', reviewed_by = ?, reviewed_at = ? WHERE id = ?"
+    ).bind(adminId, now, id),
+  ];
+  try {
+    await c.env.DB.batch(stmts);
+  } catch (e) {
+    if (/row write limit|exceeded D1/i.test(String(e)))
+      return c.json({ detail: "D1 daily write limit reached — resets at midnight UTC." }, 503);
+    throw e;
+  }
+  return c.json({ status: "success", vocabulary_id: vid });
+});
+
+app.post("/alignments/:id/reject", async (c) => {
+  const adminId = c.get("adminId")!;
+  const id = c.req.param("id");
+  const res = await c.env.DB.prepare(
+    "UPDATE word_alignments SET status = 'rejected', reviewed_by = ?, reviewed_at = ? WHERE id = ?"
+  ).bind(adminId, nowIso(), id).run();
+  if (!res.meta.changes) return c.json({ detail: "Alignment not found" }, 404);
+  return c.json({ status: "success", message: "Alignment rejected." });
+});
+
 export default app;

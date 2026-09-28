@@ -184,7 +184,13 @@ export async function indexFromBytes(
   if (!text.trim()) return { category: "heritage", ids: [], total: 0, vectorPending: false };
 
   const category = metadata.category ? getCategory(metadata.category) : detectCategory(text, filePath);
-  const baseMeta = { ...metadata, category, file_path: filePath, filename };
+  // Vectorize caps per-vector metadata at 10KB — drop document-level bookkeeping
+  // (vector_ids lists etc.) that must never be copied onto every vector.
+  const { vector_ids: _ids, vector_pending: _vp, ...docMeta } = metadata;
+  const baseMeta: Record<string, any> = { category, file_path: filePath, filename };
+  for (const [k, v] of Object.entries(docMeta)) {
+    if (["string", "number", "boolean"].includes(typeof v)) baseMeta[k] = v;
+  }
 
   let docs: VectorDoc[] = [];
   let verseRecords: VerseRecord[] = [];
