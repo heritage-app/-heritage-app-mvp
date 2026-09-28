@@ -7,6 +7,7 @@
  */
 import type { VerseRecord } from "../types";
 import { numToGa, numToEn, getGaLabel, getGaChapterTitle } from "./ga";
+import { modernizeGa } from "./orthography";
 
 const BOOK_MAPPING: Record<string, string> = {
   genesis: "Mose klɛŋklɛŋ wolo",
@@ -56,7 +57,7 @@ export function buildBibleNodeText(r: VerseRecord): string {
     `english_version_name: ${enName}\n` +
     `english_version_abbr: ${enAbbr}\n` +
     `source_name: ${r.source_name ?? "Bible Archive"}\n\n` +
-    `Ga Content:\n${(r.ga ?? "").trim()}\n\n` +
+    `Ga Content:\n${modernizeGa((r.ga ?? "").trim())}\n\n` +
     `English Content:\n${(r.en ?? "").trim()}`
   );
 }
@@ -176,6 +177,12 @@ export function parseBibleJsonl(text: string, filename: string): VerseRecord[] {
     }
     if (rec.chapter_num != null) rec.chapter_num = parseInt(String(rec.chapter_num), 10);
     if (rec.verse_num != null) rec.verse_num = parseInt(String(rec.verse_num), 10);
+    // Multiple Ga editions coexist in the same table/index — scope non-GBV96
+    // ids (bible:book:ch:v:negab) so NEGAB never overwrites the GBV96 record.
+    const abbr = String(rec.ga_version_abbr ?? "").toLowerCase();
+    if (abbr && abbr !== "gbv96" && rec.id && !String(rec.id).endsWith(`:${abbr}`)) {
+      rec.id = `${rec.id}:${abbr}`;
+    }
     rec.source_name = filename;
     rec.category = "bible";
     records.push(rec);

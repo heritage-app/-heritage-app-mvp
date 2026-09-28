@@ -3,6 +3,7 @@
  */
 import type { VerseRecord } from "../types";
 import { getGaChapterTitle, getGaLabel } from "./ga";
+import { modernizeGa } from "./orthography";
 
 const BAD_MARKERS = [
   "bible in ga language",
@@ -65,7 +66,11 @@ export function formatBibleQuote(meta: VerseRecord): string {
 
   const gaName = str(meta.ga_version_name) || "Ŋmalɛ Krɔŋkrɔŋ Lɛ";
   const gaAbbr = str(meta.ga_version_abbr) || "NEGAB";
-  const gaText = str(meta.ga);
+  // GBV96 is typeset in legacy orthography — render it modernized for readers,
+  // and drop print footnote markers (*, †) and inline verse numbers.
+  const gaText = modernizeGa(str(meta.ga))
+    .replace(/[*†]/g, "")
+    .replace(/^\s*\[\d+\.\]\s*/, "");
 
   const enName = str(meta.english_version_name) || "King James Version";
   const enAbbr = str(meta.english_version_abbr) || "KJV";

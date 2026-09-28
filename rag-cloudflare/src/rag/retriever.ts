@@ -8,6 +8,7 @@ import type { Env, RetrievedNode } from "../types";
 import { DEFAULT_TOP_K, type Category } from "../config";
 import { embedOne } from "./embeddings";
 import { isRetrievableBibleRecord } from "./validator";
+import { modernizeGa } from "./orthography";
 
 export interface RetrieveFilters {
   category?: Category;
@@ -46,7 +47,15 @@ export async function retrieveContext(
   opts: RetrieveOptions = {}
 ): Promise<RetrievedNode[]> {
   const topK = opts.topK ?? DEFAULT_TOP_K;
-  const vector = await embedOne(env, query);
+  let vector: number[];
+  try {
+    vector = await embedOne(env, query);
+  } catch (e) {
+    // Embedding can be unavailable (e.g. Workers AI quota exhausted). Treat it
+    // as "no semantic hits" so engines degrade gracefully instead of throwing.
+    console.warn("Embedding failed, skipping semantic retrieval:", e);
+    return [];
+  }
   const filter = buildVectorizeFilter(opts);
 
   let matches: VectorizeMatch[] = [];
@@ -69,10 +78,21 @@ export async function retrieveContext(
     if (metadata.category === "bible" && !isRetrievableBibleRecord(metadata)) continue;
 
     const text = String(metadata.text ?? metadata.node_text ?? "");
-    const key = text.slice(0, 200);
+    // Bible verses: dedupe by reference so GBV96 + NEGAB of the same verse don't
+    // both surface; prefer NEGAB (modern orthography) on equal references.
+    const key =
+      metadata.category === "bible" && metadata.verse_ref
+        ? `ref:${metadata.verse_ref}`
+        : text.slice(0, 200);
     const node: RetrievedNode = { text, score: m.score ?? 0, metadata };
     const prev = seen.get(key);
-    if (!prev || node.score > prev.score) seen.set(key, node);
+    if (!prev) {
+      seen.set(key, node);
+    } else {
+      const prevNegab = String(prev.metadata?.ga_version_abbr ?? "") === "NEGAB";
+      const curNegab = String(metadata.ga_version_abbr ?? "") === "NEGAB";
+      if ((curNegab && !prevNegab) || node.score > prev.score) seen.set(key, node);
+    }
   }
 
   return Array.from(seen.values())
@@ -93,7 +113,7 @@ function formatBibleEvidence(m: Record<string, any>): string {
     `ga_version_abbr=${g("ga_version_abbr", "NEGAB")}\n` +
     `english_version_name=${g("english_version_name", "King James Version")}\n` +
     `english_version_abbr=${g("english_version_abbr", "KJV")}\n` +
-    `ga=${g("ga")}\n` +
+    `ga=${modernizeGa(g("ga"))}\n` +
     `en=${g("en")}\n` +
     `source_name=${g("source_name")}\n` +
     "[/BIBLE_RECORD]\n"

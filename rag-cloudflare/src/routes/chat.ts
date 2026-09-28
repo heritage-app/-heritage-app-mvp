@@ -7,6 +7,7 @@ import { optionalUser } from "../auth/middleware";
 import { DEFAULT_TOP_K } from "../config";
 import { ask, type AskParams } from "../rag/service";
 import { initializeSession, getSessionByIdAndUser } from "../db/sessions";
+import { isGuestId } from "../auth/jwt";
 import { nowIso } from "../utils/time";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -15,6 +16,9 @@ interface AskBody {
   query?: string;
   model?: string;
   mode?: RagMode;
+  // Guests persist no history; the client resends the last assistant message
+  // so follow-ups like "continue" / "another story" stay stateless but aware.
+  context?: string;
 }
 
 function clampTopK(raw: string | undefined): number {
@@ -60,8 +64,18 @@ async function collectResponse(c: any, params: AskParams) {
   for await (const token of ask(env, { ...params, stream: false }, waitUntil)) {
     response += token;
   }
+  // Strip the internal __META__ trailer — it's a stream-side signal, not
+  // response text. Surface the interaction id as a proper JSON field so
+  // non-streaming clients can still attach feedback to it.
+  let interactionId: string | undefined;
+  const metaMatch = response.match(/\n__META__:(\{[^\n]*\})\n?/);
+  if (metaMatch) {
+    try { interactionId = JSON.parse(metaMatch[1]).interactionId; } catch {}
+    response = response.replace(/\n__META__:\{[^\n]*\}\n?/g, "");
+  }
   return c.json({
     conversation_id: params.conversationId,
+    interaction_id: interactionId,
     response,
     query: params.query,
     timestamp: nowIso(),
@@ -79,7 +93,8 @@ app.post("/chat/new", optionalUser, async (c) => {
   const stream = c.req.query("stream") === "true";
 
   const conversationId = crypto.randomUUID();
-  await initializeSession(c.env, conversationId, userId);
+  // Guests get an ephemeral id — no session row, their chats aren't saved.
+  if (!isGuestId(userId)) await initializeSession(c.env, conversationId, userId);
 
   const params: AskParams = {
     query: body.query,
@@ -89,6 +104,7 @@ app.post("/chat/new", optionalUser, async (c) => {
     stream,
     model: body.model,
     mode: body.mode ?? "auto",
+    context: body.context,
   };
   return stream ? streamResponse(c, params) : collectResponse(c, params);
 });
@@ -102,7 +118,9 @@ app.post("/chat/:conversation_id", optionalUser, async (c) => {
   if (!userId) return c.json({ detail: "User identification required." }, 401);
 
   const session = await getSessionByIdAndUser(c.env, conversationId, userId);
-  if (!session) return c.json({ detail: "Conversation not found." }, 404);
+  // Guests own no sessions — continue statelessly instead of 404ing, since
+  // their conversation ids were never persisted in the first place.
+  if (!session && !isGuestId(userId)) return c.json({ detail: "Conversation not found." }, 404);
 
   const topK = clampTopK(c.req.query("top_k"));
   const stream = c.req.query("stream") === "true";
@@ -114,6 +132,7 @@ app.post("/chat/:conversation_id", optionalUser, async (c) => {
     stream,
     model: body.model,
     mode: body.mode ?? "auto",
+    context: body.context,
   };
   return stream ? streamResponse(c, params) : collectResponse(c, params);
 });
@@ -126,7 +145,7 @@ app.post("/bible/ask", optionalUser, async (c) => {
   if (!userId) return c.json({ detail: "User identification required." }, 401);
 
   const conversationId = crypto.randomUUID();
-  await initializeSession(c.env, conversationId, userId);
+  if (!isGuestId(userId)) await initializeSession(c.env, conversationId, userId);
   return collectResponse(c, {
     query: body.query,
     conversationId,
@@ -145,7 +164,7 @@ app.post("/general/ask", optionalUser, async (c) => {
   if (!userId) return c.json({ detail: "User identification required." }, 401);
 
   const conversationId = crypto.randomUUID();
-  await initializeSession(c.env, conversationId, userId);
+  if (!isGuestId(userId)) await initializeSession(c.env, conversationId, userId);
   return collectResponse(c, {
     query: body.query,
     conversationId,

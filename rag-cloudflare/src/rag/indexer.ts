@@ -145,17 +145,43 @@ export async function indexRefinedRecords(
   return ids;
 }
 
-/** Index a document from raw bytes (extraction + classification + chunking). */
+/** Directly index reviewed heritage phrase pairs ({english, ga}) — the OCR commit path. */
+export async function indexHeritageRecords(
+  env: Env,
+  records: VerseRecord[],
+  metadata: Record<string, any> = {}
+): Promise<string[]> {
+  const docs: VectorDoc[] = [];
+  let i = 0;
+  for (const r of records) {
+    const english = String(r.english ?? "").trim();
+    const ga = String(r.ga ?? "").trim();
+    if (!english || !ga) continue;
+    const nodeText = `English: ${english}\nGa: ${ga}`;
+    docs.push({
+      id: `${metadata.file_path ?? "heritage"}:rec:${i++}`,
+      text: nodeText,
+      metadata: { ...metadata, category: "heritage", english, ga, text: nodeText },
+    });
+  }
+  if (!docs.length) return [];
+  return upsertDocs(env, docs);
+}
+
+/** Index a document from raw bytes (extraction + classification + chunking).
+ * `range` slices the prepared docs so a large file can be indexed across
+ * multiple requests without hitting the per-invocation CPU limit. */
 export async function indexFromBytes(
   env: Env,
   content: ArrayBuffer,
   filePath: string,
-  metadata: Record<string, any> = {}
-): Promise<{ category: Category; ids: string[] }> {
+  metadata: Record<string, any> = {},
+  range?: { offset: number; limit: number }
+): Promise<{ category: Category; ids: string[]; total: number; vectorPending: boolean }> {
   const filename = filePath.split("/").pop() ?? filePath;
   const ext = "." + (filename.toLowerCase().split(".").pop() ?? "");
   const text = await extractRawText(content, filename);
-  if (!text.trim()) return { category: "heritage", ids: [] };
+  if (!text.trim()) return { category: "heritage", ids: [], total: 0, vectorPending: false };
 
   const category = metadata.category ? getCategory(metadata.category) : detectCategory(text, filePath);
   const baseMeta = { ...metadata, category, file_path: filePath, filename };
@@ -198,7 +224,24 @@ export async function indexFromBytes(
     }));
   }
 
-  const ids = await upsertDocs(env, docs);
+  // Page through a large document when a record range is requested — embedding
+  // a whole book in one invocation exceeds the per-request CPU limit.
+  const total = docs.length;
+  if (range && range.limit > 0) {
+    docs = docs.slice(range.offset, range.offset + range.limit);
+    verseRecords = verseRecords.slice(range.offset, range.offset + range.limit);
+  }
+
+  // D1 first: exact verse lookup must survive a Workers AI quota/embedding outage.
   if (verseRecords.length) await upsertVerses(env, verseRecords);
-  return { category, ids };
+  let ids: string[] = [];
+  let vectorPending = false;
+  try {
+    ids = await upsertDocs(env, docs);
+  } catch (e) {
+    console.error("Vector upsert failed; D1 records preserved, vectors pending:", e);
+    metadata.vector_pending = true;
+    vectorPending = true;
+  }
+  return { category, ids, total, vectorPending };
 }

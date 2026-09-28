@@ -58,3 +58,38 @@ export function buildAuthCookie(env: Env, token: string): string {
 export function clearAuthCookie(): string {
   return `${COOKIE_NAME}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`;
 }
+
+/**
+ * Resolve a user identity for unauthenticated-facing endpoints (feedback,
+ * contributions). Verifies Bearer JWT properly — NEVER stores the raw token
+ * as a user id. Falls back to the guest id header, then "anonymous".
+ */
+export async function resolveUserId(request: Request, env: Env): Promise<string> {
+  const auth = request.headers.get("Authorization");
+  if (auth?.startsWith("Bearer ")) {
+    const payload = await verifyAccessToken(env, auth.slice(7));
+    if (payload?.sub) return payload.sub;
+  }
+  const cookieHeader = request.headers.get("Cookie") || "";
+  const cookieMatch = cookieHeader.match(new RegExp(`${COOKIE_NAME}=([^;]+)`));
+  if (cookieMatch) {
+    const v = decodeURIComponent(cookieMatch[1]);
+    if (v && v !== "null" && v !== "undefined") {
+      const payload = await verifyAccessToken(env, v);
+      if (payload?.sub) return payload.sub;
+    }
+  }
+  const anon = request.headers.get("X-Anonymous-ID");
+  if (anon) return anon.startsWith("guest_") ? anon : `guest_${anon}`;
+  return "anonymous";
+}
+
+/**
+ * True for ephemeral identities (X-Anonymous-ID guests / no identity).
+ * Guest conversations are never persisted — no session, message or
+ * activity rows. Contributions and feedback DO still write (that data
+ * is the point of the learning loop).
+ */
+export function isGuestId(userId: string | null | undefined): boolean {
+  return !userId || userId === "anonymous" || userId.startsWith("guest_");
+}

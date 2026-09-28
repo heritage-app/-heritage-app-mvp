@@ -50,7 +50,8 @@ export async function getVerse(
   verse: number
 ): Promise<VerseRecord | null> {
   return env.DB.prepare(
-    "SELECT * FROM bible_verses WHERE book = ? AND chapter_num = ? AND verse_num = ?"
+    `SELECT * FROM bible_verses WHERE book = ? AND chapter_num = ? AND verse_num = ?
+     ORDER BY (ga_version_abbr = 'NEGAB') DESC LIMIT 1`
   )
     .bind(book, chapter, verse)
     .first<VerseRecord>();
@@ -104,12 +105,25 @@ export async function listBooks(env: Env): Promise<BookSummary[]> {
     `SELECT book,
             MAX(traditional_book) AS traditional_book,
             COUNT(DISTINCT chapter_num) AS chapters,
-            COUNT(*) AS verses
+            COUNT(DISTINCT chapter_num || ':' || verse_num) AS verses
        FROM bible_verses
       GROUP BY book
       ORDER BY book ASC`
   ).all<BookSummary>();
   return res.results ?? [];
+}
+
+/** A random, fully-populated verse — used for "quote a verse" so it varies each time. */
+export async function getRandomVerse(env: Env, book?: string): Promise<VerseRecord | null> {
+  const base =
+    `SELECT * FROM bible_verses WHERE ga IS NOT NULL AND ga != '' AND en IS NOT NULL AND en != ''`;
+  const tail = ` ORDER BY (ga_version_abbr = 'NEGAB') DESC, RANDOM() LIMIT 1`;
+  if (book) {
+    return env.DB.prepare(`${base} AND book = ?${tail}`)
+      .bind(capitalize(book))
+      .first<VerseRecord>();
+  }
+  return env.DB.prepare(`${base}${tail}`).first<VerseRecord>();
 }
 
 function capitalize(s: string): string {

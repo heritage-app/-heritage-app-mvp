@@ -6,7 +6,7 @@ import type { Env, Variables } from "../types";
 import { getUserByEmail, createUser } from "../db/users";
 import { verifyPassword } from "../auth/password";
 import { createAccessToken, buildAuthCookie, clearAuthCookie } from "../auth/jwt";
-import { requireUser } from "../auth/middleware";
+import { requireUser, optionalUser } from "../auth/middleware";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -53,6 +53,13 @@ app.post("/logout", (c) => {
 app.get("/me", requireUser, (c) => {
   const u = c.get("user")!;
   return c.json(publicUser(u));
+});
+
+// Session probe for guest-aware pages: always 200 so an unsigned visitor
+// doesn't log a failed request. { user: {...} | null }
+app.get("/session", optionalUser, (c) => {
+  const u = c.get("user");
+  return c.json({ user: u ? publicUser(u) : null });
 });
 
 export default app;

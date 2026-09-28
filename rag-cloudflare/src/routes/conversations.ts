@@ -4,8 +4,8 @@
 import { Hono } from "hono";
 import type { Env, Variables } from "../types";
 import { optionalUser } from "../auth/middleware";
-import { getRecentSessions, getSessionByIdAndUser } from "../db/sessions";
-import { getByConversation } from "../db/messages";
+import { getRecentSessionsWithLastMessage, getSessionByIdAndUser, deleteSession } from "../db/sessions";
+import { getByConversation, deleteByConversation } from "../db/messages";
 import { humanizeTimestamp } from "../utils/time";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -17,24 +17,19 @@ app.get("/conversations", optionalUser, async (c) => {
     return c.json({ conversations: [], total: "0 conversations" });
   }
   const limit = Math.min(Math.max(parseInt(c.req.query("limit") ?? "50", 10) || 50, 1), 100);
-  const sessions = await getRecentSessions(c.env, userId, limit);
+  const sessions = await getRecentSessionsWithLastMessage(c.env, userId, limit);
 
-  const items = [];
-  for (const s of sessions) {
-    const turns = await getByConversation(c.env, s.id, 1);
-    let lastMessage: string | null = null;
-    if (turns.length) {
-      const content = turns[0].query ?? "";
-      lastMessage = content.length > 100 ? content.slice(0, 100) + "..." : content;
-    }
-    items.push({
+  const items = sessions.map((s) => {
+    const rawMsg = s.last_message ?? null;
+    const lastMessage = rawMsg && rawMsg.length > 100 ? rawMsg.slice(0, 100) + "..." : rawMsg;
+    return {
       conversation_id: s.id,
       title: s.title,
       last_message: lastMessage,
       last_activity: humanizeTimestamp(s.updated_at),
       message_count: "Recent session",
-    });
-  }
+    };
+  });
   return c.json({ conversations: items, total: `${items.length} conversations` });
 });
 
@@ -81,6 +76,20 @@ app.get("/conversations/:conversation_id/messages", optionalUser, async (c) => {
     total: `${messages.length} messages`,
     last_activity: humanizeTimestamp(session.updated_at),
   });
+});
+
+// Delete a conversation (session + its message turns) — owner only.
+app.delete("/conversations/:conversation_id", optionalUser, async (c) => {
+  const userId = c.get("userId");
+  if (!userId) return c.json({ detail: "User identification required." }, 401);
+
+  const conversationId = c.req.param("conversation_id");
+  const session = await getSessionByIdAndUser(c.env, conversationId, userId);
+  if (!session) return c.json({ detail: "Conversation not found" }, 404);
+
+  await deleteByConversation(c.env, conversationId);
+  await deleteSession(c.env, conversationId);
+  return c.json({ status: "success", message: "Conversation deleted." });
 });
 
 export default app;

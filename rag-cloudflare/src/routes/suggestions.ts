@@ -1,14 +1,25 @@
 /**
- * AI-powered Ga language suggestions endpoint
- * Uses the RAG system to provide contextually relevant suggestions
+ * Ga language suggestions endpoint.
+ *
+ * ACCURACY GUARANTEE: the LLM MUST NOT invent vocabulary.
+ * Flow: retrieve verified candidates from the D1 `vocabulary` store
+ * (integrity-gated: source + verified_at required; exact/prefix/controlled-fuzzy)
+ * → optionally let the LLM RE-RANK within that closed set using conversation
+ * context. The model can only reorder retrieved records; it cannot add a word,
+ * meaning, spelling, or translation (see suggest-rerank.ts). If nothing verified
+ * matches, we return an empty set — never a guess. If the model fails, we return
+ * the deterministic KB order.
  */
 
 import type { Env } from "../types";
+import { lookupVocabulary } from "../db/vocabulary";
+import { rerankSuggestions } from "../rag/suggest-rerank";
 
 export interface SuggestionRequest {
   input: string;
   context: string;
   language: "ga" | "en";
+  rerank?: boolean; // opt-in LLM re-ranking over the verified candidate set
 }
 
 export interface SuggestionResponse {
@@ -18,93 +29,45 @@ export interface SuggestionResponse {
     english?: string;
     context?: string;
     confidence: number;
+    match?: string;
   }>;
 }
 
 export async function handleSuggestions(request: Request, env: Env): Promise<Response> {
   try {
     const body: SuggestionRequest = await request.json();
-    const { input, context, language } = body;
-
-    if (!input || typeof input !== "string") {
-      return new Response(
-        JSON.stringify({ error: "Invalid input" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
+    if (!body || typeof body.input !== "string") {
+      return json({ error: "Invalid input" }, 400);
     }
 
-    // Generate AI-powered suggestions based on input and conversation context
-    const suggestions = await generateAISuggestions(input, context || "", env);
+    // 1) Retrieve verified candidates from the knowledge base (never the model).
+    let records = await lookupVocabulary(env, body.input, 8);
 
-    return new Response(
-      JSON.stringify({ suggestions }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
-  } catch (error) {
-    console.error("Error in suggestions endpoint:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    // 2) Optional grounded LLM re-rank — reorders WITHIN the retrieved set only,
+    //    using conversation context. Cannot add/remove verified vocabulary.
+    if (body.rerank && records.length > 1) {
+      records = await rerankSuggestions(env, records, body.input, body.context || "");
+    }
+
+    const suggestions = records.map((r) => ({
+      text: r.headword,                                  // canonical spelling, never folded
+      phonetic: r.phonetic ?? undefined,
+      english: r.translations[0],
+      context: r.meanings[0],
+      // Confidence reflects match tier, not model certainty.
+      confidence: r.match === "exact" ? 1 : r.match === "prefix" ? 0.9 : 0.8,
+      match: r.match,
+    }));
+    const response: SuggestionResponse = { suggestions };
+    return json(response, 200);
+  } catch {
+    return json({ error: "Internal server error" }, 500);
   }
 }
 
-/**
- * Generate AI-powered suggestions using the LLM
- */
-async function generateAISuggestions(
-  input: string,
-  context: string,
-  env: Env
-): Promise<SuggestionResponse["suggestions"]> {
-  const prompt = `You are a Ga language expert. Based on the user's partial input and conversation context, suggest 3-5 relevant Ga words or phrases that would logically complete their thought.
-
-User's partial input: "${input}"
-Conversation context: "${context || "New conversation"}"
-
-Rules:
-1. Only suggest Ga language words/phrases
-2. Include phonetic pronunciation for each suggestion
-3. Include English translation
-4. Provide brief context for when to use each suggestion
-5. Assign a confidence score (0-1) based on relevance
-6. Prioritize suggestions that match the partial input
-7. Include common Ga numbers, Bible terms, and cultural phrases when relevant
-
-Return as JSON:
-{
-  "suggestions": [
-    {
-      "text": "Ga word or phrase",
-      "phonetic": "pronunciation guide",
-      "english": "English translation",
-      "context": "when to use this",
-      "confidence": 0.9
-    }
-  ]
-}`;
-
-  try {
-    // Import chat function dynamically to avoid circular dependencies
-    const { chat } = await import("../rag/llm");
-
-    // No model override: use the Workers AI default from env.LLM_MODEL
-    // ("gemini-3-flash-preview" is not a Workers AI model and would 404).
-    const response = await chat(env, [{ role: "user", content: prompt }], {
-      temperature: 0.7,
-    });
-
-    // Parse the JSON response
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return parsed.suggestions || [];
-    }
-
-    // Fallback: return empty array if parsing fails
-    return [];
-  } catch (error) {
-    console.error("Error generating AI suggestions:", error);
-    return [];
-  }
+function json(body: unknown, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 }

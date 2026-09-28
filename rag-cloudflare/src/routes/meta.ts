@@ -9,8 +9,8 @@ const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 app.get("/", (c) =>
   c.json({
-    message: "Heritage RAG System API (Cloudflare Workers)",
-    description: "Public chat enabled with Admin-protected document management.",
+    message: "Heritage — Ga Language Companion API",
+    description: "Public chat enabled with admin-protected content management.",
     version: "1.2.0",
     endpoints: {
       public_chat: "/api/v1/chat/new",

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Heritage · Nii Obodai</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -13,8 +13,11 @@
     --bg:#f8f9fa; --paper:#ffffff; --paper-2:#f1f3f4; --paper-3:#e8eaed;
     --ink:#1a1a1a; --ink-2:rgba(26,26,26,.74); --muted:rgba(26,26,26,.56); --faint:rgba(26,26,26,.4);
     --line:rgba(0,0,0,.08); --line-2:rgba(0,0,0,.12);
-    --gold:#c4963f; --gold-soft:rgba(196,150,63,.12); --gold-line:rgba(196,150,63,.3); --white:#fff;
-    --radius:12px; --shadow:0 4px 20px rgba(0,0,0,.08);
+    --gold:#111111; --gold-soft:rgba(0,0,0,.05); --gold-line:rgba(0,0,0,.24); --white:#fff;
+    /* Quiz verdicts. Filled swatches carry --bg text, so these must clear 4.5:1
+       against it in BOTH themes — hence a dark pair here, a light pair below. */
+    --ok:#0f6b46; --bad:#a62d1c;
+    --radius:0px; --shadow:0 4px 20px rgba(0,0,0,.08);
     --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
     --sans:"Poppins",ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --serif:"Poppins",ui-sans-serif,Georgia,serif;
@@ -24,16 +27,17 @@
     --bg:#141414; --paper:#1c1c1c; --paper-2:#0e0e10; --paper-3:#2a2a2c;
     --ink:#f5f5f5; --ink-2:rgba(255,255,255,.74); --muted:rgba(255,255,255,.48); --faint:rgba(255,255,255,.3);
     --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.18);
-    --gold:#c4963f; --gold-soft:rgba(196,150,63,.13); --gold-line:rgba(196,150,63,.34); --white:#fff;
-    --radius:12px; --shadow:0 12px 34px rgba(0,0,0,.5);
+    --gold:#f5f5f5; --gold-soft:rgba(255,255,255,.08); --gold-line:rgba(255,255,255,.32); --white:#fff;
+    --ok:#5ee0a8; --bad:#ff8377;
+    --radius:0px; --shadow:0 12px 34px rgba(0,0,0,.5);
   }
-  * { box-sizing:border-box; }
+  * { box-sizing:border-box; border-radius:0 !important; }
   html,body { height:100%; }
   body { margin:0; font:500 15px/1.6 var(--sans); color:var(--ink); background:var(--bg);
     -webkit-font-smoothing:antialiased; -webkit-tap-highlight-color:transparent;
     display:flex; overflow:hidden; }
   button, .conv, .chip, .ac-pill { touch-action:manipulation; }
-  ::selection { background:var(--gold); color:#0d0d0d; }
+  ::selection { background:var(--gold); color:var(--paper); }
 
   /* Main column (header + chat) sits to the right of the full-height sidebar */
   .maincol { flex:1; min-width:0; min-height:0; display:flex; flex-direction:column; height:100vh; height:100dvh; position:relative; overflow:hidden; }
@@ -54,12 +58,12 @@
   .iconbtn { border:1px solid var(--line-2); background:var(--paper); color:var(--ink);
     border-radius:8px; padding:7px 13px; font:500 13px var(--sans); cursor:pointer; transition:.15s;
     text-decoration:none; display:inline-flex; align-items:center; line-height:1; }
-  .iconbtn:hover { background:var(--gold); color:#0d0d0d; border-color:var(--gold); }
-  .iconbtn.primary { background:var(--gold); color:#0d0d0d; border-color:var(--gold); }
+  .iconbtn:hover { background:var(--gold); color:var(--paper); border-color:var(--gold); }
+  .iconbtn.primary { background:var(--gold); color:var(--paper); border-color:var(--gold); }
   .iconbtn.primary:hover { opacity:.9; }
   .menu-btn { border:1px solid var(--line-2); background:var(--paper); color:var(--ink); border-radius:8px;
     padding:6px 8px; cursor:pointer; display:inline-flex; align-items:center; }
-  .menu-btn:hover { background:var(--gold); color:#0d0d0d; border-color:var(--gold); }
+  .menu-btn:hover { background:var(--gold); color:var(--paper); border-color:var(--gold); }
   .sun-icon, .moon-icon { display:block; }
   .sun-icon.hidden, .moon-icon.hidden { display:none; }
 
@@ -78,7 +82,7 @@
   .sb-new { margin:0 12px 4px; display:flex; align-items:center; gap:9px; border:1px solid var(--line-2);
     background:var(--paper); color:var(--ink); border-radius:10px; padding:11px 14px; font:600 13.5px var(--sans);
     cursor:pointer; transition:.13s; }
-  .sb-new:hover { background:var(--gold); color:#0d0d0d; border-color:var(--gold); }
+  .sb-new:hover { background:var(--gold); color:var(--paper); border-color:var(--gold); }
   .sb-item { margin:2px 12px; display:flex; align-items:center; gap:9px; border:0; background:transparent;
     color:var(--ink-2); border-radius:10px; padding:10px 14px; font:600 13px var(--sans); cursor:pointer; transition:.12s; text-decoration:none; }
   .sb-item:hover { background:var(--paper-3); color:var(--ink); }
@@ -100,12 +104,12 @@
   /* account footer */
   .sb-foot { border-top:1px solid var(--line); padding:12px; display:flex; align-items:center; gap:10px; }
   .sb-acct { flex:1; min-width:0; display:flex; align-items:center; gap:10px; }
-  .sb-av { width:30px; height:30px; flex:none; border-radius:50%; background:var(--gold); color:#0d0d0d;
+  .sb-av { width:30px; height:30px; flex:none; border-radius:50%; background:var(--gold); color:var(--paper);
     display:grid; place-items:center; font:700 12px var(--mono); text-transform:uppercase; }
   .sb-email { font:600 12.5px var(--sans); color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .sb-logout { flex:none; border:1px solid var(--line-2); background:transparent; color:var(--muted); border-radius:9px;
     width:34px; height:34px; display:grid; place-items:center; cursor:pointer; transition:.13s; }
-  .sb-logout:hover { background:var(--gold); color:#0d0d0d; border-color:var(--gold); }
+  .sb-logout:hover { background:var(--gold); color:var(--paper); border-color:var(--gold); }
 
   /* Chat column — only the message stream scrolls; header + composer stay fixed */
   .chat { flex:1; display:flex; flex-direction:column; min-width:0; min-height:0; overflow:hidden; position:relative; }
@@ -118,11 +122,23 @@
   .hero h2 { font:800 30px/1.18 var(--sans); letter-spacing:-.8px; margin:0 0 10px; }
   .hero p { color:var(--muted); margin:0 0 26px; font-size:15px; }
   .suggestions { display:flex; flex-direction:column; gap:16px; text-align:left; }
-  .sg-h { font:600 9px var(--mono); letter-spacing:.16em; text-transform:uppercase; color:var(--faint); margin-bottom:6px; }
-  .sg-c { display:flex; flex-wrap:wrap; gap:7px; }
-  .sg-c button { border:1px solid var(--line-2); background:var(--paper); border-radius:8px;
-    padding:7px 13px; font:500 12.5px var(--sans); color:var(--ink-2); cursor:pointer; transition:.13s; }
-  .sg-c button:hover { border-color:var(--gold); color:var(--gold); }
+  .sg-h { font:700 9.5px var(--mono); letter-spacing:.18em; text-transform:uppercase; color:var(--muted);
+    margin-bottom:7px; display:flex; align-items:center; gap:10px; }
+  .sg-h::after { content:""; flex:1; height:1px; background:var(--line-2); }
+  .sg-c { display:flex; flex-wrap:wrap; gap:8px; }
+  .sg-c button { border:1.5px solid var(--gold-line); background:var(--paper); border-radius:8px;
+    padding:8px 14px; font:500 13px var(--sans); color:var(--ink); cursor:pointer; transition:.13s; }
+  .sg-c button:hover { border-color:var(--gold); background:var(--gold); color:var(--paper); }
+
+  /* Featured actions — the four things most people come for, inverted fill. */
+  .sg-c.feat { display:grid; grid-template-columns:repeat(auto-fit,minmax(118px,1fr)); gap:8px; }
+  .sg-c.feat button { display:flex; flex-direction:column; align-items:flex-start; gap:3px;
+    border:1px solid var(--gold); background:var(--gold); color:var(--paper);
+    padding:12px 13px; text-align:left; }
+  .sg-c.feat button b { font:700 13px var(--sans); letter-spacing:-.1px; }
+  .sg-c.feat button i { font:500 10px var(--mono); font-style:normal; opacity:.58; letter-spacing:.04em; }
+  .sg-c.feat button:hover { opacity:.87; color:var(--paper); }
+  .sg-c.feat button:active { transform:translateY(1px); }
 
   /* Messages */
   .turn { display:flex; flex-direction:column; gap:6px; }
@@ -134,16 +150,16 @@
   .turn.user .bubble { background:var(--gold-soft); color:var(--ink); border:1px solid var(--gold-line);
     border-bottom-right-radius:3px; max-width:80%; white-space:pre-wrap; }
   .turn.bot .bubble { background:transparent; color:var(--ink); border:0; box-shadow:none; padding:2px 0; }
-  .bubble.error { background:rgba(201,42,42,.08); color:#f87171; border:1px solid rgba(201,42,42,.25);
+  .bubble.error { background:var(--paper-2); color:var(--ink); border:1px solid var(--line-2);
     border-radius:var(--radius); padding:12px 16px; font-size:13.5px; }
   .bubble.error .err-retry { display:inline-flex; align-items:center; gap:4px; margin-top:8px;
-    border:1px solid rgba(201,42,42,.3); background:transparent; color:#f87171; border-radius:6px;
+    border:1px solid var(--line-2); background:transparent; color:var(--ink); border-radius:6px;
     padding:4px 10px; font:500 12px var(--sans); cursor:pointer; transition:.12s; }
-  .bubble.error .err-retry:hover { background:rgba(201,42,42,.15); }
+  .bubble.error .err-retry:hover { background:var(--ink); color:var(--bg); }
   .cancel-btn { position:absolute; bottom:calc(var(--composer-h,80px) + 16px); left:50%; transform:translateX(-50%);
     z-index:5; width:44px; height:44px; border-radius:50%; border:2px solid var(--line-2); background:var(--paper);
     color:var(--ink); cursor:pointer; display:none; place-items:center; transition:.15s; box-shadow:var(--shadow); }
-  .cancel-btn:hover { background:var(--gold); color:#0d0d0d; border-color:var(--gold); }
+  .cancel-btn:hover { background:var(--gold); color:var(--paper); border-color:var(--gold); }
   .cancel-btn.show { display:grid; }
 
   /* Rendered markdown inside assistant bubbles */
@@ -163,7 +179,10 @@
   .bubble h1, .bubble h2, .bubble h3, .bubble h4, .bubble h5, .bubble h6 { margin:12px 0 6px; font-weight:700; }
   .bubble h1 { font-size:18px; } .bubble h2 { font-size:16px; } .bubble h3 { font-size:15px; }
   .bubble hr { border:0; border-top:1px solid var(--line-2); margin:14px 0; }
-  .bubble table { border-collapse:collapse; margin:10px 0; font-size:13.5px; }
+  .bubble table { border-collapse:collapse; margin:10px 0; font-size:13.5px;
+    display:block; overflow-x:auto; max-width:100%; }
+  .bubble pre { overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%;
+    background:var(--paper-3); border:1px solid var(--line); padding:10px 12px; }
   .bubble th, .bubble td { border:1px solid var(--line-2); padding:6px 13px; text-align:left; }
   .bubble th { background:var(--paper-3); font-weight:600; }
 
@@ -191,8 +210,8 @@
   .act svg { width:13px; height:13px; }
   .act.done { color:var(--gold); border-color:var(--gold-line); }
   .act.feedback { margin-left:auto; }
-  .act.feedback.upvoted { color:#4ade80; border-color:rgba(74,222,128,.35); background:rgba(74,222,128,.08); }
-  .act.feedback.downvoted { color:#f87171; border-color:rgba(248,113,113,.35); background:rgba(248,113,113,.08); }
+  .act.feedback.upvoted { color:var(--bg); border-color:var(--ink); background:var(--ink); }
+  .act.feedback.downvoted { color:var(--faint); border-color:var(--line-2); background:transparent; text-decoration:line-through; }
   /* Correction form shown after thumbs-down */
   .correction-form { display:none; margin-top:8px; padding:10px 12px; border:1px solid var(--line-2);
     border-radius:10px; background:var(--paper-2); animation:fadeUp .2s ease; }
@@ -204,11 +223,11 @@
     background:var(--paper); color:var(--ink); font:14px var(--sans); outline:0; transition:.12s; }
   .correction-form input:focus { border-color:var(--gold-line); box-shadow:0 0 0 2px var(--gold-soft); }
   .correction-form .cf-send { border:0; border-radius:8px; padding:7px 14px; background:var(--gold);
-    color:#0d0d0d; font:600 12px var(--sans); cursor:pointer; transition:.12s; white-space:nowrap; }
+    color:var(--paper); font:600 12px var(--sans); cursor:pointer; transition:.12s; white-space:nowrap; }
   .correction-form .cf-send:hover { opacity:.85; }
   .correction-form .cf-send:disabled { opacity:.4; cursor:not-allowed; }
   .correction-form .cf-hint { font:500 11px var(--sans); color:var(--faint); margin-top:6px; }
-  .correction-form .cf-done { font:600 12px var(--sans); color:#4ade80; margin-top:6px; }
+  .correction-form .cf-done { font:600 12px var(--sans); color:var(--ink); margin-top:6px; }
   @keyframes fadeUp { from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:none;} }
 
   /* Delete button on a conversation row */
@@ -216,7 +235,7 @@
   .conv-del { position:absolute; top:8px; right:8px; width:24px; height:24px; border:0; border-radius:6px;
     background:transparent; color:var(--faint); cursor:pointer; display:grid; place-items:center; opacity:0; transition:.12s; }
   .conv:hover .conv-del { opacity:1; }
-  .conv-del:hover { background:var(--gold); color:#0d0d0d; }
+  .conv-del:hover { background:var(--gold); color:var(--paper); }
   .conv-del svg { width:14px; height:14px; }
 
   .typing span { display:inline-block; width:6px; height:6px; margin-right:4px; border-radius:50%;
@@ -231,9 +250,19 @@
     border-radius:24px; padding:14px 16px 12px; background:var(--paper);
     box-shadow:0 2px 14px rgba(0,0,0,.05); transition:.16s; }
   .inputbar:focus-within { border-color:var(--gold-line); box-shadow:0 0 0 3px var(--gold-soft); }
-  .inputbar textarea { border:0; outline:0; resize:none; background:transparent; color:var(--ink);
-    font:15.5px/1.55 var(--sans); max-height:200px; padding:3px 4px; }
+  /* The textarea and its ghost mirror MUST agree on font + padding, or the faint
+     completion drifts off the caret. Both inherit them from .ta-wrap, so a
+     breakpoint can only ever change the two together (see the mobile block). */
+  .ta-wrap { position:relative; font:15.5px/1.55 var(--sans); --ta-pad:3px 4px; }
+  .inputbar textarea { display:block; width:100%; box-sizing:border-box;
+    border:0; outline:0; resize:none; background:transparent; color:var(--ink);
+    font:inherit; max-height:200px; padding:var(--ta-pad); position:relative; }
   .inputbar textarea::placeholder { color:var(--faint); }
+  /* Ghost-text layer: sits behind the textarea, mirroring its metrics so the
+     faint completion suffix lands exactly where the caret is. */
+  .ta-mirror { position:absolute; inset:0; padding:var(--ta-pad); font:inherit;
+    color:transparent; white-space:pre-wrap; word-wrap:break-word; overflow:hidden; pointer-events:none; }
+  .ta-mirror #ghostSuffix { color:var(--faint); }
   .bar-row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
   #modeSelect { border:1px solid var(--line); background:var(--paper-3); color:var(--ink-2);
     font:600 12px var(--sans); padding:5px 22px 5px 10px; border-radius:9px;
@@ -242,17 +271,20 @@
     background-repeat:no-repeat; background-position:right 6px center; background-size:10px;
     cursor:pointer; outline:0; min-height:32px; }
   #modeSelect:focus { border-color:var(--gold-line); }
-  .send { width:40px; height:40px; flex:none; border:0; border-radius:50%; background:var(--gold); color:#0d0d0d;
+  .send { width:40px; height:40px; flex:none; border:0; border-radius:50%; background:var(--gold); color:var(--paper);
     cursor:pointer; display:grid; place-items:center; transition:.15s; }
   .send:hover:not(:disabled) { transform:scale(1.06); }
   .send:disabled { opacity:.3; cursor:not-allowed; }
   .composer .hint { display:block; text-align:center; margin-top:10px; font:500 11px var(--mono); color:var(--faint); letter-spacing:.04em; }
+  .hint-touch { display:none; }
 
   /* --- Ga Autocomplete (multi-suggestion list) --- */
   .ac-wrap { position:relative; }
   .ac-list { position:absolute; bottom:100%; left:0; right:0; margin-bottom:6px;
     display:none; flex-direction:column; max-height:264px; overflow-y:auto; scrollbar-width:thin;
-    background:rgba(24,24,24,.97); backdrop-filter:blur(12px); border:1px solid var(--line-2);
+    /* Themed, not hardcoded dark: --gold is near-black in light mode, so a fixed
+       dark panel rendered the suggestion words invisible there. */
+    background:var(--paper); backdrop-filter:blur(12px); border:1px solid var(--line-2);
     border-radius:12px; padding:4px; z-index:50; box-shadow:var(--shadow); }
   .ac-list.show { display:flex; }
   .ac-list::-webkit-scrollbar { width:6px; }
@@ -283,8 +315,8 @@
   @keyframes pulse { 0%,100%{opacity:.5;} 50%{opacity:1;} }
   .ac-badge { font:600 8px var(--mono); text-transform:uppercase; letter-spacing:.06em;
     padding:1px 5px; border-radius:3px; flex:none; margin-right:4px; }
-  .ac-badge-exact { background:rgba(34,197,94,.15); color:#22c55e; }
-  .ac-badge-prefix { background:rgba(59,130,246,.15); color:#3b82f6; }
+  .ac-badge-exact { background:var(--ink); color:var(--bg); }
+  .ac-badge-prefix { background:var(--paper-3); color:var(--ink-2); }
   .ac-badge-fuzzy { background:rgba(255,255,255,.06); color:var(--muted); }
   .ac-upgrading { animation:ac-upgrade 350ms ease-out; }
   @keyframes ac-upgrade { 0%{opacity:.6; transform:translateY(2px);} 100%{opacity:1; transform:translateY(0);} }
@@ -301,15 +333,28 @@
     /* Full-bleed message area (no max-width) */
     .stream-inner { max-width:none; padding:16px 10px 6px; gap:16px; }
 
-    /* Smaller hero on mobile */
-    .hero { padding:20px 16px 10px; }
+    /* Smaller hero on mobile — TOP-ALIGNED, not margin:auto: flex vertical
+       centering clips content taller than the viewport (can't scroll to it). */
+    .hero { margin:0 auto; padding:20px 16px 10px; }
     .hero h2 { font-size:17px; letter-spacing:-.2px; margin-bottom:6px; }
     .hero p { font-size:12.5px; margin-bottom:16px; }
 
     /* Grouped suggestions: compact on mobile */
     .suggestions { gap:12px; }
     .sg-c button { font-size:12px; padding:6px 11px; }
+    .sg-c.feat button { padding:10px 11px; }
+    .sg-c.feat button b { font-size:12.5px; }
     .sg-h { font-size:8px; }
+
+    /* Autocomplete list: don't let it swallow the viewport over the keyboard */
+    .ac-list { max-height:min(264px, 42vh); }
+
+    /* Contribution/review forms: wrap dense rows, bigger tap targets */
+    .f-row.f-bible { flex-wrap:wrap; }
+    .f-bible .f-lab { flex:1 1 90px; }
+    .rev-actions { flex-wrap:wrap; }
+    .quiz .q-tile { min-width:40px; height:42px; font-size:16px; }
+    .ovl-panel { padding-bottom:env(safe-area-inset-bottom,0); }
 
     /* Native-style message bubbles */
     .turn.user .bubble { max-width:85%; border-radius:16px 16px 4px 16px; }
@@ -318,19 +363,27 @@
     .turn .who { font-size:10px; margin-bottom:1px; }
 
     /* Native-style composer (no hint, slimmer, safe-area aware, fixed on mobile) */
-    .composer-wrap { position:fixed; bottom:0; left:0; right:0; z-index:10; background:var(--bg); }
+    .composer-wrap { position:fixed; bottom:0; left:0; right:0; z-index:10; background:var(--bg);
+      padding-left:env(safe-area-inset-left,0); padding-right:env(safe-area-inset-right,0); }
     .chat { padding-bottom:var(--composer-h,80px); }
     .composer { padding:5px 10px calc(8px + env(safe-area-inset-bottom,4px)); }
     .inputbar { flex-direction:row; align-items:flex-end; gap:8px;
       border-radius:20px; padding:8px 10px; }
-    /* textarea must flex so the select+send stay pinned to the right edge */
-    .inputbar textarea { flex:1; min-width:0; font-size:16px; padding:6px 2px; max-height:120px; } /* prevent iOS zoom */
+    /* .ta-wrap is the flex item here — the textarea is its CHILD, so flexing the
+       textarea does nothing and the row overflows (send button clipped off the
+       right edge). Flex the wrapper, and let it shrink below its intrinsic width. */
+    .ta-wrap { flex:1; min-width:0; font-size:16px; --ta-pad:6px 2px; } /* 16px stops iOS zoom; mirror follows */
+    .inputbar textarea { max-height:120px; }
     .inputbar .bar-row { flex:none; align-items:center; gap:6px; }
     /* match heights so select and send sit on the same visual line */
-    #modeSelect { font-size:11px; padding:0 20px 0 9px; height:34px; min-height:34px;
+    #modeSelect { font-size:11px; padding:0 20px 0 9px; height:44px; min-height:44px;
       background-position:right 5px center; background-size:8px; }
-    .send { width:34px; height:34px; }
-    .composer .hint { display:none; }
+    .send { width:44px; height:44px; }
+    /* Keep the hint on mobile — it's the only place the accept gesture is
+       documented, and Tab doesn't exist here. */
+    .composer .hint { display:block; margin-top:6px; font-size:10px; }
+    .hint-desk { display:none; }
+    .hint-touch { display:inline; }
 
     /* Autocomplete pill: wider, pinned above input */
     .ac-pill { border-radius:10px; padding:7px 10px; margin-bottom:6px; font-size:13px; }
@@ -348,6 +401,201 @@
     .conv { padding:7px 10px; }
   }
   @media (min-width:861px){ .backdrop { display:none !important; } }
+
+  /* ---- Learn & play additions (monochrome ledger) ---- */
+  .score-tag { font:600 10px var(--mono); letter-spacing:.12em; color:var(--ink-2); }
+  .sb-tool { border:1px dashed var(--line-2) !important; }
+  .sb-tool .sb-badge { margin-left:auto; font:700 10px var(--mono); background:var(--ink); color:var(--bg);
+    padding:1px 6px; min-width:18px; text-align:center; }
+
+  /* Bilingual Ga/English pair card (stories, poems, lookups) */
+  .pair { border:1px solid var(--line-2); border-left:3px solid var(--ink); background:var(--paper);
+    margin:4px 0 12px; padding:0; }
+  .pair .prow { display:flex; gap:10px; padding:7px 13px; }
+  .pair .prow + .prow { border-top:1px dashed var(--line); }
+  .pair .plab { flex:none; width:64px; font:700 10px var(--mono); letter-spacing:.14em; color:var(--faint);
+    text-transform:uppercase; padding-top:2px; }
+  .pair .ptxt { flex:1; min-width:0; }
+
+  /* Quiz + puzzle cards rendered inside a bot bubble */
+  .quiz { border:1px solid var(--line-2); background:var(--paper); margin:4px 0 12px; max-width:520px; }
+  .quiz .q-head { font:700 10px var(--mono); letter-spacing:.14em; color:var(--faint); padding:9px 13px;
+    border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:10px; }
+  .quiz .q-body { padding:13px; }
+  .quiz .q-q { font:600 15px var(--sans); margin-bottom:12px; }
+  .quiz .q-opts { display:flex; flex-direction:column; gap:7px; }
+  .quiz .q-opt { border:1px solid var(--line-2); background:var(--paper); color:var(--ink); text-align:left;
+    padding:9px 12px; font:500 13.5px var(--sans); cursor:pointer; transition:.12s; }
+  .quiz .q-opt:hover:not(:disabled) { border-color:var(--ink); }
+  .quiz .q-opt:disabled { cursor:default; }
+  .quiz .q-opt.correct { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+  .quiz .q-opt.wrong { color:var(--faint); text-decoration:line-through; }
+  .quiz .q-foot { display:flex; align-items:center; gap:10px; padding:9px 13px; border-top:1px solid var(--line);
+    font:600 11px var(--mono); letter-spacing:.08em; color:var(--muted); }
+  .quiz .q-next { margin-left:auto; border:1px solid var(--line-2); background:var(--paper); color:var(--ink);
+    padding:6px 14px; font:600 11px var(--mono); letter-spacing:.08em; cursor:pointer; transition:.12s; }
+  .quiz .q-next:hover { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+  .quiz .q-slots { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; min-height:36px;
+    border-bottom:1px dashed var(--line-2); padding-bottom:10px; }
+  .quiz .q-tile { border:1px solid var(--line-2); background:var(--paper); color:var(--ink); min-width:34px;
+    height:36px; display:inline-grid; place-items:center; font:600 15px var(--mono); cursor:pointer; transition:.12s; }
+  .quiz .q-tile:hover:not(:disabled) { border-color:var(--ink); }
+  .quiz .q-tile.placed { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+  .quiz .q-tile.bank:disabled { opacity:.25; }
+  .quiz .q-bank { display:flex; flex-wrap:wrap; gap:6px; }
+  /* Ga-only letters live in their own tray — mixed into the bank, ɛ ɔ ŋ give
+     the answer away by elimination. */
+  .quiz .q-bank.ga-only { margin-top:8px; padding-top:8px; border-top:1px dashed var(--line); }
+  .quiz .q-bank.ga-only .q-tile { border-color:var(--gold-line); color:var(--gold); }
+  .quiz .q-tray-lab { font:700 9px var(--mono); letter-spacing:.14em; color:var(--faint); margin:8px 0 5px; }
+
+  /* Round progress ticks in the card header */
+  .quiz .q-prog { display:flex; gap:3px; flex:1; max-width:180px; height:3px; align-self:center; }
+  .quiz .q-prog i { flex:1; background:var(--paper-3); }
+  .quiz .q-prog i.done { background:var(--ink); }
+  .quiz .q-prog i.now { background:var(--muted); }
+
+  /* Reveal panel — meaning + provenance, shown after answering */
+  .quiz .q-reveal { border-top:1px solid var(--line); padding:12px 13px; display:flex; flex-direction:column; gap:7px; }
+  .quiz .q-verdict { display:flex; align-items:center; gap:8px; }
+  .quiz .q-badge { font:700 9px var(--mono); letter-spacing:.12em; padding:3px 6px; color:var(--bg); }
+  .quiz .q-badge.ok { background:var(--ok); }
+  .quiz .q-badge.no { background:var(--bad); }
+  .quiz .q-verdict span { font:500 11px var(--sans); color:var(--muted); }
+  .quiz .q-gloss { font:500 12.5px/1.5 var(--sans); color:var(--ink-2); }
+  .quiz .q-src { font:500 9.5px var(--mono); letter-spacing:.05em; color:var(--faint);
+    padding-top:7px; border-top:1px solid var(--line); }
+  .quiz .q-opt.correct .q-opt-sub, .quiz .q-opt.wrong .q-opt-sub { opacity:.7; }
+  .quiz .q-opt-sub { display:block; font:400 10.5px var(--sans); color:var(--faint); margin-top:2px; }
+  .quiz .q-opt.wrong { border-color:var(--bad); text-decoration:none; }
+  .quiz .q-opt.wrong .q-opt-main { text-decoration:line-through; }
+  .quiz .q-opt.miss { opacity:.45; }
+  .quiz .q-listen { border:1px solid var(--line-2); background:transparent; color:var(--ink-2);
+    padding:8px 12px; font:600 10px var(--mono); letter-spacing:.08em; cursor:pointer; align-self:flex-start; }
+  .quiz .q-listen:hover { border-color:var(--ink); color:var(--ink); }
+
+  /* Mode picker */
+  .quiz .q-modes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; padding:13px; }
+  .quiz .q-mode { border:1px solid var(--line-2); background:var(--paper); color:var(--ink); text-align:left;
+    padding:10px 11px; cursor:pointer; transition:.12s; min-height:62px; }
+  .quiz .q-mode:hover { border-color:var(--ink); }
+  .quiz .q-mode b { display:block; font:700 12.5px var(--sans); }
+  .quiz .q-mode i { display:block; font:400 10px/1.35 var(--sans); color:var(--faint); font-style:normal; margin-top:3px; }
+
+  /* Match pairs */
+  .quiz .q-match { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; padding:13px; }
+  .quiz .q-col { display:flex; flex-direction:column; gap:7px; }
+  .quiz .q-pair { border:1px solid var(--line-2); background:var(--paper); color:var(--ink); text-align:left;
+    padding:10px 11px; min-height:44px; font:500 13px var(--sans); cursor:pointer; transition:.12s; }
+  .quiz .q-pair.ga { font-weight:600; font-size:14px; }
+  .quiz .q-pair:hover:not(:disabled) { border-color:var(--ink); }
+  .quiz .q-pair.sel { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+  .quiz .q-pair.miss { border-color:var(--bad); }
+  .quiz .q-pair:disabled { opacity:.3; cursor:default; }
+
+  /* Round summary */
+  .quiz .q-score { display:flex; align-items:flex-end; gap:10px; padding:16px 13px 6px; }
+  .quiz .q-score b { font:800 44px/0.9 var(--sans); letter-spacing:-.03em; }
+  .quiz .q-score span { font:600 18px var(--sans); color:var(--faint); }
+  .quiz .q-miss { display:flex; align-items:center; gap:10px; padding:9px 11px; background:var(--paper-2);
+    border-left:2px solid var(--bad); margin-bottom:6px; }
+  .quiz .q-miss b { display:block; font:600 14px var(--sans); }
+  .quiz .q-miss i { display:block; font:400 11px var(--sans); font-style:normal; color:var(--faint); margin-top:1px; }
+  .quiz .q-chips { display:flex; flex-wrap:wrap; gap:5px; }
+  .quiz .q-chip { border:1px solid var(--line-2); padding:6px 9px; font:500 12px var(--sans); }
+
+  /* --- Contribution evidence: files a reviewer reads, never indexed --- */
+  .drop { width:100%; margin-top:5px; min-height:86px; border:1px dashed var(--line-2); background:var(--paper);
+    color:var(--ink); cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:4px; padding:14px 12px; transition:.12s; }
+  .drop:hover, .drop.over { border-color:var(--ink); background:var(--paper-2); }
+  .drop b { font:600 13px var(--sans); }
+  .drop i { font:400 10.5px/1.4 var(--sans); font-style:normal; color:var(--faint); text-align:center; }
+  .f-file { display:flex; align-items:center; gap:10px; margin-top:6px; padding:8px 10px;
+    border:1px solid var(--line); background:var(--paper); }
+  .f-file .f-kind { flex:none; width:34px; height:34px; background:var(--paper-3); color:var(--ink-2);
+    font:700 8px var(--mono); display:grid; place-items:center; }
+  .f-file .f-meta { flex:1; min-width:0; }
+  .f-file .f-meta b { display:block; font:500 12px var(--sans); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .f-file .f-meta i { display:block; font:400 10px var(--sans); font-style:normal; color:var(--faint); margin-top:1px; }
+  .f-file .f-x { flex:none; width:32px; height:32px; border:1px solid var(--line-2); background:transparent;
+    color:var(--muted); cursor:pointer; }
+  .f-file .f-x:hover { border-color:var(--bad); color:var(--bad); }
+  .f-file.bad { border-color:var(--bad); }
+  .f-note { font:400 10.5px/1.45 var(--sans); color:var(--muted); margin-top:8px;
+    padding:8px 10px; border-left:2px solid var(--gold-line); background:var(--paper-2); }
+  /* Attachment links on a review card */
+  .rev-files { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .rev-file { display:inline-flex; align-items:center; gap:7px; padding:6px 9px; border:1px solid var(--line-2);
+    color:var(--ink-2); text-decoration:none; font:500 11px var(--sans); }
+  .rev-file:hover { border-color:var(--ink); color:var(--ink); }
+  .rev-file span { font:700 8px var(--mono); color:var(--faint); }
+
+  /* Overlays + toast */
+  .ovl { display:none; position:fixed; inset:0; z-index:60; background:rgba(0,0,0,.4);
+    align-items:center; justify-content:center; padding:18px; }
+  .ovl.show { display:flex; }
+  body.ovl-open { overflow:hidden; } /* stop the stream scrolling under a sheet */
+  .ovl-panel { width:100%; max-width:560px; max-height:88vh; overflow-y:auto; background:var(--bg);
+    border:1px solid var(--line-2); box-shadow:var(--shadow); }
+  .ovl-head { display:flex; align-items:center; justify-content:space-between; padding:14px 18px;
+    border-bottom:1px solid var(--line-2); font:700 12px var(--mono); letter-spacing:.16em; position:sticky;
+    top:0; background:var(--bg); }
+  .ovl-x { border:0; background:transparent; color:var(--muted); font-size:15px; cursor:pointer; padding:4px 6px; }
+  .ovl-x:hover { color:var(--ink); }
+  .ovl-sub { margin:0; padding:12px 18px 0; font:500 12.5px var(--sans); color:var(--muted); }
+  #contribForm { padding:16px 18px 18px; }
+  .f-row { margin-bottom:12px; }
+  .f-row.f-bible { display:flex; gap:8px; }
+  .f-bible .f-lab { flex:1; }
+  .f-lab { display:block; font:600 10px var(--mono); letter-spacing:.12em; color:var(--faint); }
+  .f-lab input, .f-lab select { display:block; width:100%; margin-top:5px; border:1px solid var(--line-2);
+    background:var(--paper); color:var(--ink); padding:9px 11px; font:500 14px var(--sans); outline:0; }
+  .f-lab input:focus, .f-lab select:focus { border-color:var(--ink); }
+  .f-actions { display:flex; gap:8px; margin-top:16px; }
+  .btn-solid { border:1px solid var(--ink); background:var(--ink); color:var(--bg); padding:10px 18px;
+    font:700 11px var(--mono); letter-spacing:.1em; cursor:pointer; transition:.12s; }
+  .btn-solid:hover { opacity:.85; }
+  .btn-line { border:1px solid var(--line-2); background:transparent; color:var(--ink-2); padding:10px 18px;
+    font:600 11px var(--mono); letter-spacing:.1em; cursor:pointer; transition:.12s; }
+  .btn-line:hover { border-color:var(--ink); color:var(--ink); }
+  .f-hint { font:500 11px var(--mono); color:var(--faint); margin-top:12px; letter-spacing:.04em; }
+  .f-guest { border:1px dashed var(--line-2); padding:12px; margin-bottom:12px; }
+  .f-guest.hidden { display:none; }
+  .f-guest-lab { font:700 10px var(--mono); letter-spacing:.12em; color:var(--ink-2); margin-bottom:10px; }
+  .f-guest .f-row:last-child { margin-bottom:0; }
+
+  .rev-list { padding:14px 18px 18px; display:flex; flex-direction:column; gap:12px; }
+  .rev-empty { padding:20px 4px; color:var(--muted); font:500 13px var(--sans); text-align:center; }
+  .rev-card { border:1px solid var(--line-2); background:var(--paper); }
+  .rev-meta { display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid var(--line);
+    font:600 10px var(--mono); letter-spacing:.1em; color:var(--faint); }
+  .rev-meta .tag-pill { border:1px solid var(--line-2); padding:2px 7px; font-size:9px; }
+  .rev-meta .tag-pill.conflict { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+  .rev-body { padding:11px 12px; }
+  .rev-q { font:600 14px var(--sans); margin-bottom:8px; }
+  .rev-a { width:100%; border:1px solid var(--line-2); background:var(--bg); color:var(--ink);
+    padding:8px 10px; font:500 14px var(--sans); outline:0; }
+  .rev-a:focus { border-color:var(--ink); }
+  .rev-note { font:400 12px var(--sans); color:var(--muted); margin-top:7px; }
+  .rev-actions { display:flex; gap:8px; padding:10px 12px; border-top:1px solid var(--line); }
+  .rev-actions button { border:1px solid var(--line-2); background:var(--paper); color:var(--ink);
+    padding:7px 13px; font:600 10.5px var(--mono); letter-spacing:.08em; cursor:pointer; transition:.12s; }
+  .rev-actions button:hover { border-color:var(--ink); }
+  .rev-actions .approve { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+  .rev-actions .approve:hover { opacity:.85; }
+  .rev-actions .dismiss { margin-left:auto; color:var(--faint); }
+
+  .toast { position:fixed; left:50%; bottom:calc(var(--composer-h,80px) + 16px); transform:translateX(-50%) translateY(8px); z-index:70;
+    background:var(--ink); color:var(--bg); font:600 12px var(--mono); letter-spacing:.06em; padding:10px 18px;
+    opacity:0; pointer-events:none; transition:.2s; max-width:90vw; }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  @media (max-width:860px) {
+    .score-tag { display:none; }
+    .ovl { padding:0; align-items:flex-end; }
+    .ovl-panel { max-width:100%; max-height:92vh; border-bottom:0; }
+  }
 </style>
 </head>
 <body>
@@ -362,10 +610,18 @@
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       New chat
     </button>
-    <a class="sb-item sb-admin hidden" id="adminLink" href="/admin">
+    <a class="sb-item sb-admin hidden" id="adminLink" href="https://heritage-admin.heritage-app.workers.dev">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
       Admin dashboard
     </a>
+    <button class="sb-item sb-tool" id="contributeBtn" type="button">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      Contribute knowledge
+    </button>
+    <button class="sb-item sb-tool" id="reviewBtn" type="button">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+      Review flagged <span class="sb-badge" id="reviewCount" hidden>0</span>
+    </button>
     <div class="sb-label">Recents</div>
     <div class="sb-search"><input type="text" id="convSearch" placeholder="Search conversations…" /></div>
     <div class="history-list" id="historyList"></div>
@@ -387,6 +643,8 @@
         <h1>Heritage</h1>
         <span class="sub">Ga Language Companion</span>
       </div>
+      <span class="tag score-tag hidden" id="scoreTag" title="Quiz score this session">SCORE 0/0</span>
+      <span class="tag score-tag hidden" id="streakTag" title="Correct answers in a row">STREAK 0</span>
       <div class="spacer"></div>
       <button class="iconbtn" id="newChatBtn">New chat</button>
       <button class="iconbtn" id="themeToggle" aria-label="Toggle theme" title="Toggle theme">
@@ -401,12 +659,20 @@
       <div class="stream-inner" id="streamInner">
         <div class="hero" id="hero">
           <h2><span id="greet">Ojekoo</span>! Your Ga language companion.</h2>
-          <p>Ask me about Ga words, phrases, and Bible verses — I'll answer from what I know.</p>
+          <p>Ask me about Ga words, phrases, Bible verses, stories, poems and songs — take a quiz, or correct me when I'm wrong and I'll learn. I answer from what I know.</p>
           <div class="suggestions" id="chips">
+            <div class="sg">
+              <div class="sg-h">Start here</div>
+              <div class="sg-c feat">
+                <button data-q="how do you say good morning in Ga" data-m="general"><b>Say a phrase</b><i>good morning → ojekoo</i></button>
+                <button data-q="Genesis 1:1" data-m="bible"><b>Read a verse</b><i>the Bible in Ga</i></button>
+                <button data-action="quiz"><b>Quiz me</b><i>test your Ga</i></button>
+                <button data-action="contribute"><b>Teach me</b><i>add a word or story</i></button>
+              </div>
+            </div>
             <div class="sg">
               <div class="sg-h">Common phrases</div>
               <div class="sg-c">
-                <button data-q="how do you say good morning in Ga" data-m="general">“Good morning” in Ga</button>
                 <button data-q="how do you say thank you in Ga" data-m="general">“Thank you” in Ga</button>
                 <button data-q="count from 1 to 10" data-m="general">Count 1–10 in Ga</button>
                 <button data-q="21 in Ga" data-m="general">21 in Ga</button>
@@ -415,9 +681,16 @@
             <div class="sg">
               <div class="sg-h">Bible</div>
               <div class="sg-c">
-                <button data-q="Genesis 1:1" data-m="bible">Genesis 1:1</button>
                 <button data-q="Exodus 20:3" data-m="bible">Exodus 20:3</button>
                 <button data-q="quote a bible verse in ga" data-m="bible">Quote a verse</button>
+              </div>
+            </div>
+            <div class="sg">
+              <div class="sg-h">Learn &amp; play</div>
+              <div class="sg-c">
+                <button data-q="tell me a ga story" data-m="general">Tell a story</button>
+                <button data-q="tell me a poem in ga" data-m="general">Recite a poem</button>
+                <button data-action="puzzle">Unscramble</button>
               </div>
             </div>
           </div>
@@ -432,7 +705,10 @@
         <div class="ac-wrap">
         <div id="acList" class="ac-list" role="listbox" aria-label="Ga suggestions"></div>
         <div class="inputbar">
-          <textarea id="input" rows="1" placeholder="Type a message…"></textarea>
+          <div class="ta-wrap">
+            <div class="ta-mirror" id="taMirror" aria-hidden="true"><span id="taMirrorText"></span><span id="ghostSuffix"></span></div>
+            <textarea id="input" rows="1" placeholder="Type a message…" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+          </div>
           <div class="bar-row">
             <select id="modeSelect" aria-label="Mode">
               <option value="auto" selected>Auto</option>
@@ -445,7 +721,7 @@
           </div>
         </div>
         </div>
-        <span class="hint">Enter ↵ to send · Shift+Enter for newline · ↑ to recall your last prompt</span>
+        <span class="hint"><span class="hint-desk">Enter ↵ to send · Tab accepts a suggestion · Ga keys: 3→ɛ · )→ɔ · n~→ŋ · a~→ã</span><span class="hint-touch">space accepts · ↵ sends · 3→ɛ )→ɔ n~→ŋ</span></span>
       </div>
     </div>
     </section>
@@ -453,9 +729,92 @@
 
   <div class="backdrop" id="backdrop"></div>
 
+  <!-- Contribute knowledge overlay -->
+  <div class="ovl" id="contribOvl" role="dialog" aria-modal="true" aria-label="Contribute knowledge">
+    <div class="ovl-panel">
+      <div class="ovl-head">
+        <span>CONTRIBUTE KNOWLEDGE</span>
+        <button class="ovl-x" data-close type="button" aria-label="Close">✕</button>
+      </div>
+      <p class="ovl-sub">Add a Ga word, phrase or cultural note. It lands in the review queue — once verified it becomes searchable for everyone.</p>
+      <form id="contribForm">
+        <div class="f-row">
+          <label class="f-lab">TYPE
+            <select id="cfType">
+              <option value="translation">Translation (word / phrase)</option>
+              <option value="cultural_note">Cultural note</option>
+              <option value="bible_verse">Bible verse</option>
+            </select>
+          </label>
+        </div>
+        <div class="f-row f-bible hidden" id="cfBibleRow">
+          <label class="f-lab">BOOK <input id="cfBook" type="text" placeholder="Genesis" /></label>
+          <label class="f-lab">CH <input id="cfChapter" type="number" min="1" placeholder="1" /></label>
+          <label class="f-lab">V <input id="cfVerse" type="number" min="1" placeholder="1" /></label>
+        </div>
+        <div class="f-row">
+          <label class="f-lab">ENGLISH <input id="cfEnglish" type="text" placeholder="good morning" required /></label>
+        </div>
+        <div class="f-row">
+          <label class="f-lab">GA <input id="cfGa" type="text" placeholder="Ojekoo" required /></label>
+        </div>
+        <div class="f-row">
+          <label class="f-lab">NOTE (SOURCE / CONTEXT — OPTIONAL) <input id="cfNote" type="text" placeholder="e.g. heard from grandmother, Nii 1959" /></label>
+        </div>
+        <div class="f-row" id="cfEvidenceRow">
+          <div class="f-lab" style="display:flex;align-items:baseline;gap:8px">
+            <span>EVIDENCE — OPTIONAL</span>
+            <span style="margin-left:auto;text-transform:none;letter-spacing:0" id="cfFileCount"></span>
+          </div>
+          <button class="drop" id="cfDrop" type="button">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <b>Add a photo or document</b>
+            <i>JPG · PNG · PDF · DOCX · XLSX — up to 10 MB each, 4 files</i>
+          </button>
+          <input id="cfFiles" type="file" multiple class="hidden"
+                 accept=".jpg,.jpeg,.png,.webp,.heic,.pdf,.doc,.docx,.xls,.xlsx,image/*,application/pdf" />
+          <div id="cfFileList"></div>
+          <div class="f-note" id="cfEvidenceNote">A person reads your file. Nothing in it is published or searchable until a reviewer approves the entry.</div>
+        </div>
+        <div class="f-guest" id="cfGuestRow">
+          <div class="f-guest-lab">YOUR DETAILS — so we can credit you (required when not signed in)</div>
+          <div class="f-row">
+            <label class="f-lab">NAME <input id="cfName" type="text" placeholder="Ama Serwaa" /></label>
+            <label class="f-lab">LOCATION <input id="cfLoc" type="text" placeholder="Accra, Ghana" /></label>
+          </div>
+          <div class="f-row">
+            <label class="f-lab">EMAIL <input id="cfEmail" type="email" placeholder="you@example.com" /></label>
+          </div>
+        </div>
+        <div class="f-row f-actions">
+          <button class="btn-solid" type="submit">SUBMIT FOR REVIEW</button>
+          <button class="btn-line" data-close type="button">CANCEL</button>
+        </div>
+        <div class="f-hint">Ga keys work here: 3→ɛ &nbsp;)→ɔ &nbsp;n~→ŋ</div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Review flagged answers overlay -->
+  <div class="ovl" id="reviewOvl" role="dialog" aria-modal="true" aria-label="Review flagged answers">
+    <div class="ovl-panel">
+      <div class="ovl-head">
+        <span>REVIEW QUEUE</span>
+        <button class="ovl-x" data-close type="button" aria-label="Close">✕</button>
+      </div>
+      <p class="ovl-sub">Community corrections awaiting verification. Confirm a proposal to add your speaker vote — admins can approve straight into the knowledge base.</p>
+      <div id="reviewList" class="rev-list"><div class="rev-empty">Loading…</div></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
 <script>
 const API = "/api/v1";
 let conversationId = null, me = null, mode = "auto", busy = false, lastPrompt = "";
+// Guests persist nothing server-side, so keep the last assistant reply in
+// memory and resend it — that's all the context "continue"/"another" needs.
+let lastAssistantText = "";
 let streamAbort = null; // AbortController for chat streams
 let anonId = localStorage.getItem("anonId");
 if (!anonId) { anonId = "demo-" + Math.random().toString(36).slice(2, 10); localStorage.setItem("anonId", anonId); }
@@ -528,6 +887,76 @@ function foldGa(s) {
     .normalize("NFD").replace(/\p{M}/gu, "");
 }
 
+/* --- Ga ASCII-keyboard transliteration (Ghanaian texting convention) ---
+   3→ɛ, )→ɔ, n~→ŋ, ng~→ŋ, vowel~→nasalised vowel. Mirrors the shared module
+   in rag-frontend/lib/ga/transliterate.ts — keep the two in sync.
+   Guards: "3" only converts next to a letter (so "Yitso 3" stays a digit);
+   ")" converts only next to a letter and never when it closes a real "(";
+   "~" only fires after n, ng, or a vowel. Each conversion returns `typed`
+   so Backspace can undo it (standard IME behaviour). */
+const GA_TILDE_MAP = { n:'ŋ',N:'Ŋ',a:'ã',e:'ẽ',i:'ĩ',o:'õ',u:'ũ',
+  A:'Ã',E:'Ẽ',I:'Ĩ',O:'Õ',U:'Ũ','ɛ':'ɛ̃','ɔ':'ɔ̃','Ɛ':'Ɛ̃','Ɔ':'Ɔ̃' };
+const GA_LETTER_RE = /\p{L}/u;
+const GA_WORD_CHAR_RE = /[\p{L}\p{M}]/u;
+
+function gaSentenceStart(v, pos) {
+  const b = v.slice(0, pos);
+  if (!b.trim()) return true;
+  return /[.!?]["'”’)\]]*\s+$/.test(b);
+}
+function gaParenDepth(v, pos) {
+  let d = 0;
+  for (let i = 0; i < pos; i++) {
+    if (v[i] === '(') d++;
+    else if (v[i] === ')') d = Math.max(0, d - 1);
+  }
+  return d;
+}
+function transcribeGaKey(value, selStart, selEnd, ch) {
+  const prev = selStart > 0 ? value[selStart - 1] : '';
+  const next = selEnd < value.length ? value[selEnd] : '';
+  const adj = GA_LETTER_RE.test(prev) || GA_LETTER_RE.test(next);
+  if (ch === '3') {
+    if (!adj) return null;
+    return { start: selStart, end: selEnd, insert: gaSentenceStart(value, selStart) ? 'Ɛ' : 'ɛ', typed: '3' };
+  }
+  if (ch === ')') {
+    if (!adj || gaParenDepth(value, selStart) > 0) return null;
+    return { start: selStart, end: selEnd, insert: gaSentenceStart(value, selStart) ? 'Ɔ' : 'ɔ', typed: ')' };
+  }
+  if (ch === '~') {
+    if ((prev === 'g' || prev === 'G') && selStart > 1 && /[nN]/.test(value[selStart - 2])) {
+      return { start: selStart - 2, end: selEnd,
+        insert: value[selStart - 2] === 'N' ? 'Ŋ' : 'ŋ',
+        typed: value.slice(selStart - 2, selStart) + '~' };
+    }
+    const m = GA_TILDE_MAP[prev];
+    if (!m) return null;
+    return { start: selStart - 1, end: selEnd, insert: m, typed: prev + '~' };
+  }
+  // Retroactive: a letter landing after a literal "3" / ")" completes it —
+  // handles "3y3" → "Ɛyɛ" and ")k)" → "Ɔkɔ".
+  if (GA_LETTER_RE.test(ch) && selStart === selEnd) {
+    if (prev === '3') {
+      const c = gaSentenceStart(value, selStart - 1) ? 'Ɛ' : 'ɛ';
+      return { start: selStart - 1, end: selEnd, insert: c + ch, typed: '3' + ch };
+    }
+    if (prev === ')' && gaParenDepth(value, selStart - 1) === 0) {
+      const c = gaSentenceStart(value, selStart - 1) ? 'Ɔ' : 'ɔ';
+      return { start: selStart - 1, end: selEnd, insert: c + ch, typed: ')' + ch };
+    }
+  }
+  return null;
+}
+/* The Ga word ending at the caret — ghost completion is end-of-input only. */
+function wordAtEnd(value, caret) {
+  if (caret !== value.length || caret === 0) return null;
+  let i = caret;
+  while (i > 0 && GA_WORD_CHAR_RE.test(value[i - 1])) i--;
+  const w = value.slice(i, caret);
+  return w ? { word: w, start: i } : null;
+}
+
 const ICON = {
   copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
@@ -572,6 +1001,11 @@ function attachActions(bubble, query, interactionId) {
     const spacer = document.createElement("span");
     spacer.style.flex = "1";
     bar.appendChild(spacer);
+    const flag = actBtn("", '✗');
+    flag.classList.add("feedback");
+    flag.title = "Flag wrong answer";
+    flag.onclick = () => showCorrectionForm(turn, interactionId);
+    bar.appendChild(flag);
     const up = actBtn("", ICON.thumbsUp);
     up.classList.add("feedback");
     up.title = "Helpful";
@@ -609,64 +1043,51 @@ function showCorrectionForm(turn, interactionId) {
   form.innerHTML = `
     <label>What's the right answer?</label>
     <div class="cf-row">
-      <input type="text" placeholder="e.g. teacher in Ga is tsɔɔlɔ" />
+      <input type="text" class="cf-eng" placeholder="English — e.g. teacher" />
+      <input type="text" class="cf-ga ga-key" placeholder="Ga — e.g. tsɔɔlɔ" />
       <button class="cf-send" type="button">Send</button>
     </div>
-    <div class="cf-hint">Format: <em>english word</em> in Ga is <em>ga word</em></div>
+    <div class="cf-hint">Staged for review — a second speaker or an admin verifies before it goes live. Ga keys: 3→ɛ · )→ɔ · n~→ŋ</div>
   `;
-  const input = form.querySelector("input");
+  const engIn = form.querySelector(".cf-eng");
+  const gaIn = form.querySelector(".cf-ga");
   const sendBtn = form.querySelector(".cf-send");
+  bindGaKeys(gaIn);
 
-  sendBtn.onclick = () => submitCorrection(input.value, interactionId, form, sendBtn);
-  input.addEventListener("keydown", (e) => {
+  sendBtn.onclick = () => submitCorrection(engIn.value, gaIn.value, interactionId, form, sendBtn);
+  gaIn.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      submitCorrection(input.value, interactionId, form, sendBtn);
+      submitCorrection(engIn.value, gaIn.value, interactionId, form, sendBtn);
     }
   });
 
   turn.appendChild(form);
-  input.focus();
+  engIn.focus();
 }
 
-async function submitCorrection(text, interactionId, form, sendBtn) {
-  const val = text.trim();
-  if (!val) return;
+async function submitCorrection(english, ga, interactionId, form, sendBtn) {
+  const eng = (english || "").trim(), g = (ga || "").trim();
+  if (!eng || !g) {
+    const hint = form.querySelector(".cf-hint");
+    if (hint) { hint.style.textDecoration = "underline"; hint.textContent = "Fill in both fields: English and Ga."; }
+    return;
+  }
   sendBtn.disabled = true;
   sendBtn.textContent = "...";
-
-  // Extract english and ga from natural language like "teacher in Ga is tsɔɔlɔ"
-  const patterns = [
-    /^(.+?)\s+(?:in\s+ga\s+)?(?:means?|is)\s+(.+)$/i,
-    /^(.+?)\s*[:=]\s*(.+)$/,
-  ];
-  let eng = "", ga = "";
-  for (const p of patterns) {
-    const m = val.match(p);
-    if (m) { eng = m[1].trim(); ga = m[2].trim(); break; }
-  }
-  if (!eng || !ga) {
-    // Fallback: try splitting on "is" or "means"
-    const parts = val.split(/\s+(?:in\s+ga\s+)?(?:means?|is)\s+/i);
-    if (parts.length >= 2) { eng = parts[0].trim(); ga = parts.slice(1).join(" ").trim(); }
-  }
-
-  if (eng && ga) {
-    try {
-      await fetch(API + "/learning/contribute", {
-        method: "POST",
-        headers: headers(),
-        body: JSON.stringify({ query: eng, userAnswer: ga, category: "general" }),
-      });
-      form.innerHTML = `<div class="cf-done">Oyiwaladɔŋ! Recorded: <strong>${eng}</strong> = <strong>${ga}</strong>. It will be reviewed.</div>`;
-    } catch {
-      form.innerHTML = `<div class="cf-done" style="color:#f87171;">Failed to save. Try again later.</div>`;
-    }
-  } else {
-    sendBtn.disabled = false;
-    sendBtn.textContent = "Send";
-    const hint = form.querySelector(".cf-hint");
-    if (hint) { hint.style.color = "#f87171"; hint.textContent = "Please use format: english in Ga is ga word"; }
+  try {
+    const r = await fetch(API + "/contribute", {
+      method: "POST",
+      headers: headers(),
+      credentials: "include",
+      body: JSON.stringify({ type: "correction", english: eng, ga: g, interaction_id: interactionId }),
+    });
+    if (!r.ok) throw 0;
+    form.innerHTML = `<div class="cf-done">✓ Staged for review: <strong>${escapeHtml(eng)}</strong> = <strong>${escapeHtml(g)}</strong>. Another speaker confirms before it goes live.</div>`;
+    refreshReviewCount();
+    toast("Flagged — staged for review");
+  } catch {
+    form.innerHTML = `<div class="cf-done">✗ Failed to save. Try again later.</div>`;
   }
 }
 
@@ -758,6 +1179,14 @@ function renderMarkdown(md) {
 /* Bible verses get a real visual hierarchy (citation block, version labels, source pill). */
 function isCitation(l) { return /,\s*Yitso\s.*?,\s*(?:Kuku ni ji |Kuku ).*?\(.*?\d+:\d+\)/.test(l); }
 function renderBlock(lines) {
+  /* Bilingual Ga/English answer blocks get the ledger pair card. */
+  const nonEmpty = lines.filter((l) => l.trim());
+  if (nonEmpty.length >= 2 && nonEmpty.every((l) => /^\*\*(Ga|English):\*\*/.test(l))) {
+    return `<div class="pair">` + nonEmpty.map((l) => {
+      const m = l.match(/^\*\*(Ga|English):\*\*\s*(.*)$/);
+      return `<div class="prow"><div class="plab">${m[1]}</div><div class="ptxt">${inlineMd(m[2])}</div></div>`;
+    }).join("") + `</div>`;
+  }
   const isVerse = lines.some(
     (l) => /^(?:Ga|English) Version:/.test(l) || isCitation(l) || /^Source:/i.test(l) || /Archive Focus/.test(l)
   );
@@ -811,6 +1240,7 @@ async function streamInto(bubble, query) {
         try { const m = JSON.parse(metaMatch[1]); lastInteractionId = m.interactionId; } catch {}
         display = display.replace(META_RE, "").trim();
       }
+      lastAssistantText = display;
       render(bubble, display);
     }
     attachActions(bubble, query, lastInteractionId);
@@ -837,7 +1267,7 @@ async function streamInto(bubble, query) {
   try {
     const res = await fetch(`${API}${path}?stream=true`, {
       method: "POST", headers: headers(), credentials: "include",
-      body: JSON.stringify({ query, mode }),
+      body: JSON.stringify({ query, mode, context: me ? undefined : lastAssistantText }),
       signal: ctrl.signal
     });
     if (!res.ok) {
@@ -852,7 +1282,9 @@ async function streamInto(bubble, query) {
     const cid = res.headers.get("X-Conversation-Id");
     if (cid) {
       conversationId = cid;
-      setConversationUrl(cid);
+      // Guests: the conversation is ephemeral (never persisted), so don't put
+      // it in the URL — a reload would restore a hash pointing at nothing.
+      if (me) setConversationUrl(cid);
     }
     const reader = res.body.getReader(), dec = new TextDecoder();
     while (true) {
@@ -878,7 +1310,7 @@ async function send(text) {
   text = (text ?? input.value).trim();
   if (!text || busy) return;
   lastPrompt = text;                 // remember for ↑ recall / resubmit
-  input.value = ""; autosize(); closeAc();
+  input.value = ""; autosize(); closeAc(); ghostSug = null; renderGhost();
   addTurn("user").textContent = text;
   await streamInto(addTurn("bot"), text);
 }
@@ -901,10 +1333,69 @@ function retryLast(errBtn) {
 }
 
 // Composer
-function autosize() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 180) + "px"; }
+/* Height follows content; the cap lives in CSS (max-height, 200 desktop / 120
+   mobile) so JS and CSS can't disagree about it. */
+function autosize() { input.style.height = "auto"; input.style.height = input.scrollHeight + "px"; }
 input.addEventListener("input", autosize);
+
+/* --- Space accepts the inline ghost (touch only) ---
+   Bound on `beforeinput`, NOT `keydown`: Android IMEs report most keys as
+   keyCode 229 / key "Unidentified", so a keydown test for ' ' is unreliable on
+   exactly the platform this exists for. `beforeinput` gives insertText + data.
+   Desktop keeps Tab / ArrowRight — space-accept there fights every sentence. */
+const SPACE_ACCEPTS = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+let lastGhostAccept = null; // { before, after } — Backspace straight after undoes
+
+input.addEventListener('beforeinput', (e) => {
+  if (!SPACE_ACCEPTS) return;
+
+  // Backspace immediately after an accept restores what was actually typed
+  // (same contract as the transliteration undo below).
+  if (e.inputType === 'deleteContentBackward') {
+    const u = lastGhostAccept; lastGhostAccept = null;
+    if (u && input.value === u.after && input.selectionStart === input.selectionEnd &&
+        input.selectionStart === input.value.length) {
+      e.preventDefault();
+      input.value = u.before;
+      input.setSelectionRange(input.value.length, input.value.length);
+      autosize(); renderAutocomplete();
+      // Don't immediately re-offer the word they just rejected. Must run AFTER
+      // renderAutocomplete(), which clears the dismissal whenever the word changes.
+      dismissGhost();
+    }
+    return;
+  }
+
+  if (e.inputType !== 'insertText' || e.data !== ' ') { lastGhostAccept = null; return; }
+  if (!ghostSug) return;
+  // End-of-input, no selection — the same precondition updateGhost() uses.
+  if (input.selectionStart !== input.value.length || input.selectionStart !== input.selectionEnd) return;
+
+  e.preventDefault();
+  const before = input.value;
+  acceptGhost();                        // replaces the partial word with the archive spelling
+  input.value += ' ';
+  input.setSelectionRange(input.value.length, input.value.length);
+  lastGhostAccept = { before, after: input.value };
+  autosize(); renderAutocomplete();
+});
 input.addEventListener("keydown", (e) => {
-  // Autocomplete navigation (Ga mode) — arrow through the ranked list.
+  // Backspace right after a transliteration restores the literal keystrokes
+  // (e.g. "pɔ" back to "p)"). Any other key clears the undo.
+  if (e.key === 'Backspace') {
+    const u = lastTranslit; lastTranslit = null;
+    if (u && input.selectionStart === input.selectionEnd &&
+        input.selectionStart === u.start + u.insert.length) {
+      e.preventDefault();
+      const v = input.value;
+      input.value = v.slice(0, u.start) + u.typed + v.slice(u.start + u.insert.length);
+      const c = u.start + u.typed.length;
+      input.setSelectionRange(c, c);
+      autosize(); renderAutocomplete();
+    }
+  } else lastTranslit = null;
+
+  // The suggestion list owns the keyboard while it's open.
   const acOpen = $('acList').classList.contains('show');
   if (acOpen) {
     if (e.key === 'ArrowDown') { e.preventDefault(); moveAc(1); return; }
@@ -913,6 +1404,18 @@ input.addEventListener("keydown", (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); selectAc(acIndex); return; }
     if (e.key === 'Escape') { e.preventDefault(); closeAc(); return; }
   }
+
+  // Inline ghost completion: Tab / ArrowRight accept, Escape dismisses.
+  // (On touch, space also accepts — see the `beforeinput` handler above.)
+  if (ghostSug) {
+    if (e.key === 'Tab' || (e.key === 'ArrowRight' && input.selectionStart === input.value.length)) {
+      e.preventDefault(); acceptGhost(); return;
+    }
+    if (e.key === 'Escape') { e.preventDefault(); dismissGhost(); return; }
+  }
+  // ↓ opens the ranked list on demand when suggestions exist.
+  if (e.key === 'ArrowDown' && acItems.length) { e.preventDefault(); renderAcList(); return; }
+
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   else if (e.key === "ArrowUp" && !input.value && lastPrompt) {
     e.preventDefault(); input.value = lastPrompt; autosize();
@@ -922,7 +1425,11 @@ input.addEventListener("keydown", (e) => {
 $("sendBtn").onclick = () => send();
 $("modeSelect").onchange = () => { mode = $("modeSelect").value; };
 $("chips") && $("chips").addEventListener("click", (e) => {
-  const b = e.target.closest("button"); if (!b || !b.dataset.q) return;
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.action === "quiz") return startQuiz();
+  if (b.dataset.action === "puzzle") return startPuzzle();
+  if (b.dataset.action === "contribute") { $("cfGuestRow").classList.toggle("hidden", !!me); return openOverlay("contribOvl"); }
+  if (!b.dataset.q) return;
   mode = b.dataset.m || "auto";
   $("modeSelect").value = mode;
   send(b.dataset.q);
@@ -1030,12 +1537,19 @@ async function openConversation(id) {
 
 // Auth
 async function refreshMe() {
-  try { const r = await fetch(`${API}/auth/me`, { credentials: "include" }); me = r.ok ? await r.json() : null; }
+  try { const r = await fetch(`${API}/auth/session`, { credentials: "include" }); const d = r.ok ? await r.json() : null; me = d ? d.user : null; }
   catch { me = null; }
   renderAuth();
   // Restore conversation from URL hash after auth is confirmed
   if (conversationId && me) {
     setTimeout(() => openConversation(conversationId), 200);
+  } else if (conversationId && !me) {
+    // Guest conversation ids are ephemeral — nothing was ever saved, so the
+    // hash points at nothing. Reset to the hero instead of a blank stream.
+    conversationId = null;
+    setConversationUrl(null);
+    const hero = document.getElementById("hero");
+    if (hero) { hero.style.display = ""; scrollDown(); }
   }
 }
 function renderAuth() {
@@ -1129,9 +1643,11 @@ const GA_VOCABULARY = [
   { text:'Kuku ni ji etɛ', type:'bible', desc:'Verse 3', ph:'KOO-koo nee jee eh-TAY' },
   { text:'nyɔŋma kɛ ekome', type:'number', desc:'Eleven (11)', ph:'nyawng-MAH kay eh-KOH-meh' },
   { text:'nyɔŋma kɛ enyɔ', type:'number', desc:'Twelve (12)', ph:'nyawng-MAH kay eh-NYAW' },
-  { text:'nyɔŋmai ekome', type:'number', desc:'Twenty (20)', ph:'nyawng-MYE eh-KOH-meh' },
-  { text:'nyɔŋmai enyɔ', type:'number', desc:'Forty (40)', ph:'nyawng-MYE eh-NYAW' },
+  // nyɔŋmai <unit> is unit × 10 — must match numToGa() in src/rag/ga.ts, which is
+  // what the chat engine answers with. (10 is nyɔŋma, not nyɔŋmai ekome.)
+  { text:'nyɔŋmai enyɔ', type:'number', desc:'Twenty (20)', ph:'nyawng-MYE eh-NYAW' },
   { text:'nyɔŋmai etɛ', type:'number', desc:'Thirty (30)', ph:'nyawng-MYE eh-TAY' },
+  { text:'nyɔŋmai ejwɛ', type:'number', desc:'Forty (40)', ph:'nyawng-MYE eh-JWAY' },
   // Greetings
   { text:'Ojekoo', type:'greeting', desc:'Good morning', ph:'oh-JEH-koh', en:'good morning' },
   { text:'Oshwiee', type:'greeting', desc:'Good afternoon', ph:'oh-SHWEE-eh', en:'good afternoon' },
@@ -1389,10 +1905,54 @@ function moveAc(delta) {
 }
 function cycleAc() { moveAc(1); }
 
+/* --- Inline ghost completion ---
+   The top suggestion renders as faint text after the caret (Copilot-style);
+   Tab / ArrowRight accepts, Escape dismisses, ↓ opens the full list.
+   On touch devices space accepts as well (see the `beforeinput` handler), since
+   phone keyboards have no Tab and the desktop hint is the only place it's
+   documented. Backspace straight after an accept undoes it. */
+let ghostSug = null, ghostWord = '', ghostDismissed = false, lastGhostWord = '';
+let lastTranslit = null; // last ASCII→Ga conversion, for Backspace undo
+
+function renderGhost() {
+  const mt = $('taMirrorText'), g = $('ghostSuffix'), mw = $('taMirror');
+  if (!mt || !g || !mw) return;
+  mt.textContent = input.value;
+  g.textContent = ghostSug ? ghostSug.text.slice(ghostWord.length) : '';
+  mw.scrollTop = input.scrollTop;
+}
+function updateGhost() {
+  ghostSug = null;
+  const sel = input.selectionStart;
+  if (!ghostDismissed && sel === input.value.length && sel === input.selectionEnd) {
+    const w = wordAtEnd(input.value, sel);
+    if (w && w.word.length >= 1) {
+      const f = foldGa(w.word);
+      const s = acItems.find(x => foldGa(x.text).startsWith(f) && x.text.length > w.word.length);
+      if (s) { ghostSug = s; ghostWord = w.word; }
+    }
+  }
+  renderGhost();
+}
+function acceptGhost() {
+  if (!ghostSug) return;
+  const w = wordAtEnd(input.value, input.value.length);
+  if (!w) return;
+  input.value = input.value.slice(0, w.start) + ghostSug.text;
+  ghostSug = null; renderGhost();
+  autosize(); input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+}
+function dismissGhost() {
+  ghostDismissed = true; ghostSug = null; renderGhost();
+}
+
 function selectAc(i) {
   if (acItems.length && acItems[i]) {
-    input.value = acItems[i].text;
-    closeAc();
+    const w = wordAtEnd(input.value, input.selectionStart);
+    if (w) input.value = input.value.slice(0, w.start) + acItems[i].text + input.value.slice(input.selectionStart);
+    else input.value = acItems[i].text;
+    closeAc(); ghostSug = null; renderGhost();
     autosize(); input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
   }
@@ -1429,42 +1989,74 @@ async function fetchGroundedSuggestions(val, ctx) {
   } catch { return null; }
 }
 
+/* Suggest on the word ending at the caret (end of input only). The popup
+   list no longer auto-opens — ghost text is primary; ↓ opens the list. */
 function renderAutocomplete() {
-  const val = input.value.trim();
-  if (val.length < 2) { closeAc(); return; }
+  const w = wordAtEnd(input.value, input.selectionStart);
+  if (w && w.word !== lastGhostWord) { ghostDismissed = false; lastGhostWord = w.word; }
+  else if (!w) lastGhostWord = '';
+  if (!w || w.word.length < 2) {
+    acItems = [];
+    updateGhost();
+    if ($('acList').classList.contains('show')) renderAcList();
+    else closeAc();
+    return;
+  }
   // Instant: ranked matches from the local verified vocabulary.
-  acItems = getGaSuggestions(val).slice(0, 8);
+  acItems = getGaSuggestions(w.word).slice(0, 8);
   acIndex = 0;
   acSource = 'local';
-  renderAcList();
+  updateGhost();
+  if ($('acList').classList.contains('show')) renderAcList();
   // Enhance: grounded server suggestions (verified + context-reranked). Debounced.
   clearTimeout(acTimer);
+  const w0 = w.word;
   acTimer = setTimeout(async () => {
     acLoading = true;
-    updateAcHeader();
+    if ($('acList').classList.contains('show')) updateAcHeader();
     const ctx = lastPrompt || '';
-    const grounded = await fetchGroundedSuggestions(val, ctx);
+    const grounded = await fetchGroundedSuggestions(w0, ctx);
     acLoading = false;
-    // Only apply if the input hasn't changed and the server returned verified rows.
-    if (grounded && grounded.length && input.value.trim() === val) {
+    // Only apply if the current word hasn't changed and we got verified rows.
+    const cur = wordAtEnd(input.value, input.selectionStart);
+    if (grounded && grounded.length && cur && cur.word === w0) {
       // Merge: API results first, fill remaining slots with local matches
       const apiTexts = new Set(grounded.map(r => r.text));
-      const fillers = getGaSuggestions(val).filter(s => !apiTexts.has(s.text));
+      const fillers = getGaSuggestions(w0).filter(s => !apiTexts.has(s.text));
       acItems = [...grounded, ...fillers].slice(0, 8);
       acIndex = 0;
       acSource = 'api';
-      renderAcList();
-      // Smooth upgrade animation
-      const list = $('acList');
-      list.classList.add('ac-upgrading');
-      setTimeout(() => list.classList.remove('ac-upgrading'), 400);
+      updateGhost();
+      if ($('acList').classList.contains('show')) {
+        renderAcList();
+        // Smooth upgrade animation
+        const list = $('acList');
+        list.classList.add('ac-upgrading');
+        setTimeout(() => list.classList.remove('ac-upgrading'), 400);
+      }
     }
     updateAcHeader();
   }, 300);
 }
 
+// ASCII→Ga transliteration as you type (3→ɛ, )→ɔ, n~→ŋ, vowel~→nasal).
+input.addEventListener('beforeinput', (e) => {
+  if (e.inputType !== 'insertText' || !e.data || e.data.length !== 1) return;
+  const conv = transcribeGaKey(input.value, input.selectionStart, input.selectionEnd, e.data);
+  if (!conv) return;
+  e.preventDefault();
+  const v = input.value;
+  input.value = v.slice(0, conv.start) + conv.insert + v.slice(conv.end);
+  const c = conv.start + conv.insert.length;
+  input.setSelectionRange(c, c);
+  lastTranslit = conv;
+  autosize(); renderAutocomplete();
+});
+
 // Intercept input events for autocomplete
 input.addEventListener('input', renderAutocomplete);
+// Keep the ghost mirror scroll-aligned with the textarea.
+input.addEventListener('scroll', () => { const mw = $('taMirror'); if (mw) mw.scrollTop = input.scrollTop; });
 
 document.addEventListener('click', (e) => {
   const list = $('acList');
@@ -1481,7 +2073,11 @@ stream.addEventListener('mousedown', (e) => { if (e.target.closest('.bubble, .ac
 function updateComposer() {
   const cw = document.querySelector('.composer-wrap');
   if (cw && window.visualViewport) {
-    const kb = window.innerHeight - window.visualViewport.height;
+    const vv = window.visualViewport;
+    // offsetTop matters: without it the composer jumps while the page is
+    // pinch-zoomed or scrolled under the keyboard. Clamp — browser chrome
+    // collapsing can make this transiently negative.
+    const kb = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
     cw.style.bottom = kb + 'px';
     document.body.style.setProperty('--composer-h', (cw.offsetHeight + kb) + 'px');
   }
@@ -1501,12 +2097,722 @@ refreshMe();
 // Auto-refresh session every 30 minutes to prevent silent expiry
 setInterval(async () => {
   try {
-    const r = await fetch(`${API}/auth/me`, { credentials: "include" });
-    if (!r.ok && me) { me = null; renderAuth(); }
+    const r = await fetch(`${API}/auth/session`, { credentials: "include" });
+    const d = r.ok ? await r.json() : null;
+    if ((!d || !d.user) && me) { me = null; renderAuth(); }
   } catch {}
 }, 30 * 60 * 1000);
 
 // Auto-refresh session every 30 minutes to prevent silent expiry
+
+/* ================= LEARN & PLAY ================= */
+
+function toast(msg, ms = 2800) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove("show"), ms);
+}
+
+function openOverlay(id) {
+  $(id).classList.add("show");
+  document.body.classList.add("ovl-open");
+  if (id === "reviewOvl") loadReviewQueue();
+}
+function closeOverlays() {
+  document.querySelectorAll(".ovl.show").forEach((o) => o.classList.remove("show"));
+  document.body.classList.remove("ovl-open");
+}
+document.querySelectorAll(".ovl [data-close]").forEach((b) => b.addEventListener("click", closeOverlays));
+document.querySelectorAll(".ovl").forEach((o) =>
+  o.addEventListener("click", (e) => { if (e.target === o) closeOverlays(); }));
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeOverlays(); });
+
+/* Reuse the Ga transliteration on any input (correction form, contribute, review). */
+function bindGaKeys(el) {
+  el.addEventListener("keydown", (e) => {
+    if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
+    const r = transcribeGaKey(el.value, el.selectionStart, el.selectionEnd, e.key);
+    if (!r) return;
+    e.preventDefault();
+    el.value = el.value.slice(0, r.start) + r.insert + el.value.slice(r.end);
+    const c = r.start + r.insert.length;
+    el.setSelectionRange(c, c);
+  });
+}
+bindGaKeys($("cfGa"));
+
+/* ---- Score (localStorage-backed, survives refresh) ---- */
+const SCORE_KEY = "obodaiScore";
+let score = JSON.parse(localStorage.getItem(SCORE_KEY) || '{"c":0,"n":0,"s":0}');
+function saveScore() {
+  localStorage.setItem(SCORE_KEY, JSON.stringify(score));
+  const st = $("scoreTag"), kk = $("streakTag");
+  if (score.n > 0) {
+    st.classList.remove("hidden"); st.textContent = `SCORE ${score.c}/${score.n}`;
+    kk.classList.remove("hidden"); kk.textContent = `STREAK ${score.s}`;
+  }
+}
+function bumpScore(correct) {
+  score.n++; if (correct) { score.c++; score.s++; } else score.s = 0;
+  saveScore();
+}
+saveScore();
+
+/* ---- Practice: rounds of quiz + puzzle modes, served from /api/v1/quiz ----
+   A round is N questions of one mode (or mixed), with a summary at the end.
+   Every item is a verified vocabulary record; the reveal panel shows the
+   meaning and the provenance line the endpoint returns, so the archive's
+   "verified or nothing" rule is visible rather than implied. */
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+const MODES = {
+  choice:   { label: "Pick the word",  blurb: "English prompt, four Ga options" },
+  scramble: { label: "Unscramble",     blurb: "Rebuild the Ga spelling from tiles" },
+  match:    { label: "Match pairs",    blurb: "Join Ga to English, six at a time" },
+  blank:    { label: "Fill the blank", blurb: "Complete a verified phrase" },
+  listen:   { label: "Listen & spell", blurb: "Hear it, then rebuild it" },
+  mixed:    { label: "Mixed round",    blurb: "All five, shuffled" },
+};
+const MIXED_POOL = ["choice", "scramble", "match", "blank", "listen"];
+/* Ga-only letters get their own tray in tile modes. */
+const GA_ONLY = /[ɛɔŋãẽĩõũ]/i;
+
+let round = null; // { mode, len, i, correct, misses:[], bubble }
+
+async function fetchQuizItem(mode) {
+  const q = mode && mode !== "choice" ? `?mode=${encodeURIComponent(mode)}` : "";
+  const r = await fetch(`${API}/quiz${q}`, { credentials: "include" });
+  if (!r.ok) throw 0;
+  return r.json();
+}
+
+function qCard(bubble, head, right) {
+  const card = document.createElement("div");
+  card.className = "quiz";
+  card.innerHTML = `<div class="q-head"><span>${escapeHtml(head)}</span><span>${escapeHtml(right || "")}</span></div>`;
+  bubble.innerHTML = "";
+  bubble.appendChild(card);
+  return card;
+}
+
+/** Progress ticks for the current round, injected into a card header. */
+function progressHtml() {
+  if (!round) return "";
+  let out = '<div class="q-prog">';
+  for (let n = 0; n < round.len; n++) {
+    out += `<i class="${n < round.i ? "done" : n === round.i ? "now" : ""}"></i>`;
+  }
+  return out + "</div>";
+}
+
+/* ---- Entry point: offer the modes, then run a round ---- */
+function startQuiz() {
+  clearHero();
+  const bubble = addTurn("bot");
+  const card = qCard(bubble, "PRACTICE", "pick a game");
+  const grid = document.createElement("div");
+  grid.className = "q-modes";
+  for (const key of ["choice", "scramble", "match", "blank", "listen", "mixed"]) {
+    const b = document.createElement("button");
+    b.className = "q-mode"; b.type = "button";
+    b.innerHTML = `<b>${escapeHtml(MODES[key].label)}</b><i>${escapeHtml(MODES[key].blurb)}</i>`;
+    b.onclick = () => beginRound(bubble, key, 5);
+    grid.appendChild(b);
+  }
+  card.appendChild(grid);
+  const foot = document.createElement("div");
+  foot.className = "q-foot";
+  foot.innerHTML = "<span>5 questions · verified archive entries only</span>";
+  card.appendChild(foot);
+  scrollDown();
+}
+
+/** Kept so the existing "Unscramble" chip still works — it's a 5-item round. */
+function startPuzzle() {
+  clearHero();
+  beginRound(addTurn("bot"), "scramble", 5);
+}
+
+function beginRound(bubble, mode, len) {
+  round = { mode, len, i: 0, correct: 0, misses: [], bubble };
+  nextQuestion();
+}
+
+async function nextQuestion() {
+  if (!round) return;
+  if (round.i >= round.len) return renderSummary();
+
+  const bubble = round.bubble;
+  const mode = round.mode === "mixed"
+    ? MIXED_POOL[Math.floor(Math.random() * MIXED_POOL.length)]
+    : round.mode;
+
+  qCard(bubble, MODES[mode].label.toUpperCase(), "loading…");
+  scrollDown();
+
+  try {
+    // scramble/listen are presentations of a choice item; match/blank have
+    // their own server shapes.
+    const serverMode = mode === "scramble" || mode === "listen" ? "choice" : mode;
+    const q = await fetchQuizItem(serverMode);
+    if (mode === "match") renderMatch(bubble, q);
+    else if (mode === "blank" && q.mode === "blank") renderBlank(bubble, q);
+    else if (mode === "scramble" || mode === "listen") renderTiles(bubble, q, mode);
+    else renderChoice(bubble, q);
+  } catch {
+    const card = qCard(bubble, "PRACTICE", "offline");
+    card.insertAdjacentHTML("beforeend",
+      '<div class="q-body">Could not reach the archive. Try again in a moment.</div>');
+  }
+}
+
+/** Advance the round. `entry` is {ga,en} for the summary when it was missed. */
+function scoreAndAdvance(correct, entry) {
+  bumpScore(correct);
+  if (round) {
+    if (correct) round.correct++;
+    else if (entry) round.misses.push(entry);
+    round.i++;
+  }
+}
+
+/** Shared reveal panel: verdict, meaning, provenance, listen. */
+function revealPanel(card, ok, answer, q) {
+  const box = document.createElement("div");
+  box.className = "q-reveal";
+  box.innerHTML =
+    `<div class="q-verdict"><span class="q-badge ${ok ? "ok" : "no"}">${ok ? "CORRECT" : "NOT QUITE"}</span>` +
+    `<span>${ok ? "Archive spelling." : "It was “" + escapeHtml(answer) + "”."}</span></div>` +
+    (q.gloss ? `<div class="q-gloss">${escapeHtml(q.gloss)}</div>` : "") +
+    (q.phonetic ? `<div class="q-gloss">${escapeHtml(q.phonetic)}</div>` : "") +
+    (q.source ? `<div class="q-src">${escapeHtml(q.source.toUpperCase())}</div>` : "");
+  const listen = document.createElement("button");
+  listen.className = "q-listen"; listen.type = "button"; listen.textContent = "♪ HEAR IT";
+  listen.onclick = () => speakGa(answer);
+  box.appendChild(listen);
+  card.appendChild(box);
+}
+
+function roundFoot(card, statusText) {
+  const foot = document.createElement("div");
+  foot.className = "q-foot";
+  foot.innerHTML = `<span class="q-status">${escapeHtml(statusText)}</span>`;
+  const next = document.createElement("button");
+  next.className = "q-next"; next.type = "button"; next.disabled = true;
+  next.textContent = round && round.i + 1 >= round.len ? "SEE RESULTS →" : "NEXT →";
+  next.onclick = () => nextQuestion();
+  foot.appendChild(next);
+  card.appendChild(foot);
+  return { foot, next, status: foot.querySelector(".q-status") };
+}
+
+/* ---- Mode: pick the word ---- */
+function renderChoice(bubble, q) {
+  const card = qCard(bubble, "PICK THE WORD", "");
+  card.querySelector(".q-head").insertAdjacentHTML("beforeend", progressHtml());
+  card.insertAdjacentHTML("beforeend",
+    `<div class="q-body"><div class="q-q">How do you say “${escapeHtml(q.question)}”?</div><div class="q-opts"></div></div>`);
+
+  const opts = card.querySelector(".q-opts");
+  const { next, status } = roundFoot(card, `${round ? round.i + 1 : 1} of ${round ? round.len : 1}`);
+  let answered = false;
+
+  for (const o of q.options) {
+    const b = document.createElement("button");
+    b.className = "q-opt"; b.type = "button";
+    b.innerHTML = `<span class="q-opt-main">${escapeHtml(o)}</span>`;
+    b.onclick = () => {
+      if (answered) return;
+      answered = true;
+      const ok = o === q.answer;
+      [...opts.children].forEach((x) => {
+        const t = x.querySelector(".q-opt-main").textContent;
+        if (t === q.answer) x.classList.add("correct");
+        else if (t === o) x.classList.add("wrong");
+        else x.classList.add("miss");
+        x.disabled = true;
+      });
+      scoreAndAdvance(ok, { ga: q.answer, en: q.question, chose: o });
+      status.textContent = `${round.correct}/${round.i} this round`;
+      revealPanel(card, ok, q.answer, q);
+      next.disabled = false;
+      scrollDown();
+    };
+    opts.appendChild(b);
+  }
+  scrollDown();
+}
+
+/* ---- Mode: fill the blank ---- */
+function renderBlank(bubble, q) {
+  const card = qCard(bubble, "FILL THE BLANK", "");
+  card.querySelector(".q-head").insertAdjacentHTML("beforeend", progressHtml());
+  const phrase = q.phrase
+    .map((w) => (w === null ? '<b style="border-bottom:2px solid var(--ink);padding:0 22px">&nbsp;</b>' : escapeHtml(w)))
+    .join(" ");
+  card.insertAdjacentHTML("beforeend",
+    `<div class="q-body"><div class="q-q">${phrase}</div>` +
+    `<div class="q-gloss" style="margin-bottom:10px">“${escapeHtml(q.question)}”</div>` +
+    `<div class="q-opts"></div></div>`);
+
+  const opts = card.querySelector(".q-opts");
+  const { next, status } = roundFoot(card, `${round ? round.i + 1 : 1} of ${round ? round.len : 1}`);
+  let answered = false;
+
+  for (const o of q.options) {
+    const b = document.createElement("button");
+    b.className = "q-opt"; b.type = "button";
+    b.innerHTML = `<span class="q-opt-main">${escapeHtml(o)}</span>`;
+    b.onclick = () => {
+      if (answered) return;
+      answered = true;
+      const ok = o === q.answer;
+      [...opts.children].forEach((x) => {
+        const t = x.querySelector(".q-opt-main").textContent;
+        if (t === q.answer) x.classList.add("correct");
+        else if (t === o) x.classList.add("wrong");
+        else x.classList.add("miss");
+        x.disabled = true;
+      });
+      scoreAndAdvance(ok, { ga: q.answer, en: q.question, chose: o });
+      status.textContent = `${round.correct}/${round.i} this round`;
+      revealPanel(card, ok, q.answer, q);
+      next.disabled = false;
+      scrollDown();
+    };
+    opts.appendChild(b);
+  }
+  scrollDown();
+}
+
+/* ---- Modes: unscramble + listen & spell (same board, different prompt) ---- */
+function renderTiles(bubble, q, mode) {
+  const word = (q.answer || "").trim();
+  const letters = [...word];
+  const scrambled = shuffle([...letters]);
+  if (scrambled.join("") === word && letters.length > 1) {
+    [scrambled[0], scrambled[1]] = [scrambled[1], scrambled[0]];
+  }
+
+  const isListen = mode === "listen";
+  const card = qCard(bubble, isListen ? "LISTEN & SPELL" : "UNSCRAMBLE", "");
+  card.querySelector(".q-head").insertAdjacentHTML("beforeend", progressHtml());
+  card.insertAdjacentHTML("beforeend",
+    `<div class="q-body">` +
+    `<div class="q-q">${isListen ? "Spell what you hear." : "“" + escapeHtml(q.question) + "” — spell the Ga word."}</div>` +
+    `<div class="q-slots"></div>` +
+    `<div class="q-tray-lab">LETTERS</div><div class="q-bank"></div>` +
+    `<div class="q-tray-lab ga-lab hidden">GA LETTERS</div><div class="q-bank ga-only hidden"></div>` +
+    `</div>`);
+
+  if (isListen) {
+    const hear = document.createElement("button");
+    hear.className = "q-listen"; hear.type = "button"; hear.textContent = "♪ PLAY AGAIN";
+    hear.style.margin = "0 13px 10px";
+    hear.onclick = () => speakGa(word);
+    card.querySelector(".q-body").prepend(hear);
+    speakGa(word);
+  }
+
+  const slots = card.querySelector(".q-slots");
+  const bank = card.querySelector(".q-bank:not(.ga-only)");
+  const gaBank = card.querySelector(".q-bank.ga-only");
+  const gaLab = card.querySelector(".ga-lab");
+  const placed = new Array(letters.length).fill(null);
+
+  const tiles = scrambled.map((ch) => {
+    const t = document.createElement("button");
+    t.className = "q-tile bank"; t.type = "button"; t.textContent = ch;
+    t.onclick = () => {
+      const slot = placed.indexOf(null);
+      if (slot === -1) return;
+      placed[slot] = ch; t.disabled = true;
+      renderSlots();
+    };
+    (GA_ONLY.test(ch) ? gaBank : bank).appendChild(t);
+    return t;
+  });
+  if (gaBank.children.length) { gaBank.classList.remove("hidden"); gaLab.classList.remove("hidden"); }
+
+  const countPlaced = (c) => placed.filter((x) => x === c).length;
+  const countBank = (c) => letters.filter((x) => x === c).length;
+
+  function renderSlots() {
+    slots.innerHTML = "";
+    placed.forEach((ch, i) => {
+      const s = document.createElement("button");
+      s.className = "q-tile" + (ch ? " placed" : ""); s.type = "button";
+      s.textContent = ch || "·";
+      s.onclick = () => {
+        if (!ch) return;
+        placed[i] = null;
+        tiles.forEach((t) => {
+          if (t.disabled && t.textContent === ch && countPlaced(ch) < countBank(ch)) t.disabled = false;
+        });
+        renderSlots();
+      };
+      slots.appendChild(s);
+    });
+  }
+  renderSlots();
+
+  const { next, status } = roundFoot(card, `${letters.length} letters`);
+  const check = document.createElement("button");
+  check.className = "q-next"; check.type = "button"; check.textContent = "CHECK";
+  check.style.marginLeft = "auto";
+  next.parentNode.insertBefore(check, next);
+
+  let done = false;
+  check.onclick = () => {
+    if (done) return;
+    if (placed.indexOf(null) !== -1) { status.textContent = "Fill every slot first."; return; }
+    done = true;
+    const ok = placed.join("") === word;
+    tiles.forEach((t) => (t.disabled = true));
+    slots.querySelectorAll("button").forEach((b) => (b.disabled = true));
+    check.disabled = true;
+    scoreAndAdvance(ok, { ga: word, en: q.question, chose: placed.join("") });
+    status.textContent = `${round.correct}/${round.i} this round`;
+    revealPanel(card, ok, word, q);
+    next.disabled = false;
+    scrollDown();
+  };
+  scrollDown();
+}
+
+/* ---- Mode: match pairs ---- */
+function renderMatch(bubble, q) {
+  const pairs = q.pairs || [];
+  const card = qCard(bubble, "MATCH PAIRS", "");
+  card.querySelector(".q-head").insertAdjacentHTML("beforeend", progressHtml());
+  card.insertAdjacentHTML("beforeend",
+    '<div class="q-match"><div class="q-col ga-col"></div><div class="q-col en-col"></div></div>');
+
+  const gaCol = card.querySelector(".ga-col");
+  const enCol = card.querySelector(".en-col");
+  const { next, status } = roundFoot(card, `0/${pairs.length} matched`);
+
+  let sel = null, matched = 0;
+  const gaBtns = [], enBtns = [];
+
+  pairs.forEach((p, i) => {
+    const g = document.createElement("button");
+    g.className = "q-pair ga"; g.type = "button"; g.textContent = p.ga; g.dataset.i = i;
+    g.onclick = () => {
+      if (g.disabled) return;
+      gaBtns.forEach((x) => x.classList.remove("sel"));
+      enBtns.forEach((x) => x.classList.remove("miss"));
+      g.classList.add("sel"); sel = i;
+      status.textContent = "Now its English.";
+    };
+    gaBtns.push(g); gaCol.appendChild(g);
+  });
+
+  // Independent order for the English column so rows never line up.
+  shuffle(pairs.map((_, i) => i)).forEach((i) => {
+    const p = pairs[i];
+    const e = document.createElement("button");
+    e.className = "q-pair"; e.type = "button"; e.textContent = p.en; e.dataset.i = i;
+    e.onclick = () => {
+      if (e.disabled) return;
+      if (sel === null) { e.classList.add("miss"); status.textContent = "Pick a Ga word first."; return; }
+      if (sel === i) {
+        gaBtns[i].disabled = true; gaBtns[i].classList.remove("sel");
+        e.disabled = true;
+        matched++; sel = null;
+        status.textContent = `${matched}/${pairs.length} matched`;
+        if (matched === pairs.length) {
+          scoreAndAdvance(true, null);
+          status.textContent = `All ${pairs.length} joined`;
+          next.disabled = false;
+          scrollDown();
+        }
+      } else {
+        e.classList.add("miss");
+        gaBtns.forEach((x) => x.classList.remove("sel"));
+        sel = null;
+        status.textContent = "Not that one.";
+      }
+    };
+    enBtns.push(e); enCol.appendChild(e);
+  });
+  scrollDown();
+}
+
+/* ---- Round summary ---- */
+function renderSummary() {
+  const bubble = round.bubble;
+  const { correct, len, misses, mode } = round;
+  const card = qCard(bubble, "ROUND COMPLETE", MODES[mode].label.toLowerCase());
+  card.insertAdjacentHTML("beforeend",
+    `<div class="q-score"><b>${correct}</b><span>/${len}</span></div>`);
+
+  const body = document.createElement("div");
+  body.className = "q-body";
+
+  if (misses.length) {
+    body.insertAdjacentHTML("beforeend", '<div class="q-tray-lab">WORTH ANOTHER LOOK</div>');
+    for (const m of misses) {
+      const row = document.createElement("div");
+      row.className = "q-miss";
+      row.innerHTML = `<div style="flex:1"><b>${escapeHtml(m.ga)}</b><i>${escapeHtml(m.en)}` +
+        (m.chose ? ` — you answered “${escapeHtml(m.chose)}”` : "") + `</i></div>`;
+      const lb = document.createElement("button");
+      lb.className = "q-listen"; lb.type = "button"; lb.textContent = "♪";
+      lb.setAttribute("aria-label", `Hear ${m.ga}`);
+      lb.onclick = () => speakGa(m.ga);
+      row.appendChild(lb);
+      body.appendChild(row);
+    }
+  } else {
+    body.insertAdjacentHTML("beforeend",
+      '<div class="q-gloss">Clean round — nothing missed.</div>');
+  }
+  card.appendChild(body);
+
+  const foot = document.createElement("div");
+  foot.className = "q-foot";
+  foot.innerHTML = `<span>streak ${score.s}</span>`;
+  const again = document.createElement("button");
+  again.className = "q-next"; again.type = "button"; again.textContent = "ANOTHER ROUND →";
+  again.style.marginLeft = "auto";
+  again.onclick = () => beginRound(addTurn("bot"), mode, len);
+  foot.appendChild(again);
+
+  if (misses.length) {
+    const drill = document.createElement("button");
+    drill.className = "q-next"; drill.type = "button";
+    drill.textContent = `DRILL THE ${misses.length}`;
+    drill.onclick = () => beginRound(addTurn("bot"), mode, Math.max(3, misses.length));
+    foot.insertBefore(drill, again);
+    again.style.marginLeft = "0"; // only the first button takes the auto margin
+  }
+  card.appendChild(foot);
+
+  round = null;
+  scrollDown();
+}
+/* ---- Contribute overlay ---- */
+$("contributeBtn").onclick = () => {
+  closeDrawer();
+  // Guest contributors identify themselves; signed-in users are credited via account.
+  $("cfGuestRow").classList.toggle("hidden", !!me);
+  // Evidence uploads are for signed-in accounts only — the server refuses guest
+  // files, so don't offer the control and then reject the submission.
+  $("cfEvidenceRow").classList.toggle("hidden", !me);
+  if (!me) { cfFiles = []; renderCfFiles(); }
+  openOverlay("contribOvl");
+};
+$("cfType").addEventListener("change", (e) =>
+  $("cfBibleRow").classList.toggle("hidden", e.target.value !== "bible_verse"));
+
+$("contribForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const type = $("cfType").value;
+  const english = $("cfEnglish").value.trim(), ga = $("cfGa").value.trim();
+  if (!english || !ga) return;
+  const body = { type, english, ga, notes: $("cfNote").value.trim() || undefined };
+  if (!me) {
+    body.contributor_name = $("cfName").value.trim();
+    body.contributor_email = $("cfEmail").value.trim();
+    body.contributor_location = $("cfLoc").value.trim();
+    if (!body.contributor_name || !body.contributor_email || !body.contributor_location) {
+      toast("Guests: add your name, email and location so we can credit you"); return;
+    }
+  }
+  if (type === "bible_verse") {
+    body.book = $("cfBook").value.trim();
+    body.chapter = parseInt($("cfChapter").value, 10) || undefined;
+    body.verse = parseInt($("cfVerse").value, 10) || undefined;
+    if (!body.book || !body.chapter || !body.verse) { toast("Bible verse needs book, chapter and verse"); return; }
+  }
+  // With evidence attached the request becomes multipart; without it, JSON.
+  // The scalar field names are identical either way.
+  let init;
+  if (cfFiles.length) {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(body)) if (v !== undefined) fd.append(k, v);
+    for (const f of cfFiles) fd.append("files", f, f.name);
+    const h = headers();
+    delete h["Content-Type"]; // the browser must set the multipart boundary
+    init = { method: "POST", headers: h, credentials: "include", body: fd };
+  } else {
+    init = { method: "POST", headers: headers(), credentials: "include", body: JSON.stringify(body) };
+  }
+
+  const submitBtn = $("contribForm").querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  const label = submitBtn.textContent;
+  submitBtn.textContent = cfFiles.length ? "UPLOADING…" : "SUBMITTING…";
+  try {
+    const r = await fetch(`${API}/contribute`, init);
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { toast(d.error || "Failed to submit — try again"); return; }
+    closeOverlays();
+    $("contribForm").reset();
+    $("cfBibleRow").classList.add("hidden");
+    cfFiles = []; renderCfFiles();
+    toast(d.has_conflict ? "Recorded — conflicts with an existing entry, queued for admin review" : "Submitted — staged for review");
+    refreshReviewCount();
+  } catch { toast("Failed to submit — try again"); }
+  finally { submitBtn.disabled = false; submitBtn.textContent = label; }
+});
+
+/* ---- Evidence files on a contribution ----
+   These are read by a human reviewer, never parsed or indexed — which is why
+   .docx/.xlsx are accepted here while /admin/upload rejects them. The limits
+   below mirror src/routes/attachments.ts; the server re-checks all of them. */
+const CF_MAX_FILES = 4;
+const CF_MAX_BYTES = 10 * 1024 * 1024;
+const CF_EXT = ["jpg","jpeg","png","webp","heic","pdf","doc","docx","xls","xlsx"];
+let cfFiles = [];
+
+function humanBytes(n) {
+  return n >= 1048576 ? (n / 1048576).toFixed(1) + " MB"
+       : n >= 1024 ? Math.round(n / 1024) + " KB" : n + " B";
+}
+
+function renderCfFiles() {
+  const list = $("cfFileList"), count = $("cfFileCount");
+  list.innerHTML = "";
+  count.textContent = cfFiles.length ? `${cfFiles.length} of ${CF_MAX_FILES}` : "";
+  $("cfDrop").classList.toggle("hidden", cfFiles.length >= CF_MAX_FILES);
+  cfFiles.forEach((f, i) => {
+    const ext = (f.name.split(".").pop() || "").toUpperCase().slice(0, 4);
+    const row = document.createElement("div");
+    row.className = "f-file";
+    row.innerHTML = `<div class="f-kind">${escapeHtml(ext)}</div>` +
+      `<div class="f-meta"><b>${escapeHtml(f.name)}</b><i>${humanBytes(f.size)}</i></div>`;
+    const x = document.createElement("button");
+    x.className = "f-x"; x.type = "button"; x.textContent = "✕";
+    x.setAttribute("aria-label", `Remove ${f.name}`);
+    x.onclick = () => { cfFiles.splice(i, 1); renderCfFiles(); };
+    row.appendChild(x);
+    list.appendChild(row);
+  });
+}
+
+function addCfFiles(incoming) {
+  for (const f of incoming) {
+    if (cfFiles.length >= CF_MAX_FILES) { toast(`Up to ${CF_MAX_FILES} files`); break; }
+    const ext = (f.name.split(".").pop() || "").toLowerCase();
+    if (!CF_EXT.includes(ext)) { toast(`“${f.name}” isn't an accepted type`); continue; }
+    if (f.size > CF_MAX_BYTES) { toast(`“${f.name}” is over 10 MB`); continue; }
+    if (cfFiles.some((x) => x.name === f.name && x.size === f.size)) continue;
+    cfFiles.push(f);
+  }
+  renderCfFiles();
+}
+
+$("cfDrop").onclick = () => $("cfFiles").click();
+$("cfFiles").addEventListener("change", (e) => {
+  addCfFiles([...e.target.files]);
+  e.target.value = ""; // allow re-picking the same file after a remove
+});
+// Drag and drop (desktop). Both handlers must preventDefault or the browser
+// navigates to the dropped file.
+for (const ev of ["dragenter", "dragover"]) {
+  $("cfDrop").addEventListener(ev, (e) => { e.preventDefault(); $("cfDrop").classList.add("over"); });
+}
+for (const ev of ["dragleave", "drop"]) {
+  $("cfDrop").addEventListener(ev, (e) => { e.preventDefault(); $("cfDrop").classList.remove("over"); });
+}
+$("cfDrop").addEventListener("drop", (e) => {
+  if (e.dataTransfer && e.dataTransfer.files) addCfFiles([...e.dataTransfer.files]);
+});
+
+/* ---- Review queue ---- */
+$("reviewBtn").onclick = () => { closeDrawer(); openOverlay("reviewOvl"); };
+
+async function refreshReviewCount() {
+  try {
+    const r = await fetch(`${API}/contributions?status=pending_review&limit=100`, { credentials: "include" });
+    if (!r.ok) return;
+    const d = await r.json();
+    const badge = $("reviewCount");
+    const n = d.total ?? (d.contributions || []).length;
+    badge.hidden = !n;
+    badge.textContent = n;
+  } catch {}
+}
+refreshReviewCount();
+
+async function loadReviewQueue() {
+  const list = $("reviewList");
+  list.innerHTML = '<div class="rev-empty">Loading…</div>';
+  try {
+    const r = await fetch(`${API}/contributions?status=pending_review&limit=50`, { credentials: "include" });
+    if (!r.ok) { list.innerHTML = '<div class="rev-empty">Could not load the queue.</div>'; return; }
+    const d = await r.json();
+    const items = d.contributions || [];
+    if (!items.length) { list.innerHTML = '<div class="rev-empty">Queue is clear — nothing waiting for review.</div>'; return; }
+    list.innerHTML = "";
+    const isAdmin = me && me.role === "admin";
+    for (const c of items) {
+      const card = document.createElement("div");
+      card.className = "rev-card";
+      const votes = c.agreement_score > 0 ? ` · ${c.agreement_score}/2 votes` : "";
+      card.innerHTML = `
+        <div class="rev-meta">
+          <span class="tag-pill">${escapeHtml(c.type || "translation").toUpperCase()}</span>
+          ${c.has_conflict ? '<span class="tag-pill conflict">CONFLICT</span>' : ""}
+          <span>${escapeHtml(c.category || "general")}${votes}</span>
+        </div>
+        <div class="rev-body">
+          <div class="rev-q">${escapeHtml(c.query)}</div>
+          <input class="rev-a ga-key" type="text" value="${escapeHtml(c.answer).replace(/"/g, "&quot;")}" />
+          ${c.notes ? `<div class="rev-note">${escapeHtml(c.notes)}</div>` : ""}
+          ${(c.attachments && c.attachments.length) ? `<div class="rev-files">${
+            c.attachments.map((a) =>
+              `<a class="rev-file" href="${API}/contributions/${encodeURIComponent(c.id)}/attachments/${a.index}"` +
+              ` target="_blank" rel="noopener">` +
+              `<span>${escapeHtml((a.name.split(".").pop() || "").toUpperCase().slice(0, 4))}</span>` +
+              `${escapeHtml(a.name)}</a>`
+            ).join("")
+          }</div>` : ""}
+        </div>
+        <div class="rev-actions">
+          <button class="confirm" type="button">CONFIRM (+1 vote)</button>
+          ${isAdmin ? '<button class="approve" type="button">APPROVE → KB</button>' : ""}
+          ${isAdmin ? '<button class="dismiss" type="button">DISMISS</button>' : ""}
+        </div>`;
+      const input = card.querySelector(".rev-a");
+      bindGaKeys(input);
+      card.querySelector(".confirm").onclick = async () => {
+        const edited = input.value.trim();
+        if (!edited) return;
+        try {
+          const r = await fetch(`${API}/contribute`, { method: "POST", headers: headers(), credentials: "include",
+            body: JSON.stringify({ type: "correction", english: c.query, ga: edited }) });
+          if (!r.ok) throw 0;
+          toast("Vote recorded — counts toward admin verification");
+          card.remove(); refreshReviewCount();
+        } catch { toast("Failed to record vote"); }
+      };
+      if (isAdmin) {
+        card.querySelector(".approve").onclick = async () => {
+          try {
+            const r = await fetch(`${API}/admin/contributions/${c.id}/approve`, { method: "POST", credentials: "include" });
+            if (!r.ok) throw 0;
+            toast("VERIFIED → live in the knowledge base");
+            card.remove(); refreshReviewCount();
+          } catch { toast("Approve failed"); }
+        };
+        card.querySelector(".dismiss").onclick = async () => {
+          try {
+            const r = await fetch(`${API}/admin/contributions/${c.id}/reject`, { method: "POST", credentials: "include" });
+            if (!r.ok) throw 0;
+            toast("Dismissed");
+            card.remove(); refreshReviewCount();
+          } catch { toast("Dismiss failed"); }
+        };
+      }
+      list.appendChild(card);
+    }
+  } catch { list.innerHTML = '<div class="rev-empty">Could not load the queue.</div>'; }
+}
 </script>
 </body>
 </html>

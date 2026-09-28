@@ -10,9 +10,28 @@ interface ChatOpts {
   model?: string;
 }
 
+/**
+ * Server-side model allowlist — never trust a client-supplied model id.
+ * Anything outside this set (e.g. the Gemini ids the old frontend sent)
+ * falls back to env.LLM_MODEL.
+ */
+const ALLOWED_MODELS = new Set([
+  "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+  "@cf/meta/llama-3.1-8b-instruct",
+  "@cf/meta/llama-3-8b-instruct",
+  "@cf/meta/llama-3.2-3b-instruct",
+  "@cf/meta/llama-3.2-1b-instruct",
+  "@cf/mistral/mistral-7b-instruct-v0.1",
+]);
+
+function resolveModel(env: Env, requested?: string): string {
+  if (requested && ALLOWED_MODELS.has(requested)) return requested;
+  return env.LLM_MODEL;
+}
+
 /** Blocking completion -> full string. */
 export async function chat(env: Env, messages: ChatMessage[], opts: ChatOpts = {}): Promise<string> {
-  const res: any = await env.AI.run((opts.model || env.LLM_MODEL) as any, {
+  const res: any = await env.AI.run(resolveModel(env, opts.model) as any, {
     messages,
     temperature: opts.temperature ?? 0.7,
     max_tokens: opts.maxTokens ?? 1024,
@@ -30,7 +49,7 @@ export async function* streamChat(
   messages: ChatMessage[],
   opts: ChatOpts = {}
 ): AsyncGenerator<string> {
-  const stream: any = await env.AI.run((opts.model || env.LLM_MODEL) as any, {
+  const stream: any = await env.AI.run(resolveModel(env, opts.model) as any, {
     messages,
     temperature: opts.temperature ?? 0.7,
     max_tokens: opts.maxTokens ?? 1024,

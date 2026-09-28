@@ -17,6 +17,35 @@ export async function getRecentSessions(
   return res.results ?? [];
 }
 
+export interface SessionWithLastMessage extends SessionRow {
+  last_message: string | null;
+}
+
+/**
+ * Get recent sessions with last message in a single query (avoids N+1).
+ */
+export async function getRecentSessionsWithLastMessage(
+  env: Env,
+  userId: string,
+  limit = 50
+): Promise<SessionWithLastMessage[]> {
+  const res = await env.DB.prepare(
+    `SELECT s.*, i.query AS last_message
+     FROM chat_sessions s
+     LEFT JOIN interactions i ON i.conversation_id = s.id
+       AND i.created_at = (
+         SELECT MAX(i2.created_at) FROM interactions i2
+         WHERE i2.conversation_id = s.id
+       )
+     WHERE s.user_id = ?
+     ORDER BY s.updated_at DESC
+     LIMIT ?`
+  )
+    .bind(userId, limit)
+    .all<SessionWithLastMessage>();
+  return res.results ?? [];
+}
+
 export async function initializeSession(
   env: Env,
   sessionId: string,
@@ -67,6 +96,10 @@ export async function updateActivity(env: Env, sessionId: string): Promise<void>
   await env.DB.prepare("UPDATE chat_sessions SET updated_at = ? WHERE id = ?")
     .bind(nowIso(), sessionId)
     .run();
+}
+
+export async function deleteSession(env: Env, sessionId: string): Promise<void> {
+  await env.DB.prepare("DELETE FROM chat_sessions WHERE id = ?").bind(sessionId).run();
 }
 
 export async function countSessions(env: Env, guest: boolean): Promise<number> {

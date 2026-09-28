@@ -18,8 +18,15 @@ import user from "./routes/user";
 import chat from "./routes/chat";
 import conversations from "./routes/conversations";
 import admin from "./routes/admin";
+import { requireAdmin, requireUser } from "./auth/middleware";
+import { handleGetAttachment } from "./routes/attachments";
 import { handleSuggestions } from "./routes/suggestions";
-import { handleLearningInsights, handleUserContribution } from "./routes/learning";
+import { handleLearningInsights, handleUserContribution, handleAdminInsights } from "./routes/learning";
+import { handleFeedback, handleFeedbackStats } from "./routes/feedback";
+import { detectConflicts, resolveConflict, getConflictStats } from "./routes/conflicts";
+import { getLearningProgress, getLearningCycles, getSystemHealth } from "./routes/analytics";
+import { handleContribute, handleListContributions } from "./routes/contribute";
+import quiz from "./routes/quiz";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -34,7 +41,7 @@ app.use("*", async (c, next) => {
     credentials: true,
     allowHeaders: ["Content-Type", "Authorization", "X-Anonymous-ID"],
     allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    exposeHeaders: ["X-Conversation-Id"],
+    exposeHeaders: ["X-Conversation-Id", "X-Interaction-Id"],
   })(c, next);
 });
 
@@ -51,10 +58,52 @@ api.route("/user", user);
 api.route("/", chat);
 api.route("/", conversations);
 api.route("/admin", admin);
+
+// Admin-only gates for the raw (Request, Env) handlers below — these bypass
+// the sub-router middleware chains, so the gate must be applied explicitly.
+// NOTE: GET /contributions stays public — it powers the community review
+// queue in public/index.html (the "+1 vote" mechanism). It returns pending
+// content only, no user identifiers.
+const adminGatedPaths = [
+  "/learning/insights",
+  "/feedback/stats",
+  "/conflicts/detect",
+  "/conflicts/resolve",
+  "/conflicts/stats",
+  "/analytics/progress",
+  "/analytics/cycles",
+  "/analytics/health",
+  "/admin/insights",
+];
+for (const p of adminGatedPaths) {
+  api.use(p, requireAdmin);
+}
+
 // These handlers take a raw (Request, Env) pair — adapt from the Hono context.
 api.post("/suggestions", (c) => handleSuggestions(c.req.raw, c.env));
 api.get("/learning/insights", (c) => handleLearningInsights(c.req.raw, c.env));
 api.post("/learning/contribute", (c) => handleUserContribution(c.req.raw, c.env));
+api.post("/feedback", (c) => handleFeedback(c.req.raw, c.env));
+api.get("/feedback/stats", (c) => handleFeedbackStats(c.req.raw, c.env));
+api.post("/conflicts/detect", (c) => detectConflicts(c.req.raw, c.env));
+api.post("/conflicts/resolve", (c) => resolveConflict(c.req.raw, c.env));
+api.get("/conflicts/stats", (c) => getConflictStats(c.req.raw, c.env));
+api.get("/analytics/progress", (c) => getLearningProgress(c.req.raw, c.env));
+api.get("/analytics/cycles", (c) => getLearningCycles(c.req.raw, c.env));
+api.get("/analytics/health", (c) => getSystemHealth(c.req.raw, c.env));
+api.get("/admin/insights", (c) => handleAdminInsights(c.req.raw, c.env));
+api.post("/contribute", (c) => handleContribute(c.req.raw, c.env));
+api.get("/contributions", (c) => handleListContributions(c.req.raw, c.env));
+// Evidence bytes — signed-in reviewers only (guests are refused inside).
+api.get("/contributions/:id/attachments/:index", requireUser, (c) =>
+  handleGetAttachment(
+    c.req.raw,
+    c.env,
+    c.req.param("id"),
+    parseInt(c.req.param("index"), 10) || 0
+  )
+);
+api.route("/quiz", quiz);
 
 app.route("/api/v1", api);
 

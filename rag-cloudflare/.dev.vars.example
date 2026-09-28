@@ -5,4 +5,6 @@
 JWT_SECRET="change-me-to-a-long-random-secret"
 
 # OPTIONAL: password for the auto-provisioned super admin (paired with SUPER_ADMIN_EMAIL in wrangler.toml)
-SUPER_ADMIN_PASSWORD=""
+# Use a long random string. The previous example value was a real credential —
+# if production still uses it, rotate with: wrangler secret put SUPER_ADMIN_PASSWORD
+SUPER_ADMIN_PASSWORD="use-a-long-random-password-here"

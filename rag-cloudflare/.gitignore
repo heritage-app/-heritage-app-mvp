@@ -1,7 +1,21 @@
 node_modules/
 .dev.vars
+.env
+.wrangler-home/
+migration/
 .wrangler/
 dist/
 *.log
 worker-configuration.d.ts
 .DS_Store
+
+# Local scratch from manual API probing — tok.txt has held a live JWT.
+tok.txt
+cid.txt
+ctx*.txt
+tail-out.txt
+r[0-9].json
+rs[0-9].json
+vocab-dump.json
+doc-insert.sql
+.wrangler-dryrun/

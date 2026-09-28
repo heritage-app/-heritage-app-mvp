@@ -90,7 +90,14 @@ export async function generateTitle(
       { temperature: 0.7, maxTokens: 30, model }
     );
 
-    title = title.trim().replace(/^["']|["']$/g, "").trim();
+    // Strip markdown/quotes the model sometimes adds (e.g. **Bold**, "quoted", # heading).
+    title = title
+      .trim()
+      .replace(/^#+\s*/, "")
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/[*_`#]/g, "")
+      .replace(/^["'“”]|["'“”]$/g, "")
+      .trim();
     if (title) await updateTitle(env, conversationId, title);
     return title;
   } catch (e) {

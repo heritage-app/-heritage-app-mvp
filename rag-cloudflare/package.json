@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "cf-typegen": "wrangler types",
     "db:schema:local": "wrangler d1 execute heritage-db --local --file=./schema.sql",
-    "db:schema:remote": "wrangler d1 execute heritage-db --remote --file=./schema.sql"
+    "db:schema:remote": "wrangler d1 execute heritage-db --remote --file=./schema.sql",
+    "db:learning:local": "wrangler d1 execute heritage-db --local --file=./src/db/schema-learning.sql",
+    "db:learning:remote": "wrangler d1 execute heritage-db --remote --file=./src/db/schema-learning.sql"
   },
   "keywords": [
     "cloudflare",
@@ -28,6 +30,6 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241218.0",
     "typescript": "^5.7.2",
-    "wrangler": "^3.95.0"
+    "wrangler": "^4.107.0"
   }
 }

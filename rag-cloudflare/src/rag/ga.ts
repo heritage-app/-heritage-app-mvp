@@ -18,6 +18,25 @@ const UNIT_VALUES: Record<string, number> = Object.fromEntries(
   Object.entries(UNITS).map(([k, v]) => [v, Number(k)])
 );
 
+import { modernizeGa } from "./orthography";
+
+/**
+ * Fold Ga-specific characters to their ASCII look-alikes for tolerant comparison.
+ * Users on standard keyboards type n/e/o for ŋ/ɛ/ɔ (e.g. "Otukwajan" for "Otukwajaŋ"),
+ * so archive lookups must compare folded forms, never raw text. Legacy GBV96
+ * orthography (š, ſ, ṅ, underdotted vowels) is canonicalized first so both
+ * spellings fold to the same key.
+ */
+export function foldGa(text: string): string {
+  return modernizeGa(text)
+    .toLowerCase()
+    .replace(/ŋ/g, "n")
+    .replace(/ɛ/g, "e")
+    .replace(/ɔ/g, "o")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
+}
+
 /** Universal Ga Numerical Formula for 1-999. */
 export function numToGa(n: number): string {
   if (n <= 0) return String(n);
@@ -60,7 +79,7 @@ export function numToEn(n: number): string {
 /** Parse a Ga number string into an integer (supports 1-99). */
 export function gaToNum(gaText: string): number | null {
   if (!gaText) return null;
-  const t = gaText.toLowerCase().replace(/-/g, " ").trim();
+  const t = modernizeGa(gaText).toLowerCase().replace(/-/g, " ").trim();
 
   if (UNIT_VALUES[t]) return UNIT_VALUES[t];
   if (t === "nyɔŋma") return 10;
