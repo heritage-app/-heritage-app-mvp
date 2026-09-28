@@ -32,6 +32,13 @@ const ALLOWED: Record<string, string> = {
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   doc: "application/msword",
   xls: "application/vnd.ms-excel",
+  // Plain text: read and indexed directly on approval (see rag/extract.ts).
+  txt: "text/plain",
+  md: "text/markdown",
+  csv: "text/csv",
+  tsv: "text/tab-separated-values",
+  json: "application/json",
+  jsonl: "application/x-ndjson",
 };
 
 export interface Attachment {

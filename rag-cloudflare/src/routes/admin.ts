@@ -17,6 +17,7 @@ import { getAllUsers, countUsers, updateUserRole } from "../db/users";
 import { countSessions } from "../db/sessions";
 import { indexFromBytes, indexRefinedRecords, indexHeritageRecords, extractRawText } from "../rag/indexer";
 import { getRefinementPreview } from "../rag/refiner";
+import { extractContributedFile, isExtractable, extOf } from "../rag/extract";
 import { ocrImage, textToPairs, parsePairs, tryParseStructuredPairs } from "../rag/vision";
 import { embed } from "../rag/embeddings";
 import { foldGa } from "../db/vocabulary";
@@ -607,19 +608,103 @@ app.post("/contributions/:id/approve", async (c) => {
       ? c.json({ detail: "D1 daily write limit reached — approve can't complete right now. It resets at midnight UTC; upgrading to Workers Paid removes the cap." }, 503)
       : null;
 
-  // A `document` submission is a source awaiting transcription, not a word
-  // pair — it has no Ga answer. Approving it only marks the source accepted;
-  // writing it to vocabulary would create a headword from a filename.
+  // A `document` submission is a source, not a word pair — it has no Ga answer,
+  // so it must never reach the vocabulary insert below.
+  //
+  // On approval each attached file takes one of two lanes:
+  //   text-bearing (pdf with a text layer, docx, txt/md/csv/tsv/json/jsonl)
+  //     -> extracted and indexed into the archive, same pipeline as an upload
+  //   image, scan, or a container we can't read (.doc/.xls/.xlsx)
+  //     -> left in R2 for the reviewer to download and type in
+  // Indexing runs after the response so a slow PDF never blocks the approval.
   if (meta.type === "document") {
+    const attachments: Array<{ key: string; name: string; type: string; size: number }> =
+      Array.isArray(meta.attachments) ? meta.attachments : [];
+
+    const indexed: string[] = [];
+    const manual: Array<{ name: string; reason: string }> = [];
+    const queued: Array<{ name: string; text: string; docId: string; path: string }> = [];
+
+    for (const a of attachments) {
+      if (!isExtractable(a.name)) {
+        manual.push({ name: a.name, reason: `${extOf(a.name) || "file"} needs a person — download it and type the entries in` });
+        continue;
+      }
+      const obj = await c.env.DOCS_BUCKET.get(a.key);
+      if (!obj) {
+        manual.push({ name: a.name, reason: "file is no longer stored" });
+        continue;
+      }
+      const result = await extractContributedFile(await obj.arrayBuffer(), a.name);
+      if (result.kind !== "text") {
+        manual.push({ name: a.name, reason: result.reason || "needs a person" });
+        continue;
+      }
+      const docId = crypto.randomUUID();
+      const path = `contrib-indexed/${row.id}/${slugifyFilename(a.name)}`;
+      queued.push({ name: a.name, text: result.text, docId, path });
+      indexed.push(a.name);
+    }
+
     try {
       await statusUpdate.run();
     } catch (e) {
       return quotaResponse(e) ?? (() => { throw e; })();
     }
+
+    // Register + index the readable files in the background.
+    for (const q of queued) {
+      const docMeta = {
+        category: row.category === "bible" ? "bible" : "heritage",
+        filename: q.name,
+        file_path: q.path,
+        unique_path: q.path,
+        source_name: `contributed document — ${row.original_query}`.slice(0, 160),
+        contribution_id: row.id,
+        approved_by: adminId,
+        approved_at: now,
+      };
+      await createDocument(c.env, {
+        id: q.docId,
+        user_id: adminId,
+        original_filename: q.name,
+        unique_path: q.path,
+        public_url: q.path,
+        category: docMeta.category,
+        metadata: JSON.stringify(docMeta),
+        status: "indexing",
+        created_at: now,
+      });
+
+      c.executionCtx.waitUntil(
+        (async () => {
+          try {
+            const bytes = new TextEncoder().encode(q.text).buffer as ArrayBuffer;
+            const { category, ids } = await indexFromBytes(c.env, bytes, q.path, docMeta);
+            await updateDocument(c.env, q.docId, {
+              status: "indexed",
+              category,
+              metadata: JSON.stringify({ ...docMeta, vector_ids: ids }),
+            });
+          } catch (e) {
+            console.error(`Indexing contributed document ${q.docId} failed:`, e);
+            await updateDocument(c.env, q.docId, { status: "error" });
+          }
+        })()
+      );
+    }
+
+    const parts: string[] = [];
+    if (indexed.length) parts.push(`Indexing ${indexed.length} file${indexed.length > 1 ? "s" : ""}: ${indexed.join(", ")}.`);
+    if (manual.length) parts.push(`Needs you: ${manual.map((m) => `${m.name} (${m.reason})`).join("; ")}.`);
+    if (!parts.length) parts.push("Document accepted — no files were attached.");
+
     return c.json({
       status: "success",
-      message: "Document accepted. Transcribe it into entries to add them to the archive.",
-      corpus_written: false,
+      message: parts.join(" "),
+      indexed,
+      manual,
+      corpus_written: indexed.length > 0,
     });
   }
 

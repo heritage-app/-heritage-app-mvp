@@ -788,10 +788,10 @@
             <button class="drop" id="cfDrop" type="button">
               <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               <b>Add a photo or document</b>
-              <i>JPG · PNG · PDF · DOCX · XLSX — up to 10 MB each, 4 files</i>
+              <i>PDF · DOCX · TXT · CSV · JPG · PNG — up to 10 MB each, 4 files</i>
             </button>
             <input id="cfFiles" type="file" multiple class="hidden"
-                   accept=".jpg,.jpeg,.png,.webp,.heic,.pdf,.doc,.docx,.xls,.xlsx,image/*,application/pdf" />
+                   accept=".jpg,.jpeg,.png,.webp,.heic,.pdf,.doc,.docx,.xls,.xlsx,.txt,.md,.csv,.tsv,.json,.jsonl,image/*,application/pdf,text/plain" />
             <div id="cfFileList"></div>
           </div>
           <div class="f-row">
@@ -800,7 +800,7 @@
           <div class="f-row">
             <label class="f-lab">SOURCE / CONTEXT — OPTIONAL <input id="cfDocNote" type="text" placeholder="e.g. written in Jamestown, 1959" /></label>
           </div>
-          <div class="f-note">A person reads your file and types the entries out. Nothing in it is published or searchable until they do.</div>
+          <div class="f-note">A reviewer checks it first. Once approved, <b>PDF, DOCX and text files</b> are read and indexed automatically; <b>photos and scans</b> are typed in by hand. Nothing is searchable before approval.</div>
           <div class="f-note hidden" id="cfDocSignin">Sign in to upload a document — file submissions are tied to an account.</div>
         </div>
 
@@ -2732,7 +2732,7 @@ $("contribForm").addEventListener("submit", async (e) => {
    below mirror src/routes/attachments.ts; the server re-checks all of them. */
 const CF_MAX_FILES = 4;
 const CF_MAX_BYTES = 10 * 1024 * 1024;
-const CF_EXT = ["jpg","jpeg","png","webp","heic","pdf","doc","docx","xls","xlsx"];
+const CF_EXT = ["jpg","jpeg","png","webp","heic","pdf","doc","docx","xls","xlsx","txt","md","csv","tsv","json","jsonl"];
 let cfFiles = [];
 
 function humanBytes(n) {
