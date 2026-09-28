@@ -504,6 +504,32 @@
   .quiz .q-chips { display:flex; flex-wrap:wrap; gap:5px; }
   .quiz .q-chip { border:1px solid var(--line-2); padding:6px 9px; font:500 12px var(--sans); }
 
+  /* --- Flagged turn: ask for the right answer instead of searching the complaint --- */
+  .flag { border:1px solid var(--line-2); background:var(--paper); margin:6px 0 12px; max-width:520px; }
+  .flag .fl-head { display:flex; align-items:center; gap:7px; padding:9px 12px; border-bottom:1px solid var(--line);
+    font:700 9px var(--mono); letter-spacing:.12em; color:var(--gold); }
+  .flag .fl-body { padding:12px; display:flex; flex-direction:column; gap:10px; }
+  .flag .fl-q { font:500 13.5px/1.5 var(--sans); }
+  .flag .fl-row { display:flex; gap:8px; }
+  .flag .fl-btn { flex:1; min-height:46px; border:0; background:var(--ink); color:var(--bg);
+    font:700 11px var(--mono); letter-spacing:.06em; cursor:pointer; }
+  .flag .fl-btn.ghost { flex:none; padding:0 18px; background:transparent; color:var(--muted);
+    border:1px solid var(--line-2); }
+  .flag .fl-btn.ghost:hover { border-color:var(--ink); color:var(--ink); }
+  .flag .fl-btn:disabled { background:var(--paper-3); color:var(--faint); cursor:not-allowed; }
+  .flag label { display:block; font:700 9px var(--mono); letter-spacing:.12em; color:var(--faint); }
+  .flag input { display:block; width:100%; box-sizing:border-box; margin-top:5px; min-height:46px;
+    padding:0 10px; border:1px solid var(--line-2); background:var(--paper-2); color:var(--ink);
+    font:600 15px var(--sans); }
+  .flag input.en { font-weight:400; font-size:13px; color:var(--ink-2); }
+  .flag input:focus { border-color:var(--ink); outline:0; }
+  .flag .fl-hint { font:400 10.5px/1.45 var(--sans); color:var(--faint); }
+  .flag .fl-done { border-color:var(--ok); }
+  .flag .fl-tag { font:700 9px var(--mono); letter-spacing:.12em; padding:3px 6px;
+    background:var(--ok); color:var(--bg); }
+  .flag .fl-gap { display:flex; flex-direction:column; gap:5px; padding:10px 11px;
+    background:var(--paper-2); border-left:2px solid var(--line-2); }
+
   /* Contribute: two separate submissions, not one form with an optional file */
   .cf-tabs { display:flex; gap:0; margin:0 0 2px; border-bottom:1px solid var(--line); }
   .cf-tab { flex:1; border:0; border-bottom:2px solid transparent; background:transparent; color:var(--muted);
@@ -1255,7 +1281,7 @@ async function streamInto(bubble, query) {
   const wasNew = !conversationId;
   const path = conversationId ? `/chat/${conversationId}` : "/chat/new";
 
-  let acc = "", shown = 0, done = false, started = false, lastInteractionId = null;
+  let acc = "", shown = 0, done = false, started = false, lastInteractionId = null, lastFlag = null;
   const META_RE = /\n__META__:({.*?})\s*$/;
   const finish = (error) => {
     if (error) {
@@ -1265,13 +1291,19 @@ async function streamInto(bubble, query) {
       let display = acc || "(no response)";
       const metaMatch = META_RE.exec(display);
       if (metaMatch) {
-        try { const m = JSON.parse(metaMatch[1]); lastInteractionId = m.interactionId; } catch {}
+        try {
+          const m = JSON.parse(metaMatch[1]);
+          lastInteractionId = m.interactionId;
+          lastFlag = m.flag || null;
+        } catch {}
         display = display.replace(META_RE, "").trim();
       }
       lastAssistantText = display;
       render(bubble, display);
     }
     attachActions(bubble, query, lastInteractionId);
+    // A flagged turn gets the contribution card under the answer.
+    if (!error && lastFlag) renderFlagCard(bubble, lastFlag);
     if (me && !error) setTimeout(loadConversations, wasNew ? 1200 : 300);
     busy = false; $("sendBtn").disabled = false; cancelBtn.classList.remove("show");
     streamAbort = null;
@@ -2622,6 +2654,139 @@ function renderSummary() {
   round = null;
   scrollDown();
 }
+/* ---- Flagged turn: ask for the right answer, right there ----
+   Raised by the server via the __META__ trailer when it either got the answer
+   wrong (the user said so) or had nothing. Yes/No are BUTTONS, never typed
+   words — a typed "no" would go through the query pipeline, which is the very
+   bug this replaces. */
+function renderFlagCard(bubble, flag) {
+  const card = document.createElement("div");
+  card.className = "flag";
+  const askedFor = (flag.english || "").trim();
+
+  card.innerHTML =
+    '<div class="fl-head">' +
+    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
+    `<span>${flag.kind === "wrong" ? "HELP ME FIX IT" : "NOT IN THE ARCHIVE"}</span></div>` +
+    '<div class="fl-body"></div>';
+  const body = card.querySelector(".fl-body");
+
+  /* Step 1 — the ask. */
+  function askStep() {
+    body.innerHTML = `<div class="fl-q">${
+      flag.kind === "wrong"
+        ? "Do you know what it should say?"
+        : askedFor
+          ? `Do you know the Ga for “${escapeHtml(askedFor)}”?`
+          : "Do you know it?"
+    }</div>`;
+    const row = document.createElement("div");
+    row.className = "fl-row";
+    const yes = document.createElement("button");
+    yes.className = "fl-btn"; yes.type = "button"; yes.textContent = "YES, I'LL ADD IT";
+    yes.onclick = formStep;
+    const no = document.createElement("button");
+    no.className = "fl-btn ghost"; no.type = "button"; no.textContent = "NO";
+    no.onclick = declineStep;
+    row.append(yes, no);
+    body.appendChild(row);
+    scrollDown();
+  }
+
+  /* Step 2 — the pair. English is prefilled from what they actually asked. */
+  function formStep() {
+    body.innerHTML =
+      '<div><label for="flEn">ENGLISH</label>' +
+      `<input class="en" id="flEn" type="text" value="${escapeHtml(askedFor).replace(/"/g, "&quot;")}" /></div>` +
+      '<div><label for="flGa">GA</label>' +
+      '<input class="ga-key" id="flGa" type="text" placeholder="Miiye niŋ" /></div>' +
+      '<div class="fl-hint">Ga keys work here: 3→ɛ · )→ɔ · n~→ŋ</div>';
+
+    const row = document.createElement("div");
+    row.className = "fl-row";
+    const send = document.createElement("button");
+    send.className = "fl-btn"; send.type = "button"; send.textContent = "SEND IT"; send.disabled = true;
+    const skip = document.createElement("button");
+    skip.className = "fl-btn ghost"; skip.type = "button"; skip.textContent = "NOT NOW";
+    skip.onclick = declineStep;
+    row.append(send, skip);
+    body.appendChild(row);
+
+    const ga = body.querySelector("#flGa"), en = body.querySelector("#flEn");
+    const sync = () => { send.disabled = !(ga.value.trim() && en.value.trim()); };
+    ga.addEventListener("input", sync);
+    en.addEventListener("input", sync);
+    ga.focus();
+
+    send.onclick = async () => {
+      send.disabled = true; send.textContent = "SENDING…";
+      const ok = await submitFlagPair(en.value.trim(), ga.value.trim());
+      if (ok) doneStep(en.value.trim(), ga.value.trim());
+      else { send.disabled = false; send.textContent = "SEND IT"; }
+    };
+    scrollDown();
+  }
+
+  /* Step 3a — staged. */
+  function doneStep(english, gaText) {
+    card.classList.add("fl-done");
+    body.innerHTML =
+      '<div style="display:flex;align-items:center;gap:8px">' +
+      '<span class="fl-tag">STAGED</span><span class="fl-hint">Oyiwaladɔŋ — thank you.</span></div>' +
+      `<div style="font:500 14px var(--sans)"><b>${escapeHtml(english)}</b> → <b>${escapeHtml(gaText)}</b></div>` +
+      '<div class="fl-hint">One more speaker confirms it and it becomes searchable for everyone.</div>';
+    refreshReviewCount();
+    scrollDown();
+  }
+
+  /* Step 3b — declined. The flag is already recorded server-side, so we only
+     say what is actually true: it is on the list, and it is counted. */
+  function declineStep() {
+    body.innerHTML =
+      '<div class="fl-q">No problem at all. I\'ve added it to the list the keepers work through.</div>' +
+      (askedFor
+        ? '<div class="fl-gap"><div style="font:700 9px var(--mono);letter-spacing:.12em;color:var(--faint)">ON THE LIST</div>' +
+          `<div style="font:600 13px var(--sans)">“${escapeHtml(askedFor)}”</div></div>`
+        : "");
+    scrollDown();
+  }
+
+  askStep();
+  bubble.appendChild(card);
+  scrollDown();
+}
+
+/** Post a flagged correction as a normal contribution. */
+async function submitFlagPair(english, ga) {
+  const body = { type: "correction", english, ga, notes: "flagged in chat" };
+  if (!me) {
+    // Guests still contribute — they just identify themselves, exactly as the
+    // contribute form requires. Reuse those fields if they filled them before.
+    const name = ($("cfName") && $("cfName").value.trim()) || "";
+    const email = ($("cfEmail") && $("cfEmail").value.trim()) || "";
+    const loc = ($("cfLoc") && $("cfLoc").value.trim()) || "";
+    if (!name || !email || !loc) {
+      toast("Add your name, email and location in Contribute so we can credit you");
+      $("cfEnglish").value = english; $("cfGa").value = ga;
+      $("cfGuestRow").classList.remove("hidden");
+      setCfTab("text");
+      openOverlay("contribOvl");
+      return false;
+    }
+    body.contributor_name = name;
+    body.contributor_email = email;
+    body.contributor_location = loc;
+  }
+  try {
+    const r = await fetch(`${API}/contribute`, {
+      method: "POST", headers: headers(), credentials: "include", body: JSON.stringify(body),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { toast(d.error || "Couldn't send that — try again"); return false; }
+    return true;
+  } catch { toast("Couldn't send that — try again"); return false; }
+}
+
 /* ---- Contribute overlay ---- */
 $("contributeBtn").onclick = () => {
   closeDrawer();

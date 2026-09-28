@@ -17,6 +17,15 @@ import {
   handleUserContribution 
 } from "./learning-from-gaps";
 import { listChapters, listVerses } from "./discovery";
+import {
+  isDissatisfaction,
+  isBareNegative,
+  isNotFoundResponse,
+  previousUserQuery,
+  previousAssistantAnswer,
+  recordNotHelpful,
+  type TurnFlag,
+} from "./flagging";
 import { getVerse, listBooks, getRandomVerse } from "../db/bibleVerses";
 import { chat, streamChat } from "./llm";
 import {
@@ -839,6 +848,43 @@ export async function* ask(
     return;
   }
 
+  // --- Flagged turn: the user is telling us the last answer was wrong ---
+  // This runs AFTER detectAndHandleCorrection, which handles the better case
+  // where they also supplied the right answer. Here they have not, so the turn
+  // is never searched and never logged as a knowledge gap — doing either is
+  // what turned "its close but not the exact" into a phonetics footnote and
+  // filled knowledge_gaps with complaints.
+  if (isDissatisfaction(query, memoryWindow)) {
+    const askedAbout = previousUserQuery(memoryWindow);
+    const wasNotFound = isNotFoundResponse(previousAssistantAnswer(memoryWindow));
+
+    // A bare "no" right after we asked for help means "I don't know it
+    // either", not "you are wrong". Let them go, and keep the gap logged.
+    if (wasNotFound && isBareNegative(query)) {
+      const bow = "No problem at all. I've added it to the list the keepers work through — thank you for asking.";
+      yield bow;
+      if (!ephemeral) {
+        for await (const t of persistTurn(env, conversationId, query, bow, userId)) yield t;
+      }
+      return;
+    }
+
+    if (!ephemeral) {
+      await recordNotHelpful(env, conversationId, userId, query);
+    }
+
+    const reply = askedAbout
+      ? `Sorry about that — I got it wrong. Do you know the right Ga for “${askedAbout}”?`
+      : "Sorry about that — I got it wrong. Do you know what it should say?";
+    yield reply;
+
+    if (!ephemeral) {
+      const flag: TurnFlag = { kind: "wrong", english: askedAbout };
+      for await (const t of persistTurn(env, conversationId, query, reply, userId, flag)) yield t;
+    }
+    return;
+  }
+
   let targetMode = mode;
   if (targetMode === "auto") {
     const isBible =
@@ -868,8 +914,15 @@ export async function* ask(
   // Persistence is best-effort — a saveInteraction/updateActivity failure
   // (e.g. D1 daily write quota) must never corrupt an already-good answer.
   // Guests skip persistence entirely (ephemeral conversations).
+  // The archive had nothing: offer the contribution card instead of leaving
+  // the invitation as prose the user can't act on. The gap itself is already
+  // logged by the engine — this only adds the affordance.
+  const notFoundFlag: TurnFlag | undefined = isNotFoundResponse(full)
+    ? { kind: "not_found", english: query.trim() }
+    : undefined;
+
   if (!ephemeral) {
-    for await (const t of persistTurn(env, conversationId, query, full, userId)) yield t;
+    for await (const t of persistTurn(env, conversationId, query, full, userId, notFoundFlag)) yield t;
   }
 }
 
@@ -879,11 +932,16 @@ async function* persistTurn(
   conversationId: string,
   query: string,
   answer: string,
-  userId: string
+  userId: string,
+  flag?: TurnFlag
 ): AsyncGenerator<string> {
   try {
     const row = await saveInteraction(env, conversationId, query, answer, userId);
-    yield `\n__META__:${JSON.stringify({ interactionId: row.id })}\n`;
+    // A flag rides along in the same marker the client already parses, so the
+    // contribution card can be rendered against this exact interaction.
+    const meta: { interactionId: string; flag?: TurnFlag } = { interactionId: row.id };
+    if (flag) meta.flag = { ...flag, interaction_id: row.id };
+    yield `\n__META__:${JSON.stringify(meta)}\n`;
   } catch (e) {
     console.error("saveInteraction failed:", e);
   }

@@ -68,14 +68,22 @@ async function collectResponse(c: any, params: AskParams) {
   // response text. Surface the interaction id as a proper JSON field so
   // non-streaming clients can still attach feedback to it.
   let interactionId: string | undefined;
+  let flag: unknown;
   const metaMatch = response.match(/\n__META__:(\{[^\n]*\})\n?/);
   if (metaMatch) {
-    try { interactionId = JSON.parse(metaMatch[1]).interactionId; } catch {}
+    try {
+      const meta = JSON.parse(metaMatch[1]);
+      interactionId = meta.interactionId;
+      // The turn was flagged (wrong answer, or nothing in the archive) — the
+      // client renders the contribution card from this.
+      flag = meta.flag;
+    } catch {}
     response = response.replace(/\n__META__:\{[^\n]*\}\n?/g, "");
   }
   return c.json({
     conversation_id: params.conversationId,
     interaction_id: interactionId,
+    flag,
     response,
     query: params.query,
     timestamp: nowIso(),
