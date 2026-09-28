@@ -869,6 +869,9 @@ let conversationId = null, me = null, mode = "auto", busy = false, lastPrompt = 
 // Guests persist nothing server-side, so keep the last assistant reply in
 // memory and resend it — that's all the context "continue"/"another" needs.
 let lastAssistantText = "";
+// The question that produced lastAssistantText. Guests persist no history, so
+// both are resent — a "that's wrong" needs to know what it is wrong ABOUT.
+let lastAssistantQuery = "";
 let streamAbort = null; // AbortController for chat streams
 let anonId = localStorage.getItem("anonId");
 if (!anonId) { anonId = "demo-" + Math.random().toString(36).slice(2, 10); localStorage.setItem("anonId", anonId); }
@@ -1299,6 +1302,7 @@ async function streamInto(bubble, query) {
         display = display.replace(META_RE, "").trim();
       }
       lastAssistantText = display;
+      lastAssistantQuery = query;
       render(bubble, display);
     }
     attachActions(bubble, query, lastInteractionId);
@@ -1327,7 +1331,9 @@ async function streamInto(bubble, query) {
   try {
     const res = await fetch(`${API}${path}?stream=true`, {
       method: "POST", headers: headers(), credentials: "include",
-      body: JSON.stringify({ query, mode, context: me ? undefined : lastAssistantText }),
+      body: JSON.stringify({ query, mode,
+        context: me ? undefined : lastAssistantText,
+        prev_query: me ? undefined : lastAssistantQuery }),
       signal: ctrl.signal
     });
     if (!res.ok) {
@@ -2659,7 +2665,11 @@ function renderSummary() {
    wrong (the user said so) or had nothing. Yes/No are BUTTONS, never typed
    words — a typed "no" would go through the query pipeline, which is the very
    bug this replaces. */
+let flagSeq = 0;
 function renderFlagCard(bubble, flag) {
+  // Several flagged answers can sit in one conversation — each card needs its
+  // own ids, or a label in the second card focuses an input in the first.
+  const uid = ++flagSeq;
   const card = document.createElement("div");
   card.className = "flag";
   const askedFor = (flag.english || "").trim();
@@ -2696,11 +2706,23 @@ function renderFlagCard(bubble, flag) {
   /* Step 2 — the pair. English is prefilled from what they actually asked. */
   function formStep() {
     body.innerHTML =
-      '<div><label for="flEn">ENGLISH</label>' +
-      `<input class="en" id="flEn" type="text" value="${escapeHtml(askedFor).replace(/"/g, "&quot;")}" /></div>` +
-      '<div><label for="flGa">GA</label>' +
-      '<input class="ga-key" id="flGa" type="text" placeholder="Miiye niŋ" /></div>' +
-      '<div class="fl-hint">Ga keys work here: 3→ɛ · )→ɔ · n~→ŋ</div>';
+      `<div><label for="flEn-${uid}">ENGLISH</label>` +
+      `<input class="en" id="flEn-${uid}" type="text" value="${escapeHtml(askedFor).replace(/"/g, "&quot;")}" /></div>` +
+      `<div><label for="flGa-${uid}">GA</label>` +
+      `<input class="ga-key" id="flGa-${uid}" type="text" placeholder="Miiye niŋ" /></div>` +
+      '<div class="fl-hint">Ga keys work here: 3→ɛ · )→ɔ · n~→ŋ</div>' +
+      // Guests identify themselves — the server requires all three for a guest
+      // contribution. Prefilled if they already typed them in Contribute.
+      (me ? "" :
+        '<div class="fl-gap" style="gap:9px">' +
+        '<div style="font:700 9px var(--mono);letter-spacing:.12em;color:var(--faint)">SO WE CAN CREDIT YOU</div>' +
+        `<div class="fl-row"><div style="flex:1;min-width:0"><label for="flName-${uid}">NAME</label>` +
+        `<input class="en" id="flName-${uid}" type="text" placeholder="Ama Serwaa" value="${escapeHtml($("cfName").value).replace(/"/g, "&quot;")}" /></div>` +
+        `<div style="flex:1;min-width:0"><label for="flLoc-${uid}">LOCATION</label>` +
+        `<input class="en" id="flLoc-${uid}" type="text" placeholder="Accra" value="${escapeHtml($("cfLoc").value).replace(/"/g, "&quot;")}" /></div></div>` +
+        `<div><label for="flMail-${uid}">EMAIL</label>` +
+        `<input class="en" id="flMail-${uid}" type="email" placeholder="you@example.com" value="${escapeHtml($("cfEmail").value).replace(/"/g, "&quot;")}" /></div>` +
+        '<div class="fl-hint">Or sign in and we\'ll credit the account instead.</div></div>');
 
     const row = document.createElement("div");
     row.className = "fl-row";
@@ -2712,15 +2734,28 @@ function renderFlagCard(bubble, flag) {
     row.append(send, skip);
     body.appendChild(row);
 
-    const ga = body.querySelector("#flGa"), en = body.querySelector("#flEn");
-    const sync = () => { send.disabled = !(ga.value.trim() && en.value.trim()); };
-    ga.addEventListener("input", sync);
-    en.addEventListener("input", sync);
+    const ga = body.querySelector(`#flGa-${uid}`), en = body.querySelector(`#flEn-${uid}`);
+    const who = me ? null : {
+      name: body.querySelector(`#flName-${uid}`),
+      loc: body.querySelector(`#flLoc-${uid}`),
+      mail: body.querySelector(`#flMail-${uid}`),
+    };
+    const whoOk = () => !who || (who.name.value.trim() && who.loc.value.trim() && who.mail.value.trim());
+    const sync = () => {
+      const pair = ga.value.trim() && en.value.trim();
+      send.disabled = !(pair && whoOk());
+      send.textContent = !pair ? "SEND IT" : !whoOk() ? "ADD YOUR DETAILS" : "SEND IT";
+    };
+    body.querySelectorAll("input").forEach((i) => i.addEventListener("input", sync));
+    sync();
     ga.focus();
 
     send.onclick = async () => {
       send.disabled = true; send.textContent = "SENDING…";
-      const ok = await submitFlagPair(en.value.trim(), ga.value.trim());
+      const ident = who && {
+        name: who.name.value.trim(), location: who.loc.value.trim(), email: who.mail.value.trim(),
+      };
+      const ok = await submitFlagPair(en.value.trim(), ga.value.trim(), ident);
       if (ok) doneStep(en.value.trim(), ga.value.trim());
       else { send.disabled = false; send.textContent = "SEND IT"; }
     };
@@ -2756,26 +2791,19 @@ function renderFlagCard(bubble, flag) {
   scrollDown();
 }
 
-/** Post a flagged correction as a normal contribution. */
-async function submitFlagPair(english, ga) {
+/** Post a flagged correction as a normal contribution. `ident` is a guest's. */
+async function submitFlagPair(english, ga, ident) {
   const body = { type: "correction", english, ga, notes: "flagged in chat" };
   if (!me) {
-    // Guests still contribute — they just identify themselves, exactly as the
-    // contribute form requires. Reuse those fields if they filled them before.
-    const name = ($("cfName") && $("cfName").value.trim()) || "";
-    const email = ($("cfEmail") && $("cfEmail").value.trim()) || "";
-    const loc = ($("cfLoc") && $("cfLoc").value.trim()) || "";
-    if (!name || !email || !loc) {
-      toast("Add your name, email and location in Contribute so we can credit you");
-      $("cfEnglish").value = english; $("cfGa").value = ga;
-      $("cfGuestRow").classList.remove("hidden");
-      setCfTab("text");
-      openOverlay("contribOvl");
+    if (!ident || !ident.name || !ident.email || !ident.location) {
+      toast("Add your name, email and location so we can credit you");
       return false;
     }
-    body.contributor_name = name;
-    body.contributor_email = email;
-    body.contributor_location = loc;
+    body.contributor_name = ident.name;
+    body.contributor_email = ident.email;
+    body.contributor_location = ident.location;
+    // Remember them for the Contribute form, so they only type it once.
+    $("cfName").value = ident.name; $("cfEmail").value = ident.email; $("cfLoc").value = ident.location;
   }
   try {
     const r = await fetch(`${API}/contribute`, {

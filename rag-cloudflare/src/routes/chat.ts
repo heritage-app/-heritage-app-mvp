@@ -19,6 +19,9 @@ interface AskBody {
   // Guests persist no history; the client resends the last assistant message
   // so follow-ups like "continue" / "another story" stay stateless but aware.
   context?: string;
+  // ...and the question that produced it, so a guest's "that's wrong" knows
+  // what it is wrong about.
+  prev_query?: string;
 }
 
 function clampTopK(raw: string | undefined): number {
@@ -113,6 +116,7 @@ app.post("/chat/new", optionalUser, async (c) => {
     model: body.model,
     mode: body.mode ?? "auto",
     context: body.context,
+    prevQuery: body.prev_query,
   };
   return stream ? streamResponse(c, params) : collectResponse(c, params);
 });
@@ -141,6 +145,7 @@ app.post("/chat/:conversation_id", optionalUser, async (c) => {
     model: body.model,
     mode: body.mode ?? "auto",
     context: body.context,
+    prevQuery: body.prev_query,
   };
   return stream ? streamResponse(c, params) : collectResponse(c, params);
 });

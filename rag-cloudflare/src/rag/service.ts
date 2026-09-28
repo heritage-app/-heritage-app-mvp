@@ -54,6 +54,8 @@ export interface AskParams {
   // persisted, so the browser resends the last assistant message to keep
   // "continue / another story" follow-ups working statelessly.
   context?: string;
+  /** The guest's previous question, paired with `context`. */
+  prevQuery?: string;
 }
 
 /** Stream a grounded answer through the Nii Obodai persona. */
@@ -834,6 +836,11 @@ export async function* ask(
     params.context &&
     !memoryWindow.some((m) => m.role === "assistant")
   ) {
+    // The question first, then its answer — flagging reads the question to
+    // know what a guest's "that's wrong" is about.
+    if (params.prevQuery?.trim()) {
+      memoryWindow.push({ role: "user", content: params.prevQuery.trim().slice(0, 500) });
+    }
     memoryWindow.push({ role: "assistant", content: params.context });
   }
 
@@ -878,9 +885,12 @@ export async function* ask(
       : "Sorry about that — I got it wrong. Do you know what it should say?";
     yield reply;
 
+    const flag: TurnFlag = { kind: "wrong", english: askedAbout };
     if (!ephemeral) {
-      const flag: TurnFlag = { kind: "wrong", english: askedAbout };
       for await (const t of persistTurn(env, conversationId, query, reply, userId, flag)) yield t;
+    } else {
+      // Guests persist nothing, but the card is theirs too.
+      yield flagOnlyMeta(flag);
     }
     return;
   }
@@ -923,7 +933,18 @@ export async function* ask(
 
   if (!ephemeral) {
     for await (const t of persistTurn(env, conversationId, query, full, userId, notFoundFlag)) yield t;
+  } else if (notFoundFlag) {
+    yield flagOnlyMeta(notFoundFlag);
   }
+}
+
+/**
+ * The __META__ trailer for a turn that is not persisted (guests). Carries the
+ * flag so the client can still render the contribution card; there is no
+ * interaction id because nothing was saved.
+ */
+function flagOnlyMeta(flag: TurnFlag): string {
+  return `\n__META__:${JSON.stringify({ flag })}\n`;
 }
 
 /** Save a turn + emit the __META__ trailer; swallows its own errors. */
