@@ -177,10 +177,12 @@ export function askedAboutFromAsk(prevAssistant: string): string {
  * framing is removed; if that leaves nothing, the original stands.
  */
 export function cleanEnglish(question: string): string {
-  const out = question
-    .trim()
-    .replace(/[?!.]+$/, "")
-    .replace(/^(please\s+)?(how\s+(do\s+(you|i|we)\s+|to\s+|can\s+i\s+)?(say|write|spell)|what\s+is|what'?s|translate|the\s+ga\s+(word\s+)?for)\s+/i, "")
+  let out = question.trim().replace(/[?!.]+$/, "");
+  // Framing can stack — "what is | the ga word for | quantum physics" — so
+  // strip until nothing more comes off (bounded; each pass removes a prefix).
+  const FRAME = /^(please\s+)?(how\s+(do\s+(you|i|we)\s+|to\s+|can\s+i\s+)?(say|write|spell)|what\s+(is|do\s+you\s+call)|what'?s|translate|(the\s+)?ga\s+(word\s+)?for)\s+/i;
+  for (let i = 0; i < 3 && FRAME.test(out); i++) out = out.replace(FRAME, "");
+  out = out
     .replace(/\s+(in|into)\s+ga(\s+language)?$/i, "")
     .replace(/^["“']|["”']$/g, "")
     .trim();

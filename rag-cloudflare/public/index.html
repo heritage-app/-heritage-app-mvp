@@ -210,6 +210,11 @@
   .act svg { width:13px; height:13px; }
   .act.done { color:var(--gold); border-color:var(--gold-line); }
   .act.feedback { margin-left:auto; }
+  .trace { margin:6px 0 0; font:500 11px var(--mono); color:var(--muted); letter-spacing:.03em; }
+  .trace summary { cursor:pointer; list-style:none; padding:4px 0; min-height:24px; }
+  .trace summary::before { content:"▸ "; }
+  .trace[open] summary::before { content:"▾ "; }
+  .trace div { padding:2px 0 2px 14px; }
   .act.feedback.upvoted { color:var(--bg); border-color:var(--ink); background:var(--ink); }
   .act.feedback.downvoted { color:var(--faint); border-color:var(--line-2); background:transparent; text-decoration:line-through; }
   /* Correction form shown after thumbs-down */
@@ -218,12 +223,24 @@
   .correction-form.show { display:block; }
   .correction-form label { display:block; font:600 11px var(--mono); letter-spacing:.12em;
     text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
-  .correction-form .cf-row { display:flex; gap:8px; align-items:center; }
-  .correction-form input { flex:1; border:1px solid var(--line-2); border-radius:8px; padding:7px 10px;
+  .correction-form .cf-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .correction-form input, .correction-form .ga-wrap { flex:1 1 150px; min-width:0; }
+  .correction-form input { border:1px solid var(--line-2); border-radius:8px; padding:7px 10px; min-height:40px;
     background:var(--paper); color:var(--ink); font:14px var(--sans); outline:0; transition:.12s; }
   .correction-form input:focus { border-color:var(--gold-line); box-shadow:0 0 0 2px var(--gold-soft); }
-  .correction-form .cf-send { border:0; border-radius:8px; padding:7px 14px; background:var(--gold);
+  .correction-form .cf-send { flex:0 0 auto; border:0; border-radius:8px; padding:0 16px; min-height:40px; background:var(--gold);
     color:var(--paper); font:600 12px var(--sans); cursor:pointer; transition:.12s; white-space:nowrap; }
+  @media (max-width:520px) {
+    .correction-form .cf-row { flex-direction:column; align-items:stretch; }
+    .correction-form input, .correction-form .ga-wrap { flex:none; width:100%; }
+    .correction-form input { font-size:16px; min-height:44px; } /* 16px stops iOS zoom */
+    .correction-form .cf-send { width:100%; min-height:44px; }
+  }
+  /* Inline ghost completion (attachGaInput): the mirror sits behind the input,
+     .m-text/.m-ghost are one inline flow so the faint suffix lands exactly
+     after the typed text. */
+  .ga-mirror .m-text { white-space:inherit; }
+  .ga-mirror .m-ghost { white-space:inherit; }
   .correction-form .cf-send:hover { opacity:.85; }
   .correction-form .cf-send:disabled { opacity:.4; cursor:not-allowed; }
   .correction-form .cf-hint { font:500 11px var(--sans); color:var(--faint); margin-top:6px; }
@@ -263,14 +280,7 @@
   .ta-mirror { position:absolute; inset:0; padding:var(--ta-pad); font:inherit;
     color:transparent; white-space:pre-wrap; word-wrap:break-word; overflow:hidden; pointer-events:none; }
   .ta-mirror #ghostSuffix { color:var(--faint); }
-  .bar-row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
-  #modeSelect { border:1px solid var(--line); background:var(--paper-3); color:var(--ink-2);
-    font:600 12px var(--sans); padding:5px 22px 5px 10px; border-radius:9px;
-    -webkit-appearance:none; appearance:none;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23ffffff88' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat:no-repeat; background-position:right 6px center; background-size:10px;
-    cursor:pointer; outline:0; min-height:32px; }
-  #modeSelect:focus { border-color:var(--gold-line); }
+  .bar-row { display:flex; align-items:center; justify-content:flex-end; gap:10px; }
   .send { width:40px; height:40px; flex:none; border:0; border-radius:50%; background:var(--gold); color:var(--paper);
     cursor:pointer; display:grid; place-items:center; transition:.15s; }
   .send:hover:not(:disabled) { transform:scale(1.06); }
@@ -375,9 +385,6 @@
     .ta-wrap { flex:1; min-width:0; font-size:16px; --ta-pad:6px 2px; } /* 16px stops iOS zoom; mirror follows */
     .inputbar textarea { max-height:120px; }
     .inputbar .bar-row { flex:none; align-items:center; gap:6px; }
-    /* match heights so select and send sit on the same visual line */
-    #modeSelect { font-size:11px; padding:0 20px 0 9px; height:44px; min-height:44px;
-      background-position:right 5px center; background-size:8px; }
     .send { width:44px; height:44px; }
     /* Keep the hint on mobile — it's the only place the accept gesture is
        documented, and Tab doesn't exist here. */
@@ -697,8 +704,8 @@
             <div class="sg">
               <div class="sg-h">Start here</div>
               <div class="sg-c feat">
-                <button data-q="how do you say good morning in Ga" data-m="general"><b>Say a phrase</b><i>good morning → ojekoo</i></button>
-                <button data-q="Genesis 1:1" data-m="bible"><b>Read a verse</b><i>the Bible in Ga</i></button>
+                <button data-q="how do you say good morning in Ga"><b>Say a phrase</b><i>good morning → ojekoo</i></button>
+                <button data-q="Genesis 1:1"><b>Read a verse</b><i>the Bible in Ga</i></button>
                 <button data-action="quiz"><b>Quiz me</b><i>test your Ga</i></button>
                 <button data-action="contribute"><b>Teach me</b><i>add a word or story</i></button>
               </div>
@@ -706,23 +713,23 @@
             <div class="sg">
               <div class="sg-h">Common phrases</div>
               <div class="sg-c">
-                <button data-q="how do you say thank you in Ga" data-m="general">“Thank you” in Ga</button>
-                <button data-q="count from 1 to 10" data-m="general">Count 1–10 in Ga</button>
-                <button data-q="21 in Ga" data-m="general">21 in Ga</button>
+                <button data-q="how do you say thank you in Ga">“Thank you” in Ga</button>
+                <button data-q="count from 1 to 10">Count 1–10 in Ga</button>
+                <button data-q="21 in Ga">21 in Ga</button>
               </div>
             </div>
             <div class="sg">
               <div class="sg-h">Bible</div>
               <div class="sg-c">
-                <button data-q="Exodus 20:3" data-m="bible">Exodus 20:3</button>
-                <button data-q="quote a bible verse in ga" data-m="bible">Quote a verse</button>
+                <button data-q="Exodus 20:3">Exodus 20:3</button>
+                <button data-q="quote a bible verse in ga">Quote a verse</button>
               </div>
             </div>
             <div class="sg">
               <div class="sg-h">Learn &amp; play</div>
               <div class="sg-c">
-                <button data-q="tell me a ga story" data-m="general">Tell a story</button>
-                <button data-q="tell me a poem in ga" data-m="general">Recite a poem</button>
+                <button data-q="tell me a ga story">Tell a story</button>
+                <button data-q="tell me a poem in ga">Recite a poem</button>
                 <button data-action="puzzle">Unscramble</button>
               </div>
             </div>
@@ -743,11 +750,6 @@
             <textarea id="input" rows="1" placeholder="Type a message…" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
           </div>
           <div class="bar-row">
-            <select id="modeSelect" aria-label="Mode">
-              <option value="auto" selected>Auto</option>
-              <option value="bible">Bible</option>
-              <option value="general">General</option>
-            </select>
             <button class="send" id="sendBtn" title="Send (Enter)" aria-label="Send">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
             </button>
@@ -865,7 +867,9 @@
 
 <script>
 const API = "/api/v1";
-let conversationId = null, me = null, mode = "auto", busy = false, lastPrompt = "";
+// One mode for everyone: the agent picks Bible, dictionary or archive itself.
+let conversationId = null, me = null, busy = false, lastPrompt = "";
+const mode = "agent";
 // Guests persist nothing server-side, so keep the last assistant reply in
 // memory and resend it — that's all the context "continue"/"another" needs.
 let lastAssistantText = "";
@@ -1045,6 +1049,21 @@ function restoreEnglishNN(text) {
   });
 }
 
+/* Interior capitals are never correct in Ga — they come from sticky Shift /
+   caps-lock residue ("NYɔŋmɔ", "NyɔŊmɔ"), especially on mobile keyboards that
+   re-engage caps after the symbols panel. At a word boundary, lowercase every
+   capital after the first letter. ALL-CAPS words (acronyms) are left alone. */
+function normalizeGaCase(text) {
+  return text.replace(/[\p{L}\p{M}]{2,}/gu, (w) => {
+    const rest = w.slice(1);
+    if (!/\p{Lu}/u.test(rest)) return w;
+    // ALL-CAPS ASCII words are acronyms — leave them. An all-caps word with a
+    // Ga letter (Ŋ Ɔ Ɛ) is caps-lock residue, not an acronym: normalize it.
+    if (!/\p{Ll}/u.test(rest) && /^[A-Za-z]+$/.test(w)) return w;
+    return w[0] + rest.replace(/\p{Lu}/gu, (c) => c.toLowerCase());
+  });
+}
+
 /* The Ga word ending at the caret — ghost completion is end-of-input only. */
 function wordAtEnd(value, caret) {
   if (caret !== value.length || caret === 0) return null;
@@ -1164,7 +1183,7 @@ function showCorrectionForm(turn, interactionId) {
 }
 
 async function submitCorrection(english, ga, interactionId, form, sendBtn) {
-  const eng = (english || "").trim(), g = (ga || "").trim();
+  const eng = (english || "").trim(), g = normalizeGaCase((ga || "").trim());
   if (!eng || !g) {
     const hint = form.querySelector(".cf-hint");
     if (hint) { hint.style.textDecoration = "underline"; hint.textContent = "Fill in both fields: English and Ga."; }
@@ -1324,7 +1343,7 @@ async function streamInto(bubble, query) {
   const wasNew = !conversationId;
   const path = conversationId ? `/chat/${conversationId}` : "/chat/new";
 
-  let acc = "", shown = 0, done = false, started = false, lastInteractionId = null, lastFlag = null;
+  let acc = "", shown = 0, done = false, started = false, lastInteractionId = null, lastFlag = null, lastTrace = null;
   const META_RE = /\n__META__:({.*?})\s*$/;
   const finish = (error) => {
     if (error) {
@@ -1338,12 +1357,14 @@ async function streamInto(bubble, query) {
           const m = JSON.parse(metaMatch[1]);
           lastInteractionId = m.interactionId;
           lastFlag = m.flag || null;
+          lastTrace = m.trace || null;
         } catch {}
         display = display.replace(META_RE, "").trim();
       }
       lastAssistantText = display;
       lastAssistantQuery = query;
       render(bubble, display);
+      if (lastTrace) renderTrace(bubble, lastTrace);
     }
     attachActions(bubble, query, lastInteractionId);
     // A flagged turn gets the contribution card under the answer.
@@ -1406,6 +1427,7 @@ async function streamInto(bubble, query) {
           const m = JSON.parse(metaHit[1]);
           lastInteractionId = m.interactionId;
           lastFlag = m.flag || null;
+          lastTrace = m.trace || null;
         } catch {}
         acc = acc.replace(META_RE, "");
       }
@@ -1422,7 +1444,7 @@ async function streamInto(bubble, query) {
 async function send(text) {
   // Enter can end the last word without a space, so the nn → ŋ restore that
   // runs at word boundaries hasn't seen it yet — run it over the whole message.
-  text = restoreEnglishNN((text ?? input.value).trim());
+  text = normalizeGaCase(restoreEnglishNN((text ?? input.value).trim()));
   if (!text || busy) return;
   lastPrompt = text;                 // remember for ↑ recall / resubmit
   input.value = ""; autosize(); closeAc(); ghostSug = null; renderGhost();
@@ -1538,15 +1560,12 @@ input.addEventListener("keydown", (e) => {
   }
 });
 $("sendBtn").onclick = () => send();
-$("modeSelect").onchange = () => { mode = $("modeSelect").value; };
 $("chips") && $("chips").addEventListener("click", (e) => {
   const b = e.target.closest("button"); if (!b) return;
   if (b.dataset.action === "quiz") return startQuiz();
   if (b.dataset.action === "puzzle") return startPuzzle();
   if (b.dataset.action === "contribute") { $("cfGuestRow").classList.toggle("hidden", !!me); return openOverlay("contribOvl"); }
   if (!b.dataset.q) return;
-  mode = b.dataset.m || "auto";
-  $("modeSelect").value = mode;
   send(b.dataset.q);
 });
 function newChat() {
@@ -2163,7 +2182,7 @@ input.addEventListener('beforeinput', (e) => {
     const caret = input.selectionStart, v0 = input.value;
     let i = caret;
     while (i > 0 && /[\p{L}\p{M}]/u.test(v0[i - 1])) i--;
-    const word = v0.slice(i, caret), fixed = restoreEnglishNN(word);
+    const word = v0.slice(i, caret), fixed = normalizeGaCase(restoreEnglishNN(word));
     if (fixed !== word) {
       input.value = v0.slice(0, i) + fixed + v0.slice(caret);
       const c = i + fixed.length;
@@ -2258,18 +2277,202 @@ document.querySelectorAll(".ovl").forEach((o) =>
   o.addEventListener("click", (e) => { if (e.target === o) closeOverlays(); }));
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeOverlays(); });
 
-/* Reuse the Ga transliteration on any input (correction form, contribute, review). */
-function bindGaKeys(el) {
-  el.addEventListener("keydown", (e) => {
-    if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
-    const r = transcribeGaKey(el.value, el.selectionStart, el.selectionEnd, e.key);
-    if (!r) return;
+/* Reuse the Ga transliteration on any input (correction form, contribute,
+   review, flag card) — plus the composer's inline ghost completion. SPACE
+   accepts the ghost on every device; Tab/ArrowRight accept too, Backspace
+   undoes, Escape hides. No dropdown on these surfaces. */
+function attachGaInput(el) {
+  if (el.dataset.gaAttached) return;
+  el.dataset.gaAttached = '1';
+  const single = el.tagName === 'INPUT';
+  const wrap = document.createElement('div');
+  wrap.className = 'ga-wrap';
+  const cs = getComputedStyle(el);
+  wrap.style.position = 'relative';
+  wrap.style.marginTop = cs.marginTop;
+  wrap.style.marginBottom = cs.marginBottom;
+  wrap.style.minWidth = '0';
+  el.parentNode.insertBefore(wrap, el);
+  wrap.appendChild(el);
+  el.style.marginTop = '0';
+  el.style.marginBottom = '0';
+  el.style.width = '100%';
+  el.style.boxSizing = 'border-box';
+  el.style.position = 'relative';
+  el.style.zIndex = '1';
+
+  // The mirror sits ABOVE the input with a transparent background (not behind
+  // it like the composer's) so the input keeps its own themed background and
+  // the light/dark toggle keeps working. Only the faint suffix is visible.
+  const mirror = document.createElement('div');
+  mirror.className = 'ga-mirror';
+  mirror.setAttribute('aria-hidden', 'true');
+  const mText = document.createElement('span'); mText.className = 'm-text';
+  const mGhost = document.createElement('span'); mGhost.className = 'm-ghost';
+  mirror.append(mText, mGhost);
+  wrap.appendChild(mirror);
+  ['fontFamily','fontSize','fontWeight','fontStyle','lineHeight','letterSpacing',
+   'paddingTop','paddingRight','paddingBottom','paddingLeft',
+   'borderTopWidth','borderRightWidth','borderBottomWidth','borderLeftWidth']
+    .forEach(p => { mirror.style[p] = cs[p]; });
+  mirror.style.position = 'absolute';
+  mirror.style.inset = '0';
+  mirror.style.boxSizing = 'border-box';
+  mirror.style.borderStyle = 'solid';
+  mirror.style.borderColor = 'transparent';
+  mirror.style.background = 'transparent';
+  mirror.style.zIndex = '2';
+  mirror.style.overflow = 'hidden';
+  mirror.style.pointerEvents = 'none';
+  mirror.style.color = 'transparent';
+  mText.style.color = 'transparent';
+  mGhost.style.color = 'var(--faint)';
+  if (single) { mirror.style.whiteSpace = 'pre'; }
+  else { mirror.style.whiteSpace = 'pre-wrap'; mirror.style.wordWrap = 'break-word'; }
+
+  let items = [];
+  let ghostSug = null, ghostWord = '', ghostDismissed = false, lastGhostWord = '';
+  let lastTranslit = null, lastGhostAccept = null;
+
+  function renderMirror() {
+    mText.textContent = el.value;
+    mGhost.textContent = ghostSug ? ghostSug.text.slice(ghostWord.length) : '';
+    if (single) mirror.scrollLeft = el.scrollLeft;
+    else mirror.scrollTop = el.scrollTop;
+  }
+  function updateGhost() {
+    ghostSug = null;
+    const sel = el.selectionStart;
+    if (!ghostDismissed && sel === el.value.length && sel === el.selectionEnd) {
+      const w = wordAtEnd(el.value, sel);
+      if (w && w.word.length >= 1) {
+        const f = foldGa(w.word);
+        const s = items.find(x => foldGa(x.text).startsWith(f) && x.text.length > w.word.length);
+        if (s) { ghostSug = s; ghostWord = w.word; }
+      }
+    }
+    renderMirror();
+  }
+  function emit() { el.dispatchEvent(new Event('input', { bubbles: true })); }
+  function acceptGhost() {
+    if (!ghostSug) return;
+    const w = wordAtEnd(el.value, el.value.length);
+    if (!w) return;
+    el.value = el.value.slice(0, w.start) + ghostSug.text;
+    ghostSug = null; renderMirror();
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+    emit();
+  }
+  function dismissGhost() { ghostDismissed = true; ghostSug = null; renderMirror(); }
+
+  function update() {
+    const w = wordAtEnd(el.value, el.selectionStart);
+    if (w && w.word !== lastGhostWord) { ghostDismissed = false; lastGhostWord = w.word; }
+    else if (!w) lastGhostWord = '';
+    items = (w && w.word.length >= 1) ? getGaSuggestions(w.word).slice(0, 8) : [];
+    updateGhost();
+  }
+
+  el.addEventListener('beforeinput', (e) => {
+    // SPACE accepts the ghost — on every device, not just touch. Backspace
+    // immediately after an accept restores what was actually typed (the same
+    // undo contract as the transliteration below).
+    if (e.inputType === 'deleteContentBackward') {
+      const u = lastGhostAccept; lastGhostAccept = null;
+      if (u && el.value === u.after && el.selectionStart === el.selectionEnd &&
+          el.selectionStart === el.value.length) {
+        e.preventDefault();
+        el.value = u.before;
+        el.setSelectionRange(el.value.length, el.value.length);
+        emit();
+        update();
+        dismissGhost(); // don't re-offer the word they just rejected
+      }
+      return;
+    }
+    if (e.inputType !== 'insertText' || !e.data || e.data.length !== 1) {
+      if (e.inputType === 'insertText') lastGhostAccept = null;
+      return;
+    }
+    if (e.data === ' ') {
+      if (ghostSug && el.selectionStart === el.value.length && el.selectionStart === el.selectionEnd) {
+        e.preventDefault();
+        const before = el.value;
+        acceptGhost();
+        el.value += ' ';
+        el.setSelectionRange(el.value.length, el.value.length);
+        lastGhostAccept = { before, after: el.value };
+        emit();
+        update();
+        return;
+      }
+      lastGhostAccept = null;
+    } else lastGhostAccept = null;
+    // A word-ending delimiter puts back English words the nn → ŋ rule mangled.
+    if (!/[\p{L}\p{M}]/u.test(e.data) && el.selectionStart === el.selectionEnd) {
+      const caret = el.selectionStart, v0 = el.value;
+      let i = caret;
+      while (i > 0 && /[\p{L}\p{M}]/u.test(v0[i - 1])) i--;
+      const word = v0.slice(i, caret), fixed = normalizeGaCase(restoreEnglishNN(word));
+      if (fixed !== word) {
+        el.value = v0.slice(0, i) + fixed + v0.slice(caret);
+        const c = i + fixed.length;
+        el.setSelectionRange(c, c);
+        lastTranslit = null;
+      }
+    }
+    const conv = transcribeGaKey(el.value, el.selectionStart, el.selectionEnd, e.data);
+    if (!conv) return;
     e.preventDefault();
-    el.value = el.value.slice(0, r.start) + r.insert + el.value.slice(r.end);
-    const c = r.start + r.insert.length;
+    const v = el.value;
+    el.value = v.slice(0, conv.start) + conv.insert + v.slice(conv.end);
+    const c = conv.start + conv.insert.length;
     el.setSelectionRange(c, c);
+    lastTranslit = conv;
+    emit();
+    update();
   });
+
+  el.addEventListener('keydown', (e) => {
+    // Backspace right after a transliteration restores the literal keystrokes.
+    if (e.key === 'Backspace') {
+      const u = lastTranslit; lastTranslit = null;
+      if (u && el.selectionStart === el.selectionEnd &&
+          el.selectionStart === u.start + u.insert.length) {
+        e.preventDefault();
+        const v = el.value;
+        el.value = v.slice(0, u.start) + u.typed + v.slice(u.start + u.insert.length);
+        const c = u.start + u.typed.length;
+        el.setSelectionRange(c, c);
+        emit();
+        update();
+      }
+    } else lastTranslit = null;
+
+    if (ghostSug) {
+      if (e.key === 'Tab' || (e.key === 'ArrowRight' && el.selectionStart === el.value.length)) {
+        e.preventDefault(); acceptGhost(); return;
+      }
+      // stopPropagation: the document-level Escape closes overlays — hiding a
+      // ghost inside the Contribute overlay must not close the overlay.
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); dismissGhost(); return; }
+    }
+    // Enter is never swallowed — forms still submit on Enter.
+  });
+
+  el.addEventListener('input', update);
+  el.addEventListener('click', update);
+  el.addEventListener('keyup', (e) => {
+    if (['ArrowLeft','ArrowRight','Home','End'].includes(e.key)) update();
+  });
+  el.addEventListener('scroll', () => {
+    if (single) mirror.scrollLeft = el.scrollLeft; else mirror.scrollTop = el.scrollTop;
+  });
+  renderMirror();
+  update();
 }
+function bindGaKeys(el) { attachGaInput(el); }
 bindGaKeys($("cfGa"));
 
 /* ---- Score (localStorage-backed, survives refresh) ---- */
@@ -2729,6 +2932,38 @@ function renderSummary() {
    words — a typed "no" would go through the query pipeline, which is the very
    bug this replaces. */
 let flagSeq = 0;
+/* "How I found this" — a folded line under the answer saying where it came
+   from: the archive directly (no AI), or the agent's searches. */
+const TOOL_LABEL = {
+  vocab_lookup: "dictionary", phrase_overlap: "phrase archive", search_archive: "archive search",
+  lookup_verse: "verse lookup", random_verse: "random verse", list_books: "book list",
+  list_chapters: "chapter list", list_verses: "verse list",
+};
+function renderTrace(bubble, t) {
+  if (!t || !t.path || t.path === "agent:rate_limited") return;
+  let lines;
+  if (t.path.startsWith("engine:")) {
+    lines = [t.path === "engine:bible" ? "✓ Bible archive — direct lookup" : "✓ Heritage archive — direct lookup",
+             "No AI used"];
+  } else {
+    const steps = (t.tools || []).map((s) => `${s.found ? "✓" : "✗"} ${TOOL_LABEL[s.tool] || s.tool}${s.term ? ` — “${s.term}”` : ""}`);
+    lines = [...(steps.length ? steps : ["No archive results"]),
+             `${t.model_calls} AI step${t.model_calls === 1 ? "" : "s"}` +
+             (t.composed_by === "evidence" ? " · shown straight from the archive" : "")];
+  }
+  const d = document.createElement("details");
+  d.className = "trace";
+  const sum = document.createElement("summary");
+  sum.textContent = "How I found this";
+  d.appendChild(sum);
+  for (const l of lines) {
+    const row = document.createElement("div");
+    row.textContent = l;
+    d.appendChild(row);
+  }
+  bubble.after(d);
+}
+
 function renderFlagCard(bubble, flag) {
   // Several flagged answers can sit in one conversation — each card needs its
   // own ids, or a label in the second card focuses an input in the first.
@@ -2798,6 +3033,7 @@ function renderFlagCard(bubble, flag) {
     body.appendChild(row);
 
     const ga = body.querySelector(`#flGa-${uid}`), en = body.querySelector(`#flEn-${uid}`);
+    bindGaKeys(ga);
     const who = me ? null : {
       name: body.querySelector(`#flName-${uid}`),
       loc: body.querySelector(`#flLoc-${uid}`),
@@ -2826,6 +3062,7 @@ function renderFlagCard(bubble, flag) {
       const ident = who && {
         name: who.name.value.trim(), location: who.loc.value.trim(), email: who.mail.value.trim(),
       };
+      ga.value = normalizeGaCase(ga.value);
       const ok = await submitFlagPair(en.value.trim(), ga.value.trim(), ident);
       if (ok) doneStep(en.value.trim(), ga.value.trim());
       else { send.disabled = false; send.textContent = "SEND IT"; }
@@ -2870,7 +3107,7 @@ function renderFlagCard(bubble, flag) {
 
 /** Post a flagged correction as a normal contribution. `ident` is a guest's. */
 async function submitFlagPair(english, ga, ident) {
-  const body = { type: "correction", english, ga, notes: "flagged in chat" };
+  const body = { type: "correction", english, ga: normalizeGaCase(ga), notes: "flagged in chat" };
   if (!me) {
     if (!ident || !ident.name || !ident.email || !ident.location) {
       toast("Add your name, email and location so we can credit you");
@@ -2942,7 +3179,7 @@ $("contribForm").addEventListener("submit", async (e) => {
     body = { type: "document", description, notes: $("cfDocNote").value.trim() || undefined };
   } else {
     const type = $("cfType").value;
-    const english = $("cfEnglish").value.trim(), ga = $("cfGa").value.trim();
+    const english = $("cfEnglish").value.trim(), ga = normalizeGaCase($("cfGa").value.trim());
     if (!english || !ga) { toast("Both English and Ga are needed"); return; }
     body = { type, english, ga, notes: $("cfNote").value.trim() || undefined };
   }

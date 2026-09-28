@@ -44,6 +44,18 @@ import {
 import { initializeSession, updateActivity } from "../db/sessions";
 import { saveInteraction } from "../db/messages";
 import { isGuestId } from "../auth/jwt";
+import { runAgent, stepTerm } from "./agent";
+
+/** How a turn was answered — returned to the client for the "how I found this" line. */
+export interface TurnTrace {
+  /** "engine:general" | "engine:bible" = deterministic, no model; "agent" = tool loop. */
+  path: string;
+  tools?: Array<{ tool: string; found: boolean; term?: string }>;
+  model_calls: number;
+  /** For agent turns: who wrote the reply (model text that passed the Ga check, or evidence). */
+  composed_by?: string;
+  ms: number;
+}
 
 const GHOSTS = ["Linguistic Engine", "inguistic Engine", "Engine"];
 const NOT_FOUND_GENERAL =
@@ -123,7 +135,10 @@ async function* askBible(
   memoryWindow: ChatMessage[],
   topK: number,
   stream: boolean,
-  model?: string
+  model?: string,
+  // Agent mode: stop (yield nothing) where the engine would otherwise call the
+  // model or give up, so the agent can take over with its tools.
+  strict = false
 ): AsyncGenerator<string> {
   const qLow = query.toLowerCase();
 
@@ -311,6 +326,7 @@ async function* askBible(
     // Non-exact bible request ("quote a verse", "a verse about light", etc.).
     const relevant = nodes.filter((n) => (n.score ?? 0) >= MIN_RELEVANCE_SCORE);
     if (relevant.length === 0) {
+      if (strict) return;
       // Log the knowledge gap for learning
       await logKnowledgeGap(env, query, 'bible_general', 'Bible content not found');
       grounded = generateLearningNotFoundResponse(query, 'bible');
@@ -327,6 +343,7 @@ async function* askBible(
           .join("\n\n———\n\n");
         grounded = `Hɛloo naanyo! Here ${count > 1 ? "are some verses" : "is a verse"} from the archive:\n\n${quotes}`;
       } else {
+        if (strict) return;
         const answer = await groundWithGuardrail(env, query, formatRetrievedContext(relevant), model);
         grounded = isNotFound(answer) ? NOT_FOUND : answer;
       }
@@ -345,7 +362,9 @@ async function* askGeneral(
   memoryWindow: ChatMessage[],
   topK: number,
   stream: boolean,
-  model?: string
+  model?: string,
+  /** See askBible. */
+  strict = false
 ): AsyncGenerator<string> {
   // Numeric range table: "count from 1 to 10"
   const rangeMatch = query.match(/(\d+)\s+to\s+(\d+)/i);
@@ -831,11 +850,25 @@ async function* askGeneral(
     // (the base term like "Otukwajaŋ" wins over "Otukwajaŋ shishijee mli").
     hits.sort((a, b) => b.mc - a.mc || a.ga.length - b.ga.length || b.score - a.score);
     const gaShown = modernizeGa(hits[0].ga);
+    // One or two English words asked for, found only inside a whole sentence
+    // ("shade" in "Let us move into the shade"). Answering "In Ga, 'Let us
+    // move into the shade' is …" reads as if the word itself were known.
+    // Say what we have, and ask for the word itself.
+    const engLen = hits[0].eng.split(/\s+/).length;
+    if (towardGa && !hits[0].gaSide && queryWords.length <= 2 && engLen >= queryWords.length + 2) {
+      const word = cleanEnglish(query);
+      await logKnowledgeGap(env, query, "general", "Word only found inside a sentence");
+      yield `I don't have a Ga word for “${word}” on its own yet — but it appears in this phrase from the archive:\n\n` +
+        `**${gaShown}** — “${hits[0].eng}”\n\nKnow the Ga word? Share it and I'll put it forward for review.`;
+      return;
+    }
     yield hits[0].gaSide
       ? `**${gaShown}** is Ga for “${hits[0].eng}”.`
       : `In Ga, “${hits[0].eng}” is **${gaShown}**.`;
     return;
   }
+
+  if (strict) return; // the agent answers from here, or says not-found itself
 
   if (nodes.length === 0) {
     // Log the knowledge gap for learning
@@ -870,6 +903,10 @@ export async function* ask(
   const model = params.model;
   let conversationId = params.conversationId;
   let mode: RagMode = params.mode ?? "auto";
+  // Agent mode: the deterministic engines answer first (no model, verified
+  // data); the tool-using agent runs only when they have nothing.
+  const agentMode = params.mode === "agent";
+  const started = Date.now();
 
   const qLow = query.toLowerCase().trim();
   // Guests are ephemeral — answered but never written to D1.
@@ -1030,7 +1067,7 @@ export async function* ask(
   }
 
   let targetMode = mode;
-  if (targetMode === "auto") {
+  if (targetMode === "auto" || targetMode === "agent") {
     const isBible =
       ["bible", "bibele", "verse", "chapter", "scripture"].some((b) => qLow.includes(b)) ||
       BIBLE_BOOK_TOKENS.some((b) => qLow.includes(b)) ||
@@ -1039,15 +1076,50 @@ export async function* ask(
   }
 
   let full = "";
+  let trace: TurnTrace | undefined;
   try {
     const engine =
       targetMode === "bible"
-        ? askBible(env, query, memoryWindow, topK, stream, model)
-        : askGeneral(env, query, memoryWindow, topK, stream, model);
+        ? askBible(env, query, memoryWindow, topK, stream, model, agentMode)
+        : askGeneral(env, query, memoryWindow, topK, stream, model, agentMode);
 
     for await (const token of engine) {
       full += token;
       yield token;
+    }
+
+    if (agentMode) {
+      if (full.trim()) {
+        trace = { path: `engine:${targetMode}`, model_calls: 0, ms: Date.now() - started };
+      } else {
+        const scope = targetMode === "bible" ? "bible" : "general";
+        let text: string | null = null;
+        // The tool loop costs up to four model calls — cap it per user.
+        const limited = env.AGENT_LIMITER
+          ? !(await env.AGENT_LIMITER.limit({ key: userId }).catch(() => ({ success: true }))).success
+          : false;
+        if (limited) {
+          text = "I'm answering a lot of questions right now — please ask again in a minute.";
+          trace = { path: "agent:rate_limited", model_calls: 0, ms: Date.now() - started };
+        } else {
+          const r = await runAgent(env, query, memoryWindow, scope);
+          text = r.text;
+          trace = {
+            path: "agent",
+            tools: r.steps.map((st) => ({ tool: st.tool, found: st.found, term: stepTerm(st) })),
+            model_calls: r.modelCalls,
+            composed_by: r.composedBy,
+            ms: Date.now() - started,
+          };
+          if (!text) {
+            // Logged here, once, by the system — never by the model.
+            await logKnowledgeGap(env, query, "agent", "Engines and agent tools found nothing");
+            text = generateLearningNotFoundResponse(query, scope);
+          }
+        }
+        full = text;
+        yield text;
+      }
     }
   } catch (e) {
     console.error("RAG Router Error:", e);
@@ -1066,9 +1138,9 @@ export async function* ask(
     : undefined;
 
   if (!ephemeral) {
-    for await (const t of persistTurn(env, conversationId, query, full, userId, notFoundFlag)) yield t;
-  } else if (notFoundFlag) {
-    yield flagOnlyMeta(notFoundFlag);
+    for await (const t of persistTurn(env, conversationId, query, full, userId, notFoundFlag, trace)) yield t;
+  } else if (notFoundFlag || trace) {
+    yield flagOnlyMeta(notFoundFlag, trace);
   }
 }
 
@@ -1077,8 +1149,8 @@ export async function* ask(
  * flag so the client can still render the contribution card; there is no
  * interaction id because nothing was saved.
  */
-function flagOnlyMeta(flag: TurnFlag): string {
-  return `\n__META__:${JSON.stringify({ flag })}\n`;
+function flagOnlyMeta(flag?: TurnFlag, trace?: TurnTrace): string {
+  return `\n__META__:${JSON.stringify({ flag, trace })}\n`;
 }
 
 /** Save a turn + emit the __META__ trailer; swallows its own errors. */
@@ -1088,14 +1160,16 @@ async function* persistTurn(
   query: string,
   answer: string,
   userId: string,
-  flag?: TurnFlag
+  flag?: TurnFlag,
+  trace?: TurnTrace
 ): AsyncGenerator<string> {
   try {
     const row = await saveInteraction(env, conversationId, query, answer, userId);
     // A flag rides along in the same marker the client already parses, so the
     // contribution card can be rendered against this exact interaction.
-    const meta: { interactionId: string; flag?: TurnFlag } = { interactionId: row.id };
+    const meta: { interactionId: string; flag?: TurnFlag; trace?: TurnTrace } = { interactionId: row.id };
     if (flag) meta.flag = { ...flag, interaction_id: row.id };
+    if (trace) meta.trace = trace;
     yield `\n__META__:${JSON.stringify(meta)}\n`;
   } catch (e) {
     console.error("saveInteraction failed:", e);

@@ -27,6 +27,7 @@ import { detectConflicts, resolveConflict, getConflictStats } from "./routes/con
 import { getLearningProgress, getLearningCycles, getSystemHealth } from "./routes/analytics";
 import { handleContribute, handleListContributions } from "./routes/contribute";
 import quiz from "./routes/quiz";
+import agent from "./routes/agent";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -104,6 +105,7 @@ api.get("/contributions/:id/attachments/:index", requireUser, (c) =>
   )
 );
 api.route("/quiz", quiz);
+api.route("/", agent);
 
 app.route("/api/v1", api);
 

@@ -54,3 +54,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES = "1440"
 
 [limits]
 timeout = 120
+
+# Per-user cap on the agent's tool loop (up to 4 model calls per question).
+# Deterministic answers — dictionary, verses, numbers, stories — are not counted.
+[[ratelimits]]
+name = "AGENT_LIMITER"
+namespace_id = "1001"
+simple = { limit = 20, period = 60 }

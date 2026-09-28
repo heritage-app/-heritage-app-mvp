@@ -60,7 +60,7 @@ function streamResponse(c: any, params: AskParams): Response {
   });
 }
 
-async function collectResponse(c: any, params: AskParams) {
+export async function collectResponse(c: any, params: AskParams) {
   const env = c.env as Env;
   const waitUntil = (p: Promise<unknown>) => c.executionCtx.waitUntil(p);
   let response = "";
@@ -72,6 +72,7 @@ async function collectResponse(c: any, params: AskParams) {
   // non-streaming clients can still attach feedback to it.
   let interactionId: string | undefined;
   let flag: unknown;
+  let trace: unknown;
   const metaMatch = response.match(/\n__META__:(\{[^\n]*\})\n?/);
   if (metaMatch) {
     try {
@@ -80,6 +81,7 @@ async function collectResponse(c: any, params: AskParams) {
       // The turn was flagged (wrong answer, or nothing in the archive) — the
       // client renders the contribution card from this.
       flag = meta.flag;
+      trace = meta.trace;
     } catch {}
     response = response.replace(/\n__META__:\{[^\n]*\}\n?/g, "");
   }
@@ -87,6 +89,7 @@ async function collectResponse(c: any, params: AskParams) {
     conversation_id: params.conversationId,
     interaction_id: interactionId,
     flag,
+    trace,
     response,
     query: params.query,
     timestamp: nowIso(),

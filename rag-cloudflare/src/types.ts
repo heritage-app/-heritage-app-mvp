@@ -8,6 +8,8 @@ export interface Env {
   VECTORIZE: VectorizeIndex;
   DB: D1Database;
   DOCS_BUCKET: R2Bucket;
+  /** Per-user cap on the agent's tool loop (wrangler.toml [[ratelimits]]). Optional: absent in local tests. */
+  AGENT_LIMITER?: { limit(opts: { key: string }): Promise<{ success: boolean }> };
 
   // Vars
   LLM_MODEL: string;
@@ -109,6 +111,6 @@ export interface RetrievedNode {
 }
 
 export type ChatMessage = { role: "user" | "assistant" | "system"; content: string };
-export type RagMode = "auto" | "bible" | "general";
+export type RagMode = "auto" | "bible" | "general" | "agent";
 
 export type { Category } from "./config";
