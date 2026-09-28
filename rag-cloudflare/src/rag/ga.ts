@@ -37,6 +37,21 @@ export function foldGa(text: string): string {
     .replace(/\p{M}/gu, "");
 }
 
+/**
+ * Lowercase stray interior capitals — sticky Shift / caps-lock residue from
+ * phone keyboards ("NYɔŋmɔ" -> "Nyɔŋmɔ"). All-caps plain-ASCII words
+ * (acronyms) are left alone; an all-caps word containing a Ga letter is
+ * residue. Same rule as normalizeGaCase in public/index.html.
+ */
+export function normalizeGaCase(text: string): string {
+  return text.replace(/[\p{L}\p{M}]{2,}/gu, (w) => {
+    const rest = w.slice(1);
+    if (!/\p{Lu}/u.test(rest)) return w;
+    if (!/\p{Ll}/u.test(rest) && /^[A-Za-z]+$/.test(w)) return w;
+    return w[0] + rest.replace(/\p{Lu}/gu, (ch) => ch.toLowerCase());
+  });
+}
+
 /** Universal Ga Numerical Formula for 1-999. */
 export function numToGa(n: number): string {
   if (n <= 0) return String(n);

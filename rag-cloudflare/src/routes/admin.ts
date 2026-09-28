@@ -21,6 +21,7 @@ import { extractContributedFile, isExtractable, extOf } from "../rag/extract";
 import { ocrImage, textToPairs, parsePairs, tryParseStructuredPairs } from "../rag/vision";
 import { embed } from "../rag/embeddings";
 import { foldGa } from "../db/vocabulary";
+import { normalizeGaCase } from "../rag/ga";
 import { slugifyFilename, timestampSlug, humanFileSize, humanizeTimestamp, nowIso } from "../utils/time";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -594,7 +595,9 @@ app.post("/contributions/:id/approve", async (c) => {
 
   let meta: any = {};
   try { meta = JSON.parse(row.ai_issues || "{}"); } catch {}
-  const ga = row.user_answer.trim();
+  // Phone keyboards leave stray capitals ("NYɔŋmɔ"); an approval must not
+  // publish them to every learner.
+  const ga = normalizeGaCase(row.user_answer.trim());
 
   // All core writes go in one atomic batch — under D1 write-cap pressure a
   // mid-sequence failure would otherwise leave "approved" rows with no vocab
