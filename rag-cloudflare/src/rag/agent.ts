@@ -231,7 +231,7 @@ async function execTool(env: Env, tc: ToolCall): Promise<ToolResult> {
                   OR REPLACE(REPLACE(meanings, '''', ''), '’', '') LIKE ?)
              AND source IS NOT NULL AND TRIM(source) <> ''
              AND verified_at IS NOT NULL AND TRIM(verified_at) <> ''
-           ORDER BY LENGTH(translations) ASC LIMIT 8`
+           ORDER BY LENGTH(translations) ASC, verified_at DESC LIMIT 8`
         ).bind(folded, `%${probe}%`, `%${probe}%`).all<{ headword: string; translations: string; meanings: string }>();
         const rows = res.results ?? [];
         if (!rows.length) return EMPTY("NO_MATCH");

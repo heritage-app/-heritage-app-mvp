@@ -477,7 +477,9 @@ async function* askGeneral(
                 OR REPLACE(REPLACE(meanings, '''', ''), '’', '') LIKE ?)
            AND source IS NOT NULL AND TRIM(source) <> ''
            AND verified_at IS NOT NULL AND TRIM(verified_at) <> ''
-         ORDER BY LENGTH(translations) ASC
+         -- Newest first among equals: an approved correction must beat the
+         -- entry it corrects even if that one is somehow still verified.
+         ORDER BY LENGTH(translations) ASC, verified_at DESC
          LIMIT 40`
       ).bind(foldedQ, likePattern, likePattern).all<{ headword: string; headword_normalized: string; meanings: string; translations: string }>();
 

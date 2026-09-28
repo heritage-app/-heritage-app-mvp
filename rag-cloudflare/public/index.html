@@ -3225,7 +3225,7 @@ function renderFlagCard(bubble, flag) {
       `<div><label for="flEn-${uid}">ENGLISH</label>` +
       `<input class="en" id="flEn-${uid}" type="text" placeholder="e.g. let's eat" value="${escapeHtml(askedFor).replace(/"/g, "&quot;")}" /></div>` +
       `<div><label for="flGa-${uid}">${flag.kind === "wrong" ? "WHAT IT SHOULD SAY IN GA" : "GA"}</label>` +
-      `<input class="ga-key" id="flGa-${uid}" type="text" placeholder="Miiye niŋ" /></div>` +
+      `<input class="ga-key" id="flGa-${uid}" type="text" placeholder="Type the Ga here" /></div>` +
       '<div class="fl-hint">Ga keys work here: 3→ɛ · )→ɔ · nn→ŋ</div>' +
       // Guests identify themselves — the server requires all three for a guest
       // contribution. Prefilled if they already typed them in Contribute.

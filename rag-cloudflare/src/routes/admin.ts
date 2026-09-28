@@ -779,15 +779,42 @@ app.post("/contributions/:id/approve", async (c) => {
       now
     );
 
+  // A correction REPLACES what was there. Without this the old entry stayed
+  // verified next to the new one, both matched "i am eating" equally, and
+  // the old answer kept being served after the fix was approved. Only exact
+  // matches of this English are retired (hidden, not deleted) and recorded,
+  // so rejecting the correction later puts them back. Plain translations
+  // are additions — "doctor" can be both Datrɛ and Dɔkita — and retire nothing.
+  const retire: Array<{ id: string; verified_at: string }> = [];
+  if (meta.type === "correction") {
+    const key = (t: string) =>
+      foldGa(String(t).toLowerCase()).replace(/['’]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+    const probe = english.toLowerCase().replace(/['’]/g, "");
+    const cands = await c.env.DB.prepare(
+      `SELECT id, translations, verified_at FROM vocabulary
+       WHERE REPLACE(REPLACE(translations, '''', ''), '’', '') LIKE ?
+         AND verified_at IS NOT NULL AND TRIM(verified_at) <> ''`
+    ).bind(`%${probe}%`).all<{ id: string; translations: string; verified_at: string }>();
+    for (const r of cands.results ?? []) {
+      let t: string[] = [];
+      try { t = JSON.parse(r.translations || "[]"); } catch {}
+      if (t.some((x) => key(x) === key(english))) retire.push({ id: r.id, verified_at: r.verified_at });
+    }
+  }
+  const retireStmts = retire.map((r) =>
+    c.env.DB.prepare("UPDATE vocabulary SET verified_at = NULL WHERE id = ?").bind(r.id)
+  );
+
   // Record which vocab row this contribution created so rejection can delete
   // exactly that row — never by shared headword.
   meta.vocab_id = vocabId;
+  if (retire.length) meta.superseded = retire;
   const metaUpdate = c.env.DB.prepare(
     "UPDATE user_contributions SET ai_issues = ? WHERE id = ?"
   ).bind(JSON.stringify(meta), id);
 
   try {
-    await c.env.DB.batch([statusUpdate, vocabInsert, metaUpdate]);
+    await c.env.DB.batch([statusUpdate, ...retireStmts, vocabInsert, metaUpdate]);
   } catch (e) {
     return quotaResponse(e) ?? (() => { throw e; })();
   }
@@ -881,6 +908,12 @@ app.post("/contributions/:id/reject", async (c) => {
         await c.env.DB.prepare(
           "DELETE FROM vocabulary WHERE id = ? AND source = 'admin_approved'"
         ).bind(meta.vocab_id).run();
+        // ...and the entries it replaced come back.
+        for (const r of (meta.superseded ?? []) as Array<{ id: string; verified_at: string }>) {
+          await c.env.DB.prepare(
+            "UPDATE vocabulary SET verified_at = ? WHERE id = ? AND verified_at IS NULL"
+          ).bind(r.verified_at, r.id).run();
+        }
       } else {
         // Legacy rows have no vocab_id — narrow to this exact pair so unrelated
         // entries sharing the headword are never touched.
