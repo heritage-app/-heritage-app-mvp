@@ -427,6 +427,10 @@ async function* askGeneral(
   // afternoon", and could never find "brother in law" (searched as "brother
   // law") or single-word entries like "no" and "we".
   const phrase = norm(cleanEnglish(query));
+  // ...but "what is" / "how do you say" can be the phrase itself: "what is
+  // this?" is an entry, and stripping its framing searched for "this". Try the
+  // query with only the trailing "in ga" removed first.
+  const fullPhrase = norm(query.trim().replace(/[?!.]+$/, "").replace(/\s+(in|into)\s+ga(\s+language)?$/i, ""));
   const phraseWords = phrase ? phrase.split(" ").length : 0;
   if ((queryWords.length > 0 && queryWords.length <= 3) || (phraseWords > 0 && phraseWords <= 5)) {
     const qStr = queryWords.length ? queryWords.join(" ") : phrase;
@@ -476,6 +480,7 @@ async function* askGeneral(
 
           const hw = (row.headword || "").toLowerCase().trim();
           const gaEng = transArr[0] || meanArr[0] || qStr;
+          const exactFull = transArr.find((t) => norm(t) === fullPhrase);
           const exactPhrase = transArr.find((t) => norm(t) === phrase);
           const exact = transArr.find((t) => norm(t) === needle);
           const inTrans = transArr.find(hasPhrase);
@@ -485,6 +490,9 @@ async function* askGeneral(
           if (typedGa && (hw === rawQ || ` ${rawQ} `.includes(` ${hw} `))) {
             // They typed the Ga itself, diacritics and all.
             hit = { ga: row.headword, eng: gaEng, gaSide: true, rank: 0 };
+          } else if (exactFull && fullPhrase) {
+            // The query, framing and all, is an entry ("what is this?").
+            hit = { ga: row.headword, eng: exactFull, gaSide: false, rank: 0.4 };
           } else if (exactPhrase && phrase) {
             // The whole phrase, stopwords and all, is an entry's translation.
             hit = { ga: row.headword, eng: exactPhrase, gaSide: false, rank: 0.5 };
