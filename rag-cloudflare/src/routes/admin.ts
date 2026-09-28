@@ -1105,8 +1105,12 @@ app.post("/alignments/:id/promote", async (c) => {
   if (!row) return c.json({ detail: "Alignment not found" }, 404);
   if (row.status === "promoted") return c.json({ detail: "Already promoted" }, 409);
 
+  // The reviewer may correct the guessed spelling before approving it.
+  const body = await c.req.json<{ ga?: string }>().catch(() => ({} as { ga?: string }));
+  const ga = normalizeGaCase((body.ga ?? "").trim() || row.ga_word);
+
   const now = nowIso();
-  const vid = `vocab:align:${row.english_word}:${row.ga_word}`;
+  const vid = `vocab:align:${row.english_word}:${ga}`;
   const stmts = [
     c.env.DB.prepare(
       `INSERT OR REPLACE INTO vocabulary
@@ -1115,19 +1119,19 @@ app.post("/alignments/:id/promote", async (c) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, '[]', NULL, 'phrase', ?, ?, ?)`
     ).bind(
       vid,
-      row.ga_word,
-      foldGa(row.ga_word.toLowerCase()),
+      ga,
+      foldGa(ga.toLowerCase()),
       null,
       JSON.stringify([row.english_word]),
       JSON.stringify([row.english_word]),
       row.examples,
-      `corpus-alignment (inferred, confidence ${row.confidence}, n=${row.evidence_count})`,
+      `corpus-alignment (inferred, confidence ${row.confidence}, n=${row.evidence_count}; reviewer-approved${ga !== row.ga_word ? `, corrected from ${row.ga_word}` : ""})`,
       adminId,
       now
     ),
     c.env.DB.prepare(
-      "UPDATE word_alignments SET status = 'promoted', reviewed_by = ?, reviewed_at = ? WHERE id = ?"
-    ).bind(adminId, now, id),
+      "UPDATE word_alignments SET status = 'promoted', ga_word = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ?"
+    ).bind(ga, adminId, now, id),
   ];
   try {
     await c.env.DB.batch(stmts);

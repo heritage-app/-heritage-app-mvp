@@ -7,7 +7,7 @@
  * feedback into a learning signal without requiring a separate API call.
  */
 import type { Env } from "../types";
-import { handleUserContribution } from "../rag/learning-from-gaps";
+import { handleUserContribution, logKnowledgeGap } from "../rag/learning-from-gaps";
 import { resolveUserId } from "../auth/jwt";
 
 export async function handleFeedback(request: Request, env: Env): Promise<Response> {
@@ -19,6 +19,26 @@ export async function handleFeedback(request: Request, env: Env): Promise<Respon
       correction?: { english?: string; ga?: string; category?: string };
     }>();
     const { interaction_id, rating, comment, correction } = body;
+
+    // Guests' turns are never saved, so there is no interaction to attach a
+    // flag to. "This answer is wrong" is still worth keeping: record it
+    // against the question, with the answer they saw, in the gap list the
+    // keepers already work through.
+    const guestFlag = body as { query?: string; answer?: string };
+    if (!interaction_id && rating === "not_helpful" && guestFlag.query?.trim()) {
+      const userId = await resolveUserId(request, env);
+      const limited = env.AGENT_LIMITER
+        ? !(await env.AGENT_LIMITER.limit({ key: `flag:${userId}` }).catch(() => ({ success: true }))).success
+        : false;
+      if (limited) return json({ error: "Too many flags — try again in a minute." }, 429);
+      await logKnowledgeGap(
+        env,
+        guestFlag.query.trim().slice(0, 300),
+        "flagged_wrong",
+        `Flagged wrong by a guest. Answer shown: ${String(guestFlag.answer ?? "").slice(0, 300)}`
+      );
+      return json({ status: "flagged" });
+    }
 
     if (!interaction_id || !rating) {
       return json({ error: "Missing required fields: interaction_id, rating" }, 400);

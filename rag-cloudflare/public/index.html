@@ -4,6 +4,14 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Heritage · Nii Obodai</title>
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#f8f9fa" />
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Heritage" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -331,6 +339,24 @@
   .ac-upgrading { animation:ac-upgrade 350ms ease-out; }
   @keyframes ac-upgrade { 0%{opacity:.6; transform:translateY(2px);} 100%{opacity:1; transform:translateY(0);} }
   .hidden { display:none !important; }
+  /* Install as an app */
+  .install-btn { gap:7px; }
+  @media (max-width:860px) { .install-btn { padding:7px 9px; } .install-btn .ib-label { display:none; } }
+  .inst-body { padding:16px 18px 20px; display:flex; flex-direction:column; gap:16px; }
+  .inst-top { display:flex; gap:14px; align-items:center; }
+  .inst-icon { width:56px; height:56px; flex:none; background:var(--ink); color:var(--bg); display:grid; place-items:center; font:700 24px var(--mono); }
+  .inst-eyebrow { font:700 9.5px var(--mono); letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+  .inst-title { font:700 18px/1.25 var(--sans); }
+  .inst-list { display:flex; flex-direction:column; gap:9px; font-size:14px; }
+  .inst-list div::before { content:"\2713"; font:700 11px var(--mono); color:var(--ok); margin-right:10px; }
+  .inst-steps { border:1px solid var(--line-2); background:var(--paper); }
+  .inst-step { display:flex; gap:14px; align-items:center; padding:13px 14px; font-size:14px; }
+  .inst-step + .inst-step { border-top:1px solid var(--line); }
+  .inst-step .n { width:28px; height:28px; flex:none; background:var(--ink); color:var(--bg); display:grid; place-items:center; font:700 12px var(--mono); }
+  .inst-row { display:flex; gap:8px; }
+  .inst-btn { flex:1; min-height:48px; border:0; background:var(--ink); color:var(--bg); font:700 12px var(--mono); letter-spacing:.08em; cursor:pointer; }
+  .inst-btn.ghost { flex:none; padding:0 18px; background:transparent; color:var(--muted); border:1px solid var(--line-2); }
+  .inst-note { margin:0; font:400 11.5px/1.5 var(--sans); color:var(--muted); }
 
   /* Responsive — native mobile-app feel on small screens */
   @media (max-width:860px){
@@ -676,7 +702,7 @@
   <div class="maincol">
     <header>
       <button class="menu-btn hidden" id="menuBtn" aria-label="Toggle sidebar" title="Toggle sidebar">
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M9 3v18"/></svg>
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18"/><path d="M9 3v18"/></svg>
       </button>
       <div class="brand">
         <span class="mark">H</span>
@@ -686,6 +712,10 @@
       <span class="tag score-tag hidden" id="scoreTag" title="Quiz score this session">SCORE 0/0</span>
       <span class="tag score-tag hidden" id="streakTag" title="Correct answers in a row">STREAK 0</span>
       <div class="spacer"></div>
+      <button class="iconbtn install-btn hidden" id="installBtn" type="button" aria-label="Install app" title="Install app">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 21h14"/></svg>
+        <span class="ib-label">Install app</span>
+      </button>
       <button class="iconbtn" id="newChatBtn">New chat</button>
       <button class="iconbtn" id="themeToggle" aria-label="Toggle theme" title="Toggle theme">
         <svg class="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
@@ -738,7 +768,7 @@
       </div>
     </div>
     <button class="cancel-btn" id="cancelBtn" title="Stop generating" aria-label="Stop generating">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
     </button>
     <div class="composer-wrap">
       <div class="composer">
@@ -852,14 +882,57 @@
   </div>
 
   <!-- Review flagged answers overlay -->
+  <div class="ovl" id="installOvl" role="dialog" aria-modal="true" aria-label="Install the app">
+    <div class="ovl-panel">
+      <div class="ovl-head">
+        <span>INSTALL THE APP</span>
+        <button class="ovl-x" data-close type="button" aria-label="Close">✕</button>
+      </div>
+      <div class="inst-body">
+        <div class="inst-top">
+          <span class="inst-icon" aria-hidden="true">H</span>
+          <div><div class="inst-eyebrow">Free · no app store</div><div class="inst-title" id="instTitle">Put Heritage on your phone</div></div>
+        </div>
+        <div id="instPrompt">
+          <div class="inst-list">
+            <div>Opens full-screen from your home screen</div>
+            <div>Loads fast, even on a weak connection</div>
+            <div>Nothing to download from a store</div>
+          </div>
+        </div>
+        <div id="instIos" class="hidden">
+          <div class="inst-steps">
+            <div class="inst-step"><span class="n">1</span><span style="flex:1">Tap <b>Share</b> in Safari&#39;s toolbar</span>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0a60d0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><polyline points="8 7 12 3 16 7"/><path d="M6 11H5v10h14V11h-1"/></svg></div>
+            <div class="inst-step"><span class="n">2</span><span style="flex:1">Scroll down, tap <b>Add to Home Screen</b></span></div>
+            <div class="inst-step"><span class="n">3</span><span style="flex:1">Tap <b>Add</b> — Heritage joins your home screen</span></div>
+          </div>
+        </div>
+        <div class="inst-row" id="instPromptRow">
+          <button class="inst-btn" id="instGo" type="button">INSTALL</button>
+          <button class="inst-btn ghost" id="instLater" type="button">NOT NOW</button>
+        </div>
+        <div class="inst-row hidden" id="instIosRow">
+          <button class="inst-btn ghost" id="instOk" type="button" style="flex:1">GOT IT</button>
+        </div>
+        <p class="inst-note">The ⤓ button at the top brings this back any time.</p>
+      </div>
+    </div>
+  </div>
+
   <div class="ovl" id="reviewOvl" role="dialog" aria-modal="true" aria-label="Review flagged answers">
     <div class="ovl-panel">
       <div class="ovl-head">
         <span>REVIEW QUEUE</span>
         <button class="ovl-x" data-close type="button" aria-label="Close">✕</button>
       </div>
-      <p class="ovl-sub">Community corrections awaiting verification. Confirm a proposal to add your speaker vote — admins can approve straight into the knowledge base.</p>
+      <div class="cf-tabs hidden" id="revTabs" role="tablist" aria-label="Review queues">
+        <button class="cf-tab on" id="revTabQueue" type="button" role="tab" aria-selected="true">CONTRIBUTIONS</button>
+        <button class="cf-tab" id="revTabSug" type="button" role="tab" aria-selected="false">SUGGESTED WORDS</button>
+      </div>
+      <p class="ovl-sub" id="revSub">Community corrections awaiting verification. Confirm a proposal to add your speaker vote — admins can approve straight into the knowledge base.</p>
       <div id="reviewList" class="rev-list"><div class="rev-empty">Loading…</div></div>
+      <div id="sugList" class="rev-list hidden"></div>
     </div>
   </div>
 
@@ -1074,7 +1147,7 @@ function wordAtEnd(value, caret) {
 }
 
 const ICON = {
-  copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
   retry: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>',
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
@@ -1113,15 +1186,21 @@ function attachActions(bubble, query, interactionId) {
     retry.onclick = () => { if (!busy) regenerate(bubble, query); };
     bar.appendChild(retry);
   }
-  if (interactionId) {
+  // "Wrong?" is for everyone — guests included. Their turns aren't saved, so
+  // there is no interaction id; the card and the flag carry the question
+  // and the answer instead.
+  if (query) {
+    turn.dataset.query = query;
     const spacer = document.createElement("span");
     spacer.style.flex = "1";
     bar.appendChild(spacer);
-    const flag = actBtn("", '✗');
+    const flag = actBtn("Wrong?", "✗");
     flag.classList.add("feedback");
-    flag.title = "Flag wrong answer";
-    flag.onclick = () => showCorrectionForm(turn, interactionId);
+    flag.title = "This answer is wrong";
+    flag.onclick = () => openWrongCard(bubble, query, interactionId);
     bar.appendChild(flag);
+  }
+  if (interactionId) {
     const up = actBtn("", ICON.thumbsUp);
     up.classList.add("feedback");
     up.title = "Helpful";
@@ -1148,8 +1227,49 @@ async function submitFeedback(interactionId, rating, activeBtn, otherBtn) {
     });
   } catch {}
   if (rating === "not_helpful") {
-    showCorrectionForm(activeBtn.closest(".turn"), interactionId);
+    const turn = activeBtn.closest(".turn");
+    const bubble = turn && turn.querySelector(".bubble");
+    if (bubble) openWrongCard(bubble, turn.dataset.query || "", interactionId, true);
   }
+}
+
+/* The English a question was about: "what is the ga word for X" -> "X".
+   Mirrors cleanEnglish in src/rag/flagging.ts. */
+function cleanEnglishQ(q) {
+  let out = String(q || "").trim().replace(/[?!.]+$/, "");
+  const FRAME = /^(please\s+)?(how\s+(do\s+(you|i|we)\s+|to\s+|can\s+i\s+)?(say|write|spell)|what\s+(is|do\s+you\s+call)|what'?s|translate|(the\s+)?ga\s+(word\s+)?for)\s+/i;
+  for (let i = 0; i < 3 && FRAME.test(out); i++) out = out.replace(FRAME, "");
+  return out.replace(/\s+(in|into)\s+ga(\s+language)?$/i, "").replace(/^["“']|["”']$/g, "").trim() || String(q || "").trim();
+}
+
+/* ✗ Wrong? — open the fix-it card under this answer (once). Signed-in users'
+   flag is recorded against the saved turn straight away; a guest's is
+   recorded if they send a fix or tap JUST FLAG IT. */
+function openWrongCard(bubble, query, interactionId, alreadyRated) {
+  const existing = bubble.querySelector(".flag");
+  if (existing) { existing.scrollIntoView({ block: "nearest" }); return; }
+  if (interactionId && !alreadyRated) {
+    fetch(API + "/feedback", {
+      method: "POST", headers: headers(), credentials: "include",
+      body: JSON.stringify({ interaction_id: interactionId, rating: "not_helpful" }),
+    }).catch(() => {});
+  }
+  renderFlagCard(bubble, {
+    kind: "wrong", english: cleanEnglishQ(query), open: "form",
+    interaction_id: interactionId || undefined,
+    query, answer: (bubble.innerText || bubble.textContent || "").slice(0, 300),
+  });
+}
+
+/* JUST FLAG IT — no fix, just "this is wrong". */
+async function flagOnly(flag) {
+  if (me && flag.interaction_id) return; // recorded when the card opened
+  try {
+    await fetch(API + "/feedback", {
+      method: "POST", headers: headers(), credentials: "include",
+      body: JSON.stringify({ rating: "not_helpful", query: flag.query || flag.english || "", answer: flag.answer || "" }),
+    });
+  } catch {}
 }
 
 function showCorrectionForm(turn, interactionId) {
@@ -2266,7 +2386,10 @@ function toast(msg, ms = 2800) {
 function openOverlay(id) {
   $(id).classList.add("show");
   document.body.classList.add("ovl-open");
-  if (id === "reviewOvl") loadReviewQueue();
+  if (id === "reviewOvl") {
+    $("revTabs").classList.toggle("hidden", !(me && me.role === "admin"));
+    setRevTab("queue");
+  }
 }
 function closeOverlays() {
   document.querySelectorAll(".ovl.show").forEach((o) => o.classList.remove("show"));
@@ -2277,13 +2400,107 @@ document.querySelectorAll(".ovl").forEach((o) =>
   o.addEventListener("click", (e) => { if (e.target === o) closeOverlays(); }));
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeOverlays(); });
 
+/* --- Install as an app (PWA) ---
+   Android/desktop Chrome and Edge fire beforeinstallprompt: we hold it and
+   show our own Install button and panel. iPhones never fire it, so there the
+   panel shows the Share -> Add to Home Screen steps instead. Nothing shows
+   once the app is running installed. The panel offers itself once per
+   device, on a second visit, on touch screens only. */
+const INSTALL_KEY = "heritage.install";
+const isStandalone = () =>
+  (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const isTouch = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+let installPrompt = null;
+
+function installState() { try { return JSON.parse(localStorage.getItem(INSTALL_KEY) || "{}"); } catch { return {}; } }
+function saveInstallState(st) { try { localStorage.setItem(INSTALL_KEY, JSON.stringify(st)); } catch {} }
+{ const st = installState(); st.visits = (st.visits || 0) + 1; saveInstallState(st); }
+
+function openInstall() {
+  const ios = !installPrompt && isIOS;
+  $("instPrompt").classList.toggle("hidden", ios);
+  $("instPromptRow").classList.toggle("hidden", ios);
+  $("instIos").classList.toggle("hidden", !ios);
+  $("instIosRow").classList.toggle("hidden", !ios);
+  $("instTitle").textContent = ios ? "Add Heritage to your iPhone"
+    : isTouch ? "Put Heritage on your phone" : "Install Heritage as an app";
+  openOverlay("installOvl");
+}
+function maybeOfferInstall() {
+  const st = installState();
+  if (!isTouch || st.offered || (st.visits || 0) < 2) return;
+  st.offered = true; saveInstallState(st);
+  setTimeout(() => { if (!busy && !document.querySelector(".ovl.show")) openInstall(); }, 4000);
+}
+$("installBtn").onclick = openInstall;
+$("instLater").onclick = closeOverlays;
+$("instOk").onclick = closeOverlays;
+$("instGo").onclick = async () => {
+  if (!installPrompt) { closeOverlays(); return; }
+  installPrompt.prompt();
+  const choice = await installPrompt.userChoice.catch(() => null);
+  installPrompt = null;
+  closeOverlays();
+  if (choice && choice.outcome === "accepted") $("installBtn").classList.add("hidden");
+};
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  installPrompt = e;
+  $("installBtn").classList.remove("hidden");
+  maybeOfferInstall();
+});
+window.addEventListener("appinstalled", () => {
+  installPrompt = null;
+  $("installBtn").classList.add("hidden");
+  closeOverlays();
+  toast("Installed — Heritage is on your home screen");
+});
+if (!isStandalone() && isIOS) { $("installBtn").classList.remove("hidden"); maybeOfferInstall(); }
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => { navigator.serviceWorker.register("/sw.js").catch(() => {}); });
+}
+
 /* Reuse the Ga transliteration on any input (correction form, contribute,
    review, flag card) — plus the composer's inline ghost completion. SPACE
    accepts the ghost on every device; Tab/ArrowRight accept too, Backspace
    undoes, Escape hides. No dropdown on these surfaces. */
+/* Whole-value conversion, for text that arrived without per-key events:
+   phone keyboards with word suggestions send "composition" input, which
+   the beforeinput handler below never sees ("Ny)nnm)" stayed as typed).
+   Same rules as transcribeGaKey, applied left to right. */
+function gaConvertAll(v) {
+  let out = '';
+  for (let i = 0; i < v.length; i++) {
+    const ch = v[i], prev = out[out.length - 1] || '', next = v[i + 1] || '';
+    const adj = GA_LETTER_RE.test(prev) || GA_LETTER_RE.test(next);
+    if (ch === '3' && adj) out += gaSentenceStart(out, out.length) ? 'Ɛ' : 'ɛ';
+    else if (ch === ')' && adj && gaParenDepth(out, out.length) === 0) out += gaSentenceStart(out, out.length) ? 'Ɔ' : 'ɔ';
+    else if ((ch === 'n' || ch === 'N') && (prev === 'n' || prev === 'N')) out = out.slice(0, -1) + (prev === 'N' ? 'Ŋ' : 'ŋ');
+    else out += ch;
+  }
+  return out;
+}
+
 function attachGaInput(el) {
   if (el.dataset.gaAttached) return;
   el.dataset.gaAttached = '1';
+  // Suggestions/autocorrect make phone keyboards send whole words at once
+  // instead of keys — turn them off, as the chat box does.
+  el.setAttribute('autocomplete', 'off');
+  el.setAttribute('autocorrect', 'off');
+  el.setAttribute('autocapitalize', 'off');
+  el.setAttribute('spellcheck', 'false');
+  // ...and convert anything that still arrives that way.
+  el.addEventListener('input', (e) => {
+    if (e.inputType === 'insertText' || e.inputType === 'deleteContentBackward') return;
+    const v = el.value, conv = gaConvertAll(v);
+    if (conv === v) return;
+    const caret = el.selectionStart + (conv.length - v.length);
+    el.value = conv;
+    try { el.setSelectionRange(caret, caret); } catch {}
+  });
   const single = el.tagName === 'INPUT';
   const wrap = document.createElement('div');
   wrap.className = 'ga-wrap';
@@ -2995,7 +3212,8 @@ function renderFlagCard(bubble, flag) {
     yes.onclick = formStep;
     const no = document.createElement("button");
     no.className = "fl-btn ghost"; no.type = "button"; no.textContent = "NO";
-    no.onclick = declineStep;
+    // Signed-in flags are recorded server-side already; a guest's is not.
+    no.onclick = async () => { if (flag.kind === "wrong" && !me) await flagOnly(flag); declineStep(); };
     row.append(yes, no);
     body.appendChild(row);
     scrollDown();
@@ -3006,7 +3224,7 @@ function renderFlagCard(bubble, flag) {
     body.innerHTML =
       `<div><label for="flEn-${uid}">ENGLISH</label>` +
       `<input class="en" id="flEn-${uid}" type="text" placeholder="e.g. let's eat" value="${escapeHtml(askedFor).replace(/"/g, "&quot;")}" /></div>` +
-      `<div><label for="flGa-${uid}">GA</label>` +
+      `<div><label for="flGa-${uid}">${flag.kind === "wrong" ? "WHAT IT SHOULD SAY IN GA" : "GA"}</label>` +
       `<input class="ga-key" id="flGa-${uid}" type="text" placeholder="Miiye niŋ" /></div>` +
       '<div class="fl-hint">Ga keys work here: 3→ɛ · )→ɔ · nn→ŋ</div>' +
       // Guests identify themselves — the server requires all three for a guest
@@ -3027,8 +3245,15 @@ function renderFlagCard(bubble, flag) {
     const send = document.createElement("button");
     send.className = "fl-btn"; send.type = "button"; send.textContent = "SEND IT"; send.disabled = true;
     const skip = document.createElement("button");
-    skip.className = "fl-btn ghost"; skip.type = "button"; skip.textContent = "NOT NOW";
-    skip.onclick = declineStep;
+    skip.className = "fl-btn ghost"; skip.type = "button";
+    if (flag.kind === "wrong") {
+      // No fix to offer — still worth recording that the answer is wrong.
+      skip.textContent = "JUST FLAG IT";
+      skip.onclick = async () => { skip.disabled = true; await flagOnly(flag); declineStep(); };
+    } else {
+      skip.textContent = "NOT NOW";
+      skip.onclick = declineStep;
+    }
     row.append(send, skip);
     body.appendChild(row);
 
@@ -3312,6 +3537,105 @@ async function refreshReviewCount() {
   } catch {}
 }
 refreshReviewCount();
+
+/* Review popup tabs. SUGGESTED WORDS is admin-only: words the system
+   guessed from sentence pairs (word_alignments). They never reach learners
+   unless an admin approves them here. */
+const REV_SUB = {
+  queue: "Community corrections awaiting verification. Confirm a proposal to add your speaker vote — admins can approve straight into the knowledge base.",
+  sug: "Words guessed by comparing sentences in the archive. Nothing here reaches learners until you approve it — correct the spelling first if it needs it.",
+};
+function setRevTab(which) {
+  const sug = which === "sug";
+  $("revTabQueue").classList.toggle("on", !sug); $("revTabQueue").setAttribute("aria-selected", String(!sug));
+  $("revTabSug").classList.toggle("on", sug); $("revTabSug").setAttribute("aria-selected", String(sug));
+  $("reviewList").classList.toggle("hidden", sug);
+  $("sugList").classList.toggle("hidden", !sug);
+  $("revSub").textContent = REV_SUB[sug ? "sug" : "queue"];
+  if (sug) loadSuggestions(); else loadReviewQueue();
+}
+$("revTabQueue").onclick = () => setRevTab("queue");
+$("revTabSug").onclick = () => setRevTab("sug");
+
+async function loadSuggestions() {
+  const list = $("sugList");
+  list.innerHTML = '<div class="rev-empty">Loading…</div>';
+  let rows = [];
+  try {
+    const r = await fetch(`${API}/admin/alignments?status=inferred&limit=40`, { credentials: "include" });
+    if (!r.ok) { list.innerHTML = '<div class="rev-empty">Could not load suggestions.</div>'; return; }
+    rows = (await r.json()).alignments || [];
+  } catch { list.innerHTML = '<div class="rev-empty">Could not load suggestions.</div>'; return; }
+
+  list.innerHTML = "";
+  if (!rows.length) {
+    const empty = document.createElement("div");
+    empty.className = "rev-empty";
+    empty.innerHTML = "No suggestions waiting. Build them from the archive's sentence pairs — nothing is shown to learners until you approve it.";
+    const build = document.createElement("button");
+    build.type = "button"; build.className = "fl-btn"; build.style.cssText = "display:block;margin:14px auto 0;padding:0 18px;flex:none";
+    build.textContent = "BUILD SUGGESTIONS";
+    build.onclick = async () => {
+      build.disabled = true; build.textContent = "BUILDING…";
+      try {
+        const r = await fetch(`${API}/admin/alignments/build`, { method: "POST", credentials: "include" });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.detail || "failed");
+        toast(`${d.alignments ?? 0} suggestions from ${d.pairs_scanned ?? 0} sentence pairs`);
+        loadSuggestions();
+      } catch { toast("Couldn't build suggestions"); build.disabled = false; build.textContent = "BUILD SUGGESTIONS"; }
+    };
+    empty.appendChild(build);
+    list.appendChild(empty);
+    return;
+  }
+
+  for (const a of rows) {
+    let examples = [];
+    try { examples = JSON.parse(a.examples || "[]"); } catch {}
+    const card = document.createElement("div");
+    card.className = "rev-card";
+    card.innerHTML = `
+      <div class="rev-meta">
+        <span class="tag-pill">SUGGESTED</span>
+        <span class="tag-pill" style="border-color:var(--bad);color:var(--bad)">NOT VERIFIED</span>
+        <span>seen in ${a.evidence_count} sentence${a.evidence_count === 1 ? "" : "s"} · ${Math.round((a.confidence || 0) * 100)}% match</span>
+      </div>
+      <div class="rev-body">
+        <div class="rev-q">${escapeHtml(a.english_word)}</div>
+        <input class="rev-a ga-key" type="text" aria-label="Ga (correct before approving)" value="${escapeHtml(a.ga_word).replace(/"/g, "&quot;")}" />
+        ${examples.slice(0, 2).map((ex) =>
+          `<div class="rev-note"><b>${escapeHtml(ex.ga || "")}</b> — “${escapeHtml(ex.english || "")}”</div>`).join("")}
+      </div>
+      <div class="rev-actions">
+        <button class="approve" type="button">APPROVE → KB</button>
+        <button class="dismiss" type="button">REJECT</button>
+      </div>`;
+    const input = card.querySelector(".rev-a");
+    bindGaKeys(input);
+    card.querySelector(".approve").onclick = async () => {
+      const ga = input.value.trim();
+      if (!ga) return;
+      try {
+        const r = await fetch(`${API}/admin/alignments/${encodeURIComponent(a.id)}/promote`, {
+          method: "POST", headers: headers(), credentials: "include", body: JSON.stringify({ ga }),
+        });
+        if (!r.ok) throw 0;
+        toast(`Approved — “${a.english_word}” is ${ga}`);
+        card.remove();
+      } catch { toast("Approve failed"); }
+    };
+    card.querySelector(".dismiss").onclick = async () => {
+      try {
+        const r = await fetch(`${API}/admin/alignments/${encodeURIComponent(a.id)}/reject`, { method: "POST", credentials: "include" });
+        if (!r.ok) throw 0;
+        toast("Rejected — it won't be suggested again");
+        card.remove();
+      } catch { toast("Reject failed"); }
+    };
+    list.appendChild(card);
+  }
+}
 
 async function loadReviewQueue() {
   const list = $("reviewList");
