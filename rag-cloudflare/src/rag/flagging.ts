@@ -21,6 +21,8 @@ export interface TurnFlag {
   english: string;
   /** The interaction being corrected, when we know it. */
   interaction_id?: string;
+  /** "form" when the user already said yes — skip straight past the ask. */
+  open?: "form";
 }
 
 /**
@@ -84,6 +86,54 @@ export function isBareNegative(query: string): boolean {
 }
 
 /**
+ * A bare "yes". The card offers YES/NO buttons, but people type — and a typed
+ * "yes" used to be searched like any other message ("I don't have 'yes'
+ * yet"). "Hɛɛ" is Ga for yes, so it counts too.
+ */
+export function isAffirmative(query: string): boolean {
+  return /^(yes|yeah|yea|yep|yup|sure|ok|okay|of course|i do|yes i do|i know|i know it|hɛɛ|hee)[.!\s]*$/i
+    .test(query.trim());
+}
+
+/** Our own question text — the two asks the chat layer produces. */
+const ASK_MARKERS = ["Do you know the right Ga for", "Do you know what it should say"];
+
+/** True when the last assistant turn was us asking the user for help. */
+export function isOurAsk(prevAssistant: string): boolean {
+  return ASK_MARKERS.some((m) => prevAssistant.includes(m)) || isNotFoundResponse(prevAssistant);
+}
+
+/**
+ * Recover what we asked about from the text of the ask itself.
+ *
+ * Guests persist nothing, and the question they resend is the one that
+ * produced the ask — which, after "its wrong", is the complaint. So the reliable
+ * source is our own sentence: `...right Ga for "X"?` or `I don't have "X" yet`.
+ */
+export function askedAboutFromAsk(prevAssistant: string): string {
+  const m =
+    prevAssistant.match(/right Ga for [“"](.+?)[”"]\?/) ||
+    prevAssistant.match(/I don'?t (?:have|know) [“"](.+?)[”"]/);
+  return m ? m[1].trim() : "";
+}
+
+/**
+ * Turn a question into the English side of an entry: "how to say lets eat in
+ * ga" should be proposed as "lets eat", not the whole question. Only the
+ * framing is removed; if that leaves nothing, the original stands.
+ */
+export function cleanEnglish(question: string): string {
+  const out = question
+    .trim()
+    .replace(/[?!.]+$/, "")
+    .replace(/^(please\s+)?(how\s+(do\s+(you|i|we)\s+|to\s+|can\s+i\s+)?(say|write|spell)|what\s+is|what'?s|translate|the\s+ga\s+(word\s+)?for)\s+/i, "")
+    .replace(/\s+(in|into)\s+ga(\s+language)?$/i, "")
+    .replace(/^["“']|["”']$/g, "")
+    .trim();
+  return out || question.trim();
+}
+
+/**
  * The user's previous real question — what a correction would be *about*.
  *
  * Complaints are themselves persisted as user turns, so a second "that's still
@@ -94,7 +144,8 @@ export function previousUserQuery(memoryWindow: ChatMessage[]): string {
   const users = memoryWindow.filter((m) => m.role === "user");
   for (let i = users.length - 1; i >= 0; i--) {
     const text = (users[i].content ?? "").trim();
-    if (text && !looksLikeComplaint(text)) return text;
+    // Skip complaints and bare yes/no — those are replies, not questions.
+    if (text && !looksLikeComplaint(text) && !isAffirmative(text) && !isBareNegative(text)) return text;
   }
   return "";
 }

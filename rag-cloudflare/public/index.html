@@ -2786,7 +2786,8 @@ function renderFlagCard(bubble, flag) {
     scrollDown();
   }
 
-  askStep();
+  // They already said yes (typed it rather than tapping) — don't ask twice.
+  if (flag.open === "form") formStep(); else askStep();
   bubble.appendChild(card);
   scrollDown();
 }

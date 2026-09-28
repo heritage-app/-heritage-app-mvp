@@ -20,6 +20,10 @@ import { listChapters, listVerses } from "./discovery";
 import {
   isDissatisfaction,
   isBareNegative,
+  isAffirmative,
+  isOurAsk,
+  askedAboutFromAsk,
+  cleanEnglish,
   isNotFoundResponse,
   previousUserQuery,
   previousAssistantAnswer,
@@ -370,8 +374,11 @@ async function* askGeneral(
   ]);
   // Content words: exclude stopwords AND bare numbers. Folded (ŋ→n, ɛ→e, ɔ→o) so
   // Ga words typed on a standard keyboard compare equal to archive spelling.
-  // Words within edit-distance 1 of a stopword also count as stopwords, so typos
-  // like "emnglish"/"mee" don't become content words that block matching.
+  // Typos of LONG stopwords ("emnglish", "translte") are treated as stopwords
+  // too. The limits matter: applied to short words, one edit from a stopword
+  // swallowed real vocabulary — "eat" (at), "dog" (do), "boy", "man", "two",
+  // "son", "hand" — 39 English words from the archive's own translations. Those
+  // queries then answered "I don't have it" for entries that were verified.
   const edit1 = (a: string, b: string): boolean => {
     if (a === b) return true;
     const la = a.length, lb = b.length;
@@ -386,7 +393,7 @@ async function* askGeneral(
     }
     return edits + (la - i) + (lb - j) <= 1;
   };
-  const nearStop = (w: string) => w.length >= 3 && [...stop].some((s) => edit1(w, s));
+  const nearStop = (w: string) => w.length >= 6 && [...stop].some((s) => s.length >= 5 && edit1(w, s));
   const queryWords = [...foldGa(qLow).matchAll(/[\p{L}\p{N}'-]+/gu)]
     .map((m) => m[0])
     .filter((w) => w.length > 1 && !stop.has(w) && !nearStop(w) && !/^\d+$/.test(w));
@@ -410,33 +417,70 @@ async function* askGeneral(
   if (queryWords.length > 0 && queryWords.length <= 3) {
     const qStr = queryWords.join(" ");
     const foldedQ = foldGa(qStr);
-    const likePattern = `%${foldedQ}%`;
+    // Word-level normal form: folded, apostrophes dropped (so "lets" meets
+    // "let's"), everything else a single space.
+    const norm = (s: string) =>
+      foldGa(s.toLowerCase()).replace(/['’]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+    const needle = norm(qStr);
+    // WHOLE words only. A substring test let "lets" match "trip-LETS", so
+    // "lets eat in ga" was answered with the Ga for "triplets".
+    const hasPhrase = (hay: string) => ` ${norm(hay)} `.includes(` ${needle} `);
+    // SQL is only a coarse net: the longest word, apostrophe-free. Precise
+    // matching and ranking happen below.
+    const probe = [...needle.split(" ")].sort((a, b) => b.length - a.length)[0] ?? needle;
+    const likePattern = `%${probe}%`;
     try {
       const vocabSearch = await env.DB.prepare(
-        `SELECT headword, headword_normalized, meanings, translations FROM vocabulary 
+        `SELECT headword, headword_normalized, meanings, translations FROM vocabulary
          WHERE (headword_normalized = ? OR translations LIKE ? OR meanings LIKE ?)
            AND source IS NOT NULL AND TRIM(source) <> ''
            AND verified_at IS NOT NULL AND TRIM(verified_at) <> ''
-         LIMIT 5`
+         ORDER BY LENGTH(translations) ASC
+         LIMIT 40`
       ).bind(foldedQ, likePattern, likePattern).all<{ headword: string; headword_normalized: string; meanings: string; translations: string }>();
 
       if (vocabSearch.results && vocabSearch.results.length > 0) {
-        let bestHit = null;
+        // Rank rather than take the first row: a Ga headword match, then an
+        // exact English translation, then the phrase inside a translation,
+        // then inside a meaning. Previously LIMIT 5 over a substring LIKE could
+        // return five near-misses and drop the exact entry entirely.
+        // Folding makes English and Ga collide: "man" folds equal to the Ga
+        // headword "Maŋ" (herring), "son" to "Sɔŋ" (lobster). A FOLDED Ga match
+        // is therefore weaker than an exact English translation — someone who
+        // meant Maŋ would usually have typed the ŋ — and when the question is
+        // framed toward Ga ("X in ga", "how do you say X") it is never used.
+        const towardGa = /\bin\s+ga\b|\bhow\s+(do\s+(you|i)\s+|to\s+)?say\b|\btranslate\b/.test(qLow);
+        const typedGa = /[ɛɔŋ]/.test(qLow) || /[̀-ͯ]/.test(qLow.normalize("NFD"));
+        const rawQ = qLow.replace(/[?!.]+$/, "").trim();
+
+        let bestHit: { ga: string; eng: string; gaSide: boolean; rank: number } | null = null;
         for (const row of vocabSearch.results) {
           let transArr: string[] = [];
           let meanArr: string[] = [];
           try { transArr = JSON.parse(row.translations || "[]"); } catch {}
           try { meanArr = JSON.parse(row.meanings || "[]"); } catch {}
-          // Check translations (English) and meanings (English) for a match
-          const engMatch = transArr.find(t => foldGa(t.toLowerCase()) === foldedQ || foldGa(t.toLowerCase()).includes(foldedQ))
-            || meanArr.find(t => foldGa(t.toLowerCase()) === foldedQ || foldGa(t.toLowerCase()).includes(foldedQ));
-          if (row.headword_normalized === foldedQ) {
-            bestHit = { ga: row.headword, eng: transArr[0] || meanArr[0] || qStr, gaSide: true };
-            break;
-          } else if (engMatch) {
-            bestHit = { ga: row.headword, eng: engMatch, gaSide: false };
-            break;
+
+          const hw = (row.headword || "").toLowerCase().trim();
+          const gaEng = transArr[0] || meanArr[0] || qStr;
+          const exact = transArr.find((t) => norm(t) === needle);
+          const inTrans = transArr.find(hasPhrase);
+          const inMean = meanArr.find(hasPhrase);
+
+          let hit: { ga: string; eng: string; gaSide: boolean; rank: number } | null = null;
+          if (typedGa && (hw === rawQ || ` ${rawQ} `.includes(` ${hw} `))) {
+            // They typed the Ga itself, diacritics and all.
+            hit = { ga: row.headword, eng: gaEng, gaSide: true, rank: 0 };
+          } else if (exact) {
+            hit = { ga: row.headword, eng: exact, gaSide: false, rank: 1 };
+          } else if (!towardGa && row.headword_normalized === foldedQ) {
+            hit = { ga: row.headword, eng: gaEng, gaSide: true, rank: 2 };
+          } else if (inTrans) {
+            hit = { ga: row.headword, eng: inTrans, gaSide: false, rank: 3 };
+          } else if (inMean) {
+            hit = { ga: row.headword, eng: inMean, gaSide: false, rank: 4 };
           }
+          if (hit && (!bestHit || hit.rank < bestHit.rank)) bestHit = hit;
+          if (bestHit?.rank === 0) break;
         }
         if (bestHit) {
           yield bestHit.gaSide
@@ -855,6 +899,40 @@ export async function* ask(
     return;
   }
 
+  // --- A reply to OUR question ("Do you know the right Ga for X?") ---
+  // The card offers YES/NO buttons, but people type. A typed "yes" was being
+  // searched ("I don't have 'yes' yet") and a typed "no" read as a fresh
+  // complaint. Answer them as what they are: replies to our ask.
+  {
+    const prevA = previousAssistantAnswer(memoryWindow);
+    if (isOurAsk(prevA) && (isAffirmative(query) || isBareNegative(query))) {
+      const about = cleanEnglish(askedAboutFromAsk(prevA) || previousUserQuery(memoryWindow));
+      if (isAffirmative(query)) {
+        const reply = about
+          ? `Oyiwaladɔŋ! Type the Ga for “${about}” in the box below and I'll put it forward for review.`
+          : "Oyiwaladɔŋ! Type it in the box below and I'll put it forward for review.";
+        yield reply;
+        const flag: TurnFlag = {
+          kind: isNotFoundResponse(prevA) ? "not_found" : "wrong",
+          english: about,
+          open: "form",
+        };
+        if (!ephemeral) {
+          for await (const t of persistTurn(env, conversationId, query, reply, userId, flag)) yield t;
+        } else {
+          yield flagOnlyMeta(flag);
+        }
+      } else {
+        const bow = "No problem at all. I've added it to the list the keepers work through — thank you for asking.";
+        yield bow;
+        if (!ephemeral) {
+          for await (const t of persistTurn(env, conversationId, query, bow, userId)) yield t;
+        }
+      }
+      return;
+    }
+  }
+
   // --- Flagged turn: the user is telling us the last answer was wrong ---
   // This runs AFTER detectAndHandleCorrection, which handles the better case
   // where they also supplied the right answer. Here they have not, so the turn
@@ -881,11 +959,11 @@ export async function* ask(
     }
 
     const reply = askedAbout
-      ? `Sorry about that — I got it wrong. Do you know the right Ga for “${askedAbout}”?`
+      ? `Sorry about that — I got it wrong. Do you know the right Ga for “${cleanEnglish(askedAbout)}”?`
       : "Sorry about that — I got it wrong. Do you know what it should say?";
     yield reply;
 
-    const flag: TurnFlag = { kind: "wrong", english: askedAbout };
+    const flag: TurnFlag = { kind: "wrong", english: cleanEnglish(askedAbout) };
     if (!ephemeral) {
       for await (const t of persistTurn(env, conversationId, query, reply, userId, flag)) yield t;
     } else {
@@ -928,7 +1006,7 @@ export async function* ask(
   // the invitation as prose the user can't act on. The gap itself is already
   // logged by the engine — this only adds the affordance.
   const notFoundFlag: TurnFlag | undefined = isNotFoundResponse(full)
-    ? { kind: "not_found", english: query.trim() }
+    ? { kind: "not_found", english: cleanEnglish(query) }
     : undefined;
 
   if (!ephemeral) {
