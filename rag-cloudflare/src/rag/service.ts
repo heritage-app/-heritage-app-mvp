@@ -426,6 +426,11 @@ async function* askGeneral(
   // answered "right now" with the Ga for "right", "this afternoon" with "good
   // afternoon", and could never find "brother in law" (searched as "brother
   // law") or single-word entries like "no" and "we".
+  // A question framed toward Ga ("X in ga", "how do you say X") names X in
+  // ENGLISH. Any match on the Ga side of an entry is then a coincidence of
+  // spelling: "man" = folded "Maŋ" (herring), "shade" = the start of
+  // "Shadebua" (hedgehog). Both matchers skip the Ga side for these.
+  const towardGa = /\bin\s+ga\b|\bhow\s+(do\s+(you|i)\s+|to\s+)?say\b|\btranslate\b/.test(qLow);
   const phrase = norm(cleanEnglish(query));
   // ...but "what is" / "how do you say" can be the phrase itself: "what is
   // this?" is an entry, and stripping its framing searched for "this". Try the
@@ -467,7 +472,6 @@ async function* askGeneral(
         // is therefore weaker than an exact English translation — someone who
         // meant Maŋ would usually have typed the ŋ — and when the question is
         // framed toward Ga ("X in ga", "how do you say X") it is never used.
-        const towardGa = /\bin\s+ga\b|\bhow\s+(do\s+(you|i)\s+|to\s+)?say\b|\btranslate\b/.test(qLow);
         const typedGa = /[ɛɔŋ]/.test(qLow) || /[̀-ͯ]/.test(qLow.normalize("NFD"));
         const rawQ = qLow.replace(/[?!.]+$/, "").trim();
 
@@ -800,7 +804,7 @@ async function* askGeneral(
     for (const w of queryWords) {
       let matched = false;
       if (engWords.has(w)) { mcEn++; matched = true; }
-      if (gaWords.has(w)) { mcGa++; matched = true; }
+      if (!towardGa && gaWords.has(w)) { mcGa++; matched = true; }
       // Near-matches, each for a specific reason and no looser:
       //  - English: an inflection of the same word — "alphabets" ~ "alphabet",
       //    "eating" ~ "eat". NOT a bare prefix: that let "cat" match
@@ -810,7 +814,7 @@ async function* askGeneral(
       //    that let "share" match the Ga token "sha", and "i would like to
       //    share" was answered with the Ga for "Hurry".
       if (!engWords.has(w) && [...engWords].some((e) => isInflection(w, e))) { mcEn++; matched = true; }
-      if (!gaWords.has(w) && [...gaWords].some((g) => isPartialGa(w, g))) { mcGa++; matched = true; }
+      if (!towardGa && !gaWords.has(w) && [...gaWords].some((g) => isPartialGa(w, g))) { mcGa++; matched = true; }
       if (matched) matchedCount++;
     }
     const mc = mcEn + mcGa;

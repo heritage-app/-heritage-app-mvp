@@ -28,10 +28,11 @@ export function isInflection(a: string, b: string): boolean {
 /**
  * True when `typed` is a Ga word partway through being typed: "otukwaj" ~
  * "otukwajan". It must be at least 4 letters and cover most of the word — a
- * short fragment is a coincidence, not an intent.
+ * short fragment is a coincidence, not an intent. 0.75, not 0.6: at 0.6 the
+ * English "shade" passed as 5/8 of the Ga "Shadebua" (hedgehog).
  */
 export function isPartialGa(typed: string, word: string): boolean {
   if (typed === word) return true;
   if (typed.length < 4 || !word.startsWith(typed)) return false;
-  return typed.length / word.length >= 0.6;
+  return typed.length / word.length >= 0.75;
 }
