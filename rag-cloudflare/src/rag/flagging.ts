@@ -15,8 +15,11 @@ import type { Env, ChatMessage } from "../types";
 
 /** What the client should render under the answer. */
 export interface TurnFlag {
-  /** `wrong` — the user said so. `not_found` — the archive had nothing. */
-  kind: "wrong" | "not_found";
+  /**
+   * `wrong` — the user said so. `not_found` — the archive had nothing.
+   * `contribute` — the user offered to teach, unprompted.
+   */
+  kind: "wrong" | "not_found" | "contribute";
   /** Prefill for the English side of the contribution. */
   english: string;
   /** The interaction being corrected, when we know it. */
@@ -122,6 +125,28 @@ export function parseEqualsPair(
   if (lGa && !rGa) return { english: right, ga: left, assumed: false };
   if (rGa && !lGa) return { english: left, ga: right, assumed: false };
   return { english: left, ga: right, assumed: true };
+}
+
+/**
+ * The user is offering to teach, not asking a question.
+ *
+ * "i would like to share" was searched and answered with the Ga for "Hurry";
+ * "let me teach you" was logged as a knowledge gap. Both are in the production
+ * gap table — real users say this. It should open the contribution form.
+ */
+export function isContributeIntent(query: string): boolean {
+  const q = query.toLowerCase().trim();
+  if (q.length > 80) return false;
+  // A translation request or an explicit pair is handled elsewhere.
+  if (/\bin\s+ga\b/.test(q) || q.includes("=")) return false;
+  return (
+    /\b(i'?d|i\s+would|i)\s+(like|love|want)\s+to\s+(share|teach|add|contribute|help|correct)\b/.test(q) ||
+    /\b(let|can|may|could)\s+(me|i)\s+(share|teach|add|contribute|help|correct)\b/.test(q) ||
+    /\bi\s+(can|could|will)\s+(share|teach|help)\b/.test(q) ||
+    /\bteach\s+you\b/.test(q) ||
+    /\b(add|share|submit)\s+a\s+(new\s+)?(word|phrase|translation)\b/.test(q) ||
+    /\bhow\s+(do|can)\s+i\s+(contribute|add\s+a\s+word)\b/.test(q)
+  );
 }
 
 /** Our own question text — the two asks the chat layer produces. */

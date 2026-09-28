@@ -17,6 +17,7 @@ import {
   handleUserContribution 
 } from "./learning-from-gaps";
 import { listChapters, listVerses } from "./discovery";
+import { isInflection, isPartialGa } from "./matching";
 import {
   isDissatisfaction,
   isBareNegative,
@@ -25,6 +26,7 @@ import {
   askedAboutFromAsk,
   cleanEnglish,
   parseEqualsPair,
+  isContributeIntent,
   isNotFoundResponse,
   previousUserQuery,
   previousAssistantAnswer,
@@ -780,11 +782,16 @@ async function* askGeneral(
       let matched = false;
       if (engWords.has(w)) { mcEn++; matched = true; }
       if (gaWords.has(w)) { mcGa++; matched = true; }
-      // Prefix match: "otukwaja" → "otukwajaŋ" (query is prefix of term), and
-      // "alphabets" → "alphabet" (term is prefix of query — inflections).
-      // The prefix must be ≥3 chars so "a"/"i" never match a long query word.
-      if (!engWords.has(w) && [...engWords].some(e => e.startsWith(w) || (e.length >= 3 && w.startsWith(e)))) { mcEn++; matched = true; }
-      if (!gaWords.has(w) && [...gaWords].some(g => g.startsWith(w) || (g.length >= 3 && w.startsWith(g)))) { mcGa++; matched = true; }
+      // Near-matches, each for a specific reason and no looser:
+      //  - English: an inflection of the same word — "alphabets" ~ "alphabet",
+      //    "eating" ~ "eat". NOT a bare prefix: that let "cat" match
+      //    "caterpillar".
+      //  - Ga: a word being typed out — "otukwaj" ~ "otukwajaŋ" — so the query
+      //    must be at least 4 letters and most of the word. NOT the reverse:
+      //    that let "share" match the Ga token "sha", and "i would like to
+      //    share" was answered with the Ga for "Hurry".
+      if (!engWords.has(w) && [...engWords].some((e) => isInflection(w, e))) { mcEn++; matched = true; }
+      if (!gaWords.has(w) && [...gaWords].some((g) => isPartialGa(w, g))) { mcGa++; matched = true; }
       if (matched) matchedCount++;
     }
     const mc = mcEn + mcGa;
@@ -901,6 +908,27 @@ export async function* ask(
     }
     // Title/summary are generated lazily by getConversationContext when missing
     // and persisted there — no per-turn regeneration needed here.
+    return;
+  }
+
+  // --- An offer to teach ("i would like to share", "let me teach you") ---
+  // Not a question: searching it answered with a coincidental match, and
+  // logging it filled knowledge_gaps with offers of help. Open the form.
+  if (isContributeIntent(query)) {
+    // Offered right after we asked about a word ("I don't have 'god' yet")?
+    // Then that word is what they mean to teach — prefill it.
+    const prevA = previousAssistantAnswer(memoryWindow);
+    const about = isOurAsk(prevA) ? cleanEnglish(askedAboutFromAsk(prevA)) : "";
+    const reply = about
+      ? `Wonderful — thank you! Put the Ga for “${about}” below and I'll put it forward for review.`
+      : "Wonderful — thank you! What would you like to share? Put the English and the Ga below and I'll put it forward for review.";
+    yield reply;
+    const flag: TurnFlag = { kind: "contribute", english: about, open: "form" };
+    if (!ephemeral) {
+      for await (const t of persistTurn(env, conversationId, query, reply, userId, flag)) yield t;
+    } else {
+      yield flagOnlyMeta(flag);
+    }
     return;
   }
 

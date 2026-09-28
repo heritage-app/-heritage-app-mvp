@@ -754,7 +754,7 @@
           </div>
         </div>
         </div>
-        <span class="hint"><span class="hint-desk">Enter ↵ to send · Tab accepts a suggestion · Ga keys: 3→ɛ · )→ɔ · n~→ŋ · a~→ã</span><span class="hint-touch">space accepts · ↵ sends · 3→ɛ )→ɔ n~→ŋ</span></span>
+        <span class="hint"><span class="hint-desk">Enter ↵ to send · Tab accepts a suggestion · Ga keys: 3→ɛ · )→ɔ · nn→ŋ · a~→ã</span><span class="hint-touch">space accepts · ↵ sends · 3→ɛ )→ɔ nn→ŋ</span></span>
       </div>
     </div>
     </section>
@@ -844,7 +844,7 @@
           <button class="btn-solid" type="submit">SUBMIT FOR REVIEW</button>
           <button class="btn-line" data-close type="button">CANCEL</button>
         </div>
-        <div class="f-hint">Ga keys work here: 3→ɛ &nbsp;)→ɔ &nbsp;n~→ŋ</div>
+        <div class="f-hint">Ga keys work here: 3→ɛ &nbsp;)→ɔ &nbsp;nn→ŋ</div>
       </form>
     </div>
   </div>
@@ -991,6 +991,11 @@ function transcribeGaKey(value, selStart, selEnd, ch) {
     if (!m) return null;
     return { start: selStart - 1, end: selEnd, insert: m, typed: prev + '~' };
   }
+  // "nn" → ŋ; the first n's case decides ("NN"/"Nn" → Ŋ). English words full
+  // of "nn" are put back by restoreEnglishNN() when the word ends.
+  if ((ch === 'n' || ch === 'N') && selStart === selEnd && (prev === 'n' || prev === 'N')) {
+    return { start: selStart - 1, end: selEnd, insert: prev === 'N' ? 'Ŋ' : 'ŋ', typed: prev + ch };
+  }
   // Retroactive: a letter landing after a literal "3" / ")" completes it —
   // handles "3y3" → "Ɛyɛ" and ")k)" → "Ɔkɔ".
   if (GA_LETTER_RE.test(ch) && selStart === selEnd) {
@@ -1005,6 +1010,41 @@ function transcribeGaKey(value, selStart, selEnd, ch) {
   }
   return null;
 }
+/* English words containing "nn", so the nn → ŋ convention doesn't turn
+   "dinner in ga" into "diŋer in ga" (which then matches nothing). Mirrors
+   rag-frontend/lib/ga/transliterate.ts — keep the two in sync. The list can't
+   be complete; a missing word stays converted, and Backspace straight after
+   the conversion undoes it. */
+const ENGLISH_NN = new Set(["ann","anna","anne","annie","inn","penne","tonne","manna","nanna",
+  "dinner","thinner","sinner","winner","spinner","beginner","runner","gunner","inner","innermost",
+  "manner","mannerism","banner","tanner","planner","scanner","spanner","funny","sunny","bunny",
+  "penny","nanny","granny","skinny","tinny","canny","uncanny","runny","gunny","bonny","johnny",
+  "jenny","kenny","lenny","donna","cranny","tyranny","cannot","cannon","cannery","cannabis",
+  "cannibal","canning","tennis","inning","innings","running","winning","beginning","planning",
+  "spinning","stunning","cunning","scanning","banning","pinning","thinning","tanning","gunning",
+  "planned","banned","scanned","spanned","tanned","pinned","thinned","manned","canned","annual",
+  "annually","annoy","annex","anniversary","announce","announcement","innocent","innocence",
+  "innovate","innovation","innovative","innate","connect","connection","channel","tunnel","funnel",
+  "kennel","flannel","fennel","cinnamon","sonnet","bonnet","millennium","perennial","biennial",
+  "questionnaire","penniless","personnel","antenna","antennae","vienna","sienna","savanna",
+  "savannah","hosanna","mannequin","ennui","finnish","zinnia","tennessee","minnesota",
+  "pennsylvania","cincinnati","hennessy"]);
+const EN_SUFFIXES = ["s","es","ed","d","ing","er","ers","y","ies","ly","ment","ments"];
+function isEnglishNN(w) {
+  if (ENGLISH_NN.has(w)) return true;
+  if (EN_SUFFIXES.some((x) => w.endsWith(x) && ENGLISH_NN.has(w.slice(0, -x.length)))) return true;
+  const yi = w.match(/^(.+)i(er|est|es|ly)$/);
+  return !!yi && ENGLISH_NN.has(yi[1] + "y");
+}
+function restoreEnglishNN(text) {
+  return text.replace(/[\p{L}\p{M}]+/gu, (w) => {
+    if (!/[ŋŊ]/.test(w)) return w;
+    const shouting = w === w.toUpperCase();
+    const back = w.replace(/ŋ/g, "nn").replace(/Ŋ/g, shouting ? "NN" : "Nn");
+    return /^[a-z]+$/i.test(back) && isEnglishNN(back.toLowerCase()) ? back : w;
+  });
+}
+
 /* The Ga word ending at the caret — ghost completion is end-of-input only. */
 function wordAtEnd(value, caret) {
   if (caret !== value.length || caret === 0) return null;
@@ -1380,7 +1420,9 @@ async function streamInto(bubble, query) {
 }
 
 async function send(text) {
-  text = (text ?? input.value).trim();
+  // Enter can end the last word without a space, so the nn → ŋ restore that
+  // runs at word boundaries hasn't seen it yet — run it over the whole message.
+  text = restoreEnglishNN((text ?? input.value).trim());
   if (!text || busy) return;
   lastPrompt = text;                 // remember for ↑ recall / resubmit
   input.value = ""; autosize(); closeAc(); ghostSug = null; renderGhost();
@@ -2115,6 +2157,20 @@ function renderAutocomplete() {
 // ASCII→Ga transliteration as you type (3→ɛ, )→ɔ, n~→ŋ, vowel~→nasal).
 input.addEventListener('beforeinput', (e) => {
   if (e.inputType !== 'insertText' || !e.data || e.data.length !== 1) return;
+  // A space or punctuation ends a word: if nn → ŋ turned an English word into
+  // nonsense ("diŋer"), put it back now, before the delimiter is inserted.
+  if (!/[\p{L}\p{M}]/u.test(e.data) && input.selectionStart === input.selectionEnd) {
+    const caret = input.selectionStart, v0 = input.value;
+    let i = caret;
+    while (i > 0 && /[\p{L}\p{M}]/u.test(v0[i - 1])) i--;
+    const word = v0.slice(i, caret), fixed = restoreEnglishNN(word);
+    if (fixed !== word) {
+      input.value = v0.slice(0, i) + fixed + v0.slice(caret);
+      const c = i + fixed.length;
+      input.setSelectionRange(c, c);
+      lastTranslit = null;
+    }
+  }
   const conv = transcribeGaKey(input.value, input.selectionStart, input.selectionEnd, e.data);
   if (!conv) return;
   e.preventDefault();
@@ -2684,7 +2740,7 @@ function renderFlagCard(bubble, flag) {
   card.innerHTML =
     '<div class="fl-head">' +
     '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
-    `<span>${flag.kind === "wrong" ? "HELP ME FIX IT" : "NOT IN THE ARCHIVE"}</span></div>` +
+    `<span>${flag.kind === "wrong" ? "HELP ME FIX IT" : flag.kind === "contribute" ? "SHARE WHAT YOU KNOW" : "NOT IN THE ARCHIVE"}</span></div>` +
     '<div class="fl-body"></div>';
   const body = card.querySelector(".fl-body");
 
@@ -2714,10 +2770,10 @@ function renderFlagCard(bubble, flag) {
   function formStep() {
     body.innerHTML =
       `<div><label for="flEn-${uid}">ENGLISH</label>` +
-      `<input class="en" id="flEn-${uid}" type="text" value="${escapeHtml(askedFor).replace(/"/g, "&quot;")}" /></div>` +
+      `<input class="en" id="flEn-${uid}" type="text" placeholder="e.g. let's eat" value="${escapeHtml(askedFor).replace(/"/g, "&quot;")}" /></div>` +
       `<div><label for="flGa-${uid}">GA</label>` +
       `<input class="ga-key" id="flGa-${uid}" type="text" placeholder="Miiye niŋ" /></div>` +
-      '<div class="fl-hint">Ga keys work here: 3→ɛ · )→ɔ · n~→ŋ</div>' +
+      '<div class="fl-hint">Ga keys work here: 3→ɛ · )→ɔ · nn→ŋ</div>' +
       // Guests identify themselves — the server requires all three for a guest
       // contribution. Prefilled if they already typed them in Contribute.
       (me ? "" :
@@ -2755,6 +2811,14 @@ function renderFlagCard(bubble, flag) {
     };
     body.querySelectorAll("input").forEach((i) => i.addEventListener("input", sync));
     sync();
+    if (flag.kind === "contribute") {
+      const doc = document.createElement("button");
+      doc.type = "button"; doc.className = "fl-btn ghost";
+      doc.style.cssText = "flex:none;width:100%;margin-top:2px";
+      doc.textContent = "HAVE A DOCUMENT OR PHOTO? UPLOAD IT";
+      doc.onclick = () => { $("cfGuestRow").classList.toggle("hidden", !!me); setCfTab("doc"); openOverlay("contribOvl"); };
+      body.appendChild(doc);
+    }
     ga.focus();
 
     send.onclick = async () => {
@@ -2784,6 +2848,11 @@ function renderFlagCard(bubble, flag) {
   /* Step 3b — declined. The flag is already recorded server-side, so we only
      say what is actually true: it is on the list, and it is counted. */
   function declineStep() {
+    if (flag.kind === "contribute") {
+      body.innerHTML = "<div class=\"fl-q\">No problem — the Contribute button is there whenever you're ready.</div>";
+      scrollDown();
+      return;
+    }
     body.innerHTML =
       '<div class="fl-q">No problem at all. I\'ve added it to the list the keepers work through.</div>' +
       (askedFor
