@@ -417,20 +417,27 @@ async function* askGeneral(
   }
 
   // --- Dictionary lookup (SQL) ---
-  if (queryWords.length > 0 && queryWords.length <= 3) {
-    const qStr = queryWords.join(" ");
+  // Word-level normal form: folded, apostrophes dropped (so "lets" meets
+  // "let's"), everything else a single space.
+  const norm = (s: string) =>
+    foldGa(s.toLowerCase()).replace(/['’]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  // The whole phrase with only the question framing removed ("how do you say
+  // X in ga" -> X), stopwords KEPT. Matching only the stopword-stripped words
+  // answered "right now" with the Ga for "right", "this afternoon" with "good
+  // afternoon", and could never find "brother in law" (searched as "brother
+  // law") or single-word entries like "no" and "we".
+  const phrase = norm(cleanEnglish(query));
+  const phraseWords = phrase ? phrase.split(" ").length : 0;
+  if ((queryWords.length > 0 && queryWords.length <= 3) || (phraseWords > 0 && phraseWords <= 5)) {
+    const qStr = queryWords.length ? queryWords.join(" ") : phrase;
     const foldedQ = foldGa(qStr);
-    // Word-level normal form: folded, apostrophes dropped (so "lets" meets
-    // "let's"), everything else a single space.
-    const norm = (s: string) =>
-      foldGa(s.toLowerCase()).replace(/['’]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
     const needle = norm(qStr);
     // WHOLE words only. A substring test let "lets" match "trip-LETS", so
     // "lets eat in ga" was answered with the Ga for "triplets".
     const hasPhrase = (hay: string) => ` ${norm(hay)} `.includes(` ${needle} `);
     // SQL is only a coarse net: the longest word, apostrophe-free. Precise
     // matching and ranking happen below.
-    const probe = [...needle.split(" ")].sort((a, b) => b.length - a.length)[0] ?? needle;
+    const probe = [...(needle || phrase).split(" ")].sort((a, b) => b.length - a.length)[0] ?? needle;
     const likePattern = `%${probe}%`;
     try {
       const vocabSearch = await env.DB.prepare(
@@ -469,6 +476,7 @@ async function* askGeneral(
 
           const hw = (row.headword || "").toLowerCase().trim();
           const gaEng = transArr[0] || meanArr[0] || qStr;
+          const exactPhrase = transArr.find((t) => norm(t) === phrase);
           const exact = transArr.find((t) => norm(t) === needle);
           const inTrans = transArr.find(hasPhrase);
           const inMean = meanArr.find(hasPhrase);
@@ -477,6 +485,9 @@ async function* askGeneral(
           if (typedGa && (hw === rawQ || ` ${rawQ} `.includes(` ${hw} `))) {
             // They typed the Ga itself, diacritics and all.
             hit = { ga: row.headword, eng: gaEng, gaSide: true, rank: 0 };
+          } else if (exactPhrase && phrase) {
+            // The whole phrase, stopwords and all, is an entry's translation.
+            hit = { ga: row.headword, eng: exactPhrase, gaSide: false, rank: 0.5 };
           } else if (exact) {
             hit = { ga: row.headword, eng: exact, gaSide: false, rank: 1 };
           } else if (!towardGa && row.headword_normalized === foldedQ) {
