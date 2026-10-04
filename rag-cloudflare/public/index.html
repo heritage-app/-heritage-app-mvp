@@ -1051,6 +1051,28 @@
     body[data-view="ask"]:not(.kb) .chat { padding-bottom:calc(var(--composer-h, 80px) + var(--tab-h) + 12px); }
     .composer .hint { display:none; }
   }
+
+  /* Simple hero (owner's reference): text + image, then one ask bar and suggestions */
+  .x-hero { grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); grid-template-areas:"text art" "ai ai"; gap:28px 32px; align-items:center; }
+  .x-hero-text { gap:12px; }
+  .x-art { align-self:center; }
+  .x-hero-img { width:100%; margin:0; }
+  .x-askbar { display:flex; align-items:center; gap:14px; background:var(--paper); border-radius:999px; padding:8px 8px 8px 22px; min-height:68px; box-shadow:var(--x-shadow-lg); color:var(--muted); }
+  .x-askbar .ga-wrap { flex:1; min-width:0; }
+  .x-askbar input { flex:1; min-width:0; border:0; outline:0; background:transparent; font:500 17px var(--sans); color:var(--ink); }
+  .x-askbar .x-go { width:52px; height:52px; }
+  .x-askbar:focus-within { box-shadow:0 0 0 2px var(--accent-line), var(--x-shadow-lg); }
+  .x-sugg { display:flex; gap:10px; margin-top:14px; overflow-x:auto; scrollbar-width:none; padding-bottom:2px; }
+  .x-sugg::-webkit-scrollbar { display:none; }
+  .x-sugg .x-chip { flex:none; font-weight:600; background:var(--paper); }
+  .x-sugg-more { width:42px; padding:0 !important; justify-content:center; }
+  @media (max-width:860px) {
+    .x-hero { grid-template-columns:minmax(0, 1fr); grid-template-areas:"text" "ai"; gap:18px; }
+    .x-askbar { min-height:60px; padding:6px 6px 6px 18px; }
+    .x-askbar input { font-size:16px; }
+    .x-askbar .x-go { width:48px; height:48px; }
+    .x-sugg { margin:12px -16px 0; padding:0 16px 2px; }
+  }
 </style>
 </head>
 <body>
@@ -1131,13 +1153,8 @@
           </div>
           <div class="x-art"><img class="x-hero-img" src="/img/hero.webp" width="1200" height="800" alt="A smiling Ga elder in a printed headwrap and cloth, with the coast, palm trees and a castle behind her" fetchpriority="high" decoding="async" /></div>
           <div class="x-hero-ai">
-          <div class="x-ai">
-            <div class="x-ai-head"><span class="x-av"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M12 7.5l1.1 2.4 2.4 1.1-2.4 1.1L12 14.5l-1.1-2.4L8.5 11l2.4-1.1z" fill="currentColor" stroke="none"/></svg></span><div><b>Nii Obodai</b><span class="s">Your Ga guide · answers from the archive</span></div><span class="x-live"><i></i>Ready</span></div>
-            <div class="x-bubble"><span data-greet>Ojekoo</span>! Ask me how to say anything in Ga — words, greetings, verses, stories. If I don't know, I'll say so.</div>
-            <form class="x-ask" id="homeAskForm"><input id="homeAsk" type="text" placeholder="Ask Nii Obodai…" aria-label="Ask Nii Obodai" autocomplete="off" autocorrect="off" spellcheck="false" /><button class="x-go" type="submit" aria-label="Ask"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></form>
-            <div class="x-follow"><button type="button" data-q="how do you say thank you in Ga">“Thank you” in Ga</button><button type="button" data-q="Exodus 20:3">Explain Exodus 20:3</button><button type="button" data-q="tell me a ga story">Tell me a Ga story</button></div>
-            <div class="x-keys">No Ga keyboard? Type <b>3</b>→ɛ <b>)</b>→ɔ <b>nn</b>→ŋ</div>
-          </div>
+            <form class="x-askbar" id="homeAskForm"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.3 9.3 0 0 1-3.9-.8L3 20.5l1.4-4.4A8 8 0 0 1 3 11.5 8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/></svg><input id="homeAsk" type="text" placeholder="Ask me anything in Ga…" aria-label="Ask Nii Obodai anything in Ga" autocomplete="off" autocorrect="off" spellcheck="false" /><button class="x-go" type="submit" aria-label="Ask"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></form>
+            <div class="x-sugg" id="homeSugg"><button type="button" class="x-chip" data-q="how do you say thank you in Ga">e.g. “Thank you” in Ga</button><button type="button" class="x-chip" data-q="Exodus 20:3">Explain Exodus 20:3</button><button type="button" class="x-chip" data-q="tell me a ga story">Tell a Ga story</button><button type="button" class="x-chip x-sugg-more" id="homeSuggMore" aria-label="More suggestions"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg></button></div>
           </div>
         </div>
         <div class="x-wotd-m"><div class="x-wotd"><div style="flex:1;min-width:0"><div class="x-eyebrow" style="color:var(--accent)">Word of the day</div><div class="w" data-wotd-ga style="margin-top:8px">Miifala</div><div class="m" data-wotd-en>welcome</div></div><button type="button" class="x-btn gold" data-wotd-ask style="min-height:42px;padding:0 16px">Practise</button></div></div>
@@ -4821,6 +4838,21 @@ input.addEventListener("blur", () => setTimeout(() => { if (document.activeEleme
 
 renderProgress();
 loadTopics();
+
+/* Home suggestions: the refresh button rotates through sets. */
+{
+  const SETS = [
+    [["e.g. “Thank you” in Ga", "how do you say thank you in Ga"], ["Explain Exodus 20:3", "Exodus 20:3"], ["Tell a Ga story", "tell me a ga story"]],
+    [["Good morning in Ga", "how do you say good morning in Ga"], ["Count 1–10", "count from 1 to 10"], ["John 3:16", "John 3:16"]],
+    [["How are you? in Ga", "how do you say how are you in Ga"], ["Recite a poem", "tell me a poem in ga"], ["21 in Ga", "21 in Ga"]],
+  ];
+  let set = 0;
+  $("homeSuggMore").onclick = () => {
+    set = (set + 1) % SETS.length;
+    const btns = [...$("homeSugg").querySelectorAll("[data-q]")];
+    SETS[set].forEach(([label, q], i) => { if (btns[i]) { btns[i].textContent = label; btns[i].dataset.q = q; } });
+  };
+}
 </script>
 </body>
 </html>
