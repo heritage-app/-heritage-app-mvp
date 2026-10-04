@@ -7,7 +7,7 @@ import { hashPassword } from "../auth/password";
 
 export async function getUserByEmail(env: Env, email: string): Promise<UserRow | null> {
   return env.DB.prepare("SELECT * FROM users WHERE email = ?")
-    .bind(email.toLowerCase())
+    .bind(email.trim().toLowerCase())
     .first<UserRow>();
 }
 
@@ -39,6 +39,8 @@ export async function createUser(
   const existing = await getUserByEmail(env, email);
   if (existing) throw new Error("Email already registered");
 
+  // One spelling per address: " Ama@X.com" and "ama@x.com" are the same account.
+  email = email.trim().toLowerCase();
   const id = crypto.randomUUID();
   const hashed = await hashPassword(password);
   const display = displayName || email.split("@")[0];

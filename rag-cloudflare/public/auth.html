@@ -200,7 +200,17 @@ $("form").onsubmit = async (e) => {
       body: JSON.stringify({ email: $("email").value.trim(), password: $("password").value }),
     });
     const d = await r.json();
-    if (!r.ok) { status.className = "status err"; status.textContent = d.detail || "Something went wrong"; $("submitBtn").disabled = false; return; }
+    if (!r.ok) {
+      status.className = "status err"; status.textContent = d.detail || "Something went wrong"; $("submitBtn").disabled = false;
+      // Admins are turned away here; point them at the console.
+      if (d.admin_console) {
+        const a = document.createElement("a");
+        a.href = d.admin_console; a.textContent = " Open the admin console →";
+        a.style.color = "inherit"; a.style.fontWeight = "700";
+        status.appendChild(a);
+      }
+      return;
+    }
     status.className = "status ok"; status.textContent = "Success — redirecting…";
     window.location.href = "/";
   } catch (err) {

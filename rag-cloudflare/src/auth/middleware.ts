@@ -4,12 +4,29 @@
  * - optionalUser: resolves user id from JWT, else falls back to X-Anonymous-ID guest id.
  * - requireAdmin: requireUser + role === 'admin'.
  */
-import type { MiddlewareHandler } from "hono";
+import type { Context, MiddlewareHandler } from "hono";
 import type { Env, Variables } from "../types";
 import { getTokenFromRequest, verifyAccessToken } from "./jwt";
 import { getUserById } from "../db/users";
 
 type AppEnv = { Bindings: Env; Variables: Variables };
+
+export const ADMIN_CONSOLE_URL = "https://heritage-admin.heritage-app.workers.dev";
+
+/** The admin console is its own site; it reaches this worker through a
+ *  service binding and its requests keep the console's host name
+ *  (heritage-admin…, or <version>-heritage-admin… for previews). */
+export function fromAdminConsole(c: Context): boolean {
+  try { return /(^|[.-])heritage-admin\./.test(new URL(c.req.url).hostname); } catch { return false; }
+}
+
+/** Admin accounts belong to the console, not the app. A browser session
+ *  (the cookie) for an admin is not honoured on the app's side. Scripts
+ *  using a Bearer token are not browsers and are left alone. */
+export function adminBlockedHere(c: Context, role: string): boolean {
+  if (role !== "admin" || fromAdminConsole(c)) return false;
+  return /(?:^|;\s*)access_token=/.test(c.req.header("Cookie") || "") && !c.req.header("Authorization");
+}
 
 export const requireUser: MiddlewareHandler<AppEnv> = async (c, next) => {
   const token = getTokenFromRequest(c);
@@ -20,6 +37,9 @@ export const requireUser: MiddlewareHandler<AppEnv> = async (c, next) => {
 
   const user = await getUserById(c.env, payload.sub);
   if (!user) return c.json({ detail: "User not found" }, 401);
+  if (adminBlockedHere(c, user.role)) {
+    return c.json({ detail: "Admin accounts sign in to the admin console, not the app." }, 401);
+  }
 
   c.set("user", user);
   c.set("userId", user.id);
@@ -32,7 +52,8 @@ export const optionalUser: MiddlewareHandler<AppEnv> = async (c, next) => {
     const payload = await verifyAccessToken(c.env, token);
     if (payload) {
       const user = await getUserById(c.env, payload.sub);
-      if (user) {
+      // An admin's app-side session counts as signed out: they get the guest experience.
+      if (user && !adminBlockedHere(c, user.role)) {
         c.set("user", user);
         c.set("userId", user.id);
         await next();

@@ -222,7 +222,10 @@ $("form").onsubmit = async (e) => {
       body: JSON.stringify({ email: $("email").value.trim(), password: $("password").value }),
     });
     const d = await r.json();
-    if (!r.ok) { status.className = "status err"; status.textContent = d.detail || "Something went wrong"; $("submitBtn").disabled = false; return; }
+    if (!r.ok) {
+      if (r.status === 403 && d.app) { denied($("email").value.trim()); $("submitBtn").disabled = false; return; }
+      status.className = "status err"; status.textContent = d.detail || "Something went wrong"; $("submitBtn").disabled = false; return;
+    }
     if (!d.user || d.user.role !== "admin") {
       await fetch(`${API}/auth/logout`, { method: "POST", credentials: "include" }).catch(() => {});
       denied(d.user && d.user.email); $("submitBtn").disabled = false; return;
