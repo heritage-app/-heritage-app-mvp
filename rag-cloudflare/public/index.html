@@ -982,11 +982,35 @@
   .x-rfab .x-av { width:34px; height:34px; }
   .x-rfab.hidden { display:none; }
   .x-verse .n { white-space:nowrap; }
+  /* The chapter reads like a feed: the card holds still, the text scrolls
+     inside it and each verse rises in as it arrives. */
+  #libBible.reading #bibleReader { height:var(--reader-h, 72dvh); overflow:hidden; padding-bottom:0; }
+  #libBible.reading #bibleReader .x-rhead, #libBible.reading #bibleReader .x-rmodes { flex:none; }
+  .x-rprog { flex:none; height:4px; border-radius:4px; background:var(--paper-2); overflow:hidden; margin:6px 0 0; }
+  .x-rprog i { display:block; height:100%; width:0; background:var(--accent); border-radius:4px; transition:width .12s linear; }
+  #libBible.reading .x-rscroll { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; position:relative; margin:0 -14px; padding:4px 14px 24px;
+    -webkit-mask-image:linear-gradient(to bottom, transparent 0, #000 18px, #000 calc(100% - 28px), transparent 100%);
+            mask-image:linear-gradient(to bottom, transparent 0, #000 18px, #000 calc(100% - 28px), transparent 100%);
+    scrollbar-width:thin; scrollbar-color:var(--line-2) transparent; }
+  .x-rnav { display:flex; gap:10px; margin-top:14px; }
+  .x-verse.rv { opacity:0; transform:translateY(22px) scale(.97); transform-origin:50% 0;
+    transition:opacity .5s ease, transform .55s cubic-bezier(.2,.75,.2,1), background-color .2s; }
+  .x-verse.rv.in { opacity:1; transform:none; }
+  .x-rsent { min-height:1px; }
+  /* Scrolling down tucks the controls away; scrolling up brings them back. */
+  #bibleReader .x-rmodes { max-height:64px; transition:max-height .28s ease, opacity .2s ease, padding .28s ease, margin .28s ease; }
+  #bibleReader.rcol .x-rmodes { max-height:0; opacity:0; padding-top:0; padding-bottom:0; margin:0; overflow:hidden; pointer-events:none; }
+  @media (max-width:1099px) {
+    #bibleReader .x-rhead > .x-seg { transition:opacity .2s ease; }
+    #bibleReader.rcol .x-rhead > .x-seg { display:none; }
+    #bibleReader.rcol .x-rhead { margin-bottom:4px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .x-verse.rv { transform:none; transition:opacity .2s; } }
   @media (min-width:1100px) {
     #libBible.reading { display:grid; grid-template-columns:minmax(0, 1fr) 380px; grid-template-areas:"find find" "read ai"; gap:24px; align-items:start; }
     #libBible.reading #bibleFind { grid-area:find; }
     #libBible.reading #bibleReader { grid-area:read; }
-    #libBible.reading #readerAI { grid-area:ai; position:sticky; top:12px; max-height:calc(100dvh - 180px); }
+    #libBible.reading #readerAI { grid-area:ai; position:sticky; top:12px; max-height:var(--reader-h, calc(100dvh - 180px)); }
     #libBible.reading #readerAI.hidden { display:flex !important; }
     #libBible.reading .x-verse .g { font-size:17.5px; }
     #readerAIclose, .x-rfab { display:none !important; }
@@ -995,7 +1019,7 @@
     /* Phones and tablets: Nii Obodai opens as a sheet over the chapter. */
     #readerAI { position:fixed; left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom, 0px)); z-index:45; max-width:640px; margin:0 auto; max-height:min(64dvh, 560px);
       box-shadow:0 0 0 2px var(--accent-line), 0 24px 60px rgba(22,19,15,.3); }
-    #bibleReader { padding-bottom:84px; }
+    #libBible.reading .x-rscroll { padding-bottom:96px; }
     body.rkb #readerAI { bottom:8px; max-height:calc(100dvh - 90px); }
     body.rkb .x-tabbar, body[data-view="library"].rsheet .x-tabbar { display:none !important; }
     /* suggestions in one swipeable row, so the answer keeps the room */
@@ -1507,13 +1531,16 @@
               <div class="x-seg" style="flex:none"><button type="button" class="on" data-ed="NEGAB" title="Modern spelling">NEGAB</button><button type="button" data-ed="GBV96" title="The 1996 text, original spelling">GBV96</button></div>
             </div>
             <div class="x-seg x-rmodes"><button type="button" class="on" data-rmode="both">Ga + English</button><button type="button" data-rmode="ga">Ga only</button></div>
-            <div class="x-eyebrow" id="readerSub" style="padding:10px 12px 4px"></div>
-            <h3 class="x-rtitle" id="readerTitle" style="padding:0 12px 6px">…</h3>
-            <div id="readerVerses"></div>
-            <div style="display:flex;gap:10px;margin-top:14px">
-              <button type="button" class="x-btn ghost" id="readerPrev">← Previous</button>
-              <span class="spacer"></span>
-              <button type="button" class="x-btn" id="readerNext">Next chapter →</button>
+            <div class="x-rprog" aria-hidden="true"><i id="readerProg"></i></div>
+            <div class="x-rscroll" id="readerScroll">
+              <div class="x-eyebrow" id="readerSub" style="padding:10px 12px 4px"></div>
+              <h3 class="x-rtitle" id="readerTitle" style="padding:0 12px 6px">…</h3>
+              <div id="readerVerses"></div>
+              <div class="x-rnav">
+                <button type="button" class="x-btn ghost" id="readerPrev">← Previous</button>
+                <span class="spacer"></span>
+                <button type="button" class="x-btn" id="readerNext">Next chapter →</button>
+              </div>
             </div>
           </div>
           <div class="x-ai hidden" id="readerAI" aria-label="Ask Nii Obodai about this chapter">
@@ -4919,11 +4946,13 @@ async function openChapter(book, ch, verse) {
     reader.data = await r.json();
     try { localStorage.setItem("heritage.lastRead", JSON.stringify({ book, ch, ga: reader.data.ga_book, chapters: reader.data.chapters })); } catch {}
     renderCont();
+    try { $("libBible").scrollIntoView({ block: "start" }); } catch {}
     renderChapter(true);
   } catch {
     $("readerVerses").innerHTML = '<div class="x-keys" style="padding:10px 12px">Could not load this chapter.</div>';
   }
   try { $("libBible").scrollIntoView({ block: "start" }); } catch {}
+  try { sizeReader(); } catch {}
 }
 
 function renderChapter(scrollToSel) {
@@ -4937,21 +4966,92 @@ function renderChapter(scrollToSel) {
     sel.dataset.book = d.book;
   }
   sel.value = d.chapter;
-  const box = $("readerVerses");
+  const box = $("readerVerses"), sc = $("readerScroll");
   box.innerHTML = "";
-  for (const v of d.verses) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "x-verse" + (v.n === reader.sel ? " sel" : "");
-    b.innerHTML = `<span class="n">${v.n}${v.to ? "–" + v.to : ""}</span><span><span class="g">${escapeHtml(v.ga)}</span>${v.en ? `<span class="e">${escapeHtml(v.en)}</span>` : ""}</span>`;
-    b.onclick = () => { reader.sel = reader.sel === v.n ? null : v.n; renderChapter(false); };
-    box.appendChild(b);
-  }
+  if (rvMoreObs) rvMoreObs.disconnect();
+  if (rvShowObs) rvShowObs.disconnect();
+  const list = d.verses, BATCH = 12;
+  let i = 0;
+  const need = reader.sel ? list.findIndex((v) => v.n === reader.sel) + 1 : 0;
+  const sentinel = document.createElement("div"); sentinel.className = "x-rsent";
+  const io = (fn, opts) => ("IntersectionObserver" in window ? new IntersectionObserver(fn, opts) : null);
+  rvShowObs = io((ents) => ents.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); rvShowObs.unobserve(e.target); } }),
+    { root: sc, rootMargin: "0px 0px -6% 0px", threshold: 0.05 });
+  const more = () => {
+    const end = Math.min(list.length, Math.max(i + BATCH, need));
+    for (; i < end; i++) {
+      const el = verseEl(list[i]);
+      if (rvShowObs) { el.classList.add("rv"); rvShowObs.observe(el); }
+      box.appendChild(el);
+    }
+    if (i < list.length) box.appendChild(sentinel); else sentinel.remove();
+  };
+  rvMoreObs = io((ents) => { if (ents.some((e) => e.isIntersecting)) { more(); revealPassed(); } }, { root: sc, rootMargin: "0px 0px 500px 0px" });
+  more();
+  if (rvMoreObs) rvMoreObs.observe(sentinel); else while (i < list.length) more();
   $("readerPrev").disabled = d.chapter <= 1;
   $("readerNext").disabled = d.chapter >= d.chapters;
   renderVerseAI();
-  if (scrollToSel && reader.sel) { const el = box.querySelector(".sel"); try { el && el.scrollIntoView({ block: "center" }); } catch {} }
+  sizeReader();
+  sc.scrollTop = 0; rvLastTop = 0; $("bibleReader").classList.remove("rcol");
+  if (scrollToSel && reader.sel) {
+    const el = box.querySelector(".sel");
+    if (el) { el.classList.add("in"); sc.scrollTop = Math.max(0, el.offsetTop - sc.clientHeight / 3); }
+  }
+  readerProgress();
 }
+
+let rvMoreObs = null, rvShowObs = null;
+function verseEl(v) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "x-verse" + (v.n === reader.sel ? " sel" : "");
+  b.dataset.n = v.n;
+  b.innerHTML = `<span class="n">${v.n}${v.to ? "–" + v.to : ""}</span><span><span class="g">${escapeHtml(v.ga)}</span>${v.en ? `<span class="e">${escapeHtml(v.en)}</span>` : ""}</span>`;
+  b.onclick = () => selectVerse(reader.sel === v.n ? null : v.n);
+  return b;
+}
+// Selecting a verse only moves the highlight — the feed keeps its place.
+function selectVerse(n) {
+  reader.sel = n;
+  $("readerVerses").querySelectorAll(".x-verse").forEach((el) => el.classList.toggle("sel", +el.dataset.n === n));
+  renderVerseAI();
+}
+// The card fills the screen below it; the page around it holds still.
+function sizeReader() {
+  const card = $("bibleReader");
+  if (!card || card.classList.contains("hidden") || !$("libBible").classList.contains("reading")) return;
+  const view = $("viewLibrary");
+  const vb = Math.min(view.getBoundingClientRect().bottom || innerHeight, innerHeight);
+  const tb = document.querySelector(".x-tabbar");
+  const tbGap = tb && getComputedStyle(tb).display !== "none" && getComputedStyle(tb).position === "fixed"
+    ? Math.max(0, innerHeight - tb.getBoundingClientRect().top) : 0;
+  const h = Math.round(vb - card.getBoundingClientRect().top - Math.max(tbGap + 10, 20));
+  document.documentElement.style.setProperty("--reader-h", Math.max(380, h) + "px");
+}
+function readerProgress() {
+  const sc = $("readerScroll"), d = reader.data;
+  const max = sc.scrollHeight - sc.clientHeight;
+  // Progress through the chapter, not the batch that happens to be loaded.
+  const loaded = $("readerVerses").children.length || 1;
+  const frac = max > 0 ? sc.scrollTop / max : 1;
+  const total = d ? d.verses.length : loaded;
+  const pct = Math.min(100, ((Math.min(loaded, total) * frac) / total) * 100);
+  $("readerProg").style.width = pct.toFixed(1) + "%";
+}
+// A fast fling can jump clean over a short verse, so the observer never sees
+// it — anything already above the fold is shown.
+function revealPassed() {
+  const sc = $("readerScroll"), fold = sc.scrollTop + sc.clientHeight;
+  sc.querySelectorAll(".x-verse.rv:not(.in)").forEach((el) => { if (el.offsetTop < fold) el.classList.add("in"); });
+}
+let rvLastTop = 0;
+$("readerScroll").addEventListener("scroll", () => {
+  readerProgress(); revealPassed();
+  const sc = $("readerScroll"), y = sc.scrollTop, dy = y - rvLastTop;
+  if (Math.abs(dy) > 6) { $("bibleReader").classList.toggle("rcol", dy > 0 && y > 40); rvLastTop = y; }
+}, { passive: true });
+window.addEventListener("resize", () => { try { sizeReader(); } catch {} });
 
 /* Nii Obodai beside the text: about the selected verse, or the chapter.
    Questions are answered right here, in the panel — the reader never gets
@@ -5062,7 +5162,7 @@ $("readerAIform").onsubmit = (e) => {
   const t = $("readerAIinput").value.trim(); if (!t) return;
   $("readerAIinput").value = ""; readerAsk(t);
 };
-$("readerAIclose").onclick = () => { reader.sel = null; reader.sheet = false; renderChapter(false); };
+$("readerAIclose").onclick = () => { reader.sheet = false; selectVerse(null); };
 $("readerFab").onclick = () => { reader.sheet = true; renderVerseAI(); if (!isTouch) $("readerAIinput").focus(); };
 $("readerAIinput").addEventListener("focus", () => document.body.classList.add("rkb"));
 $("readerAIinput").addEventListener("blur", () => document.body.classList.remove("rkb"));
