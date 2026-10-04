@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Heritage · Nii Obodai</title>
 <link rel="manifest" href="/manifest.webmanifest" />
-<meta name="theme-color" content="#f8f9fa" />
+<meta name="theme-color" content="#FBF7F1" />
 <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
 <meta name="mobile-web-app-capable" content="yes" />
@@ -14,21 +14,21 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <style>
   :root {
     /* Light theme (default) */
-    --bg:#f8f9fa; --paper:#ffffff; --paper-2:#f1f3f4; --paper-3:#e8eaed;
-    --ink:#1a1a1a; --ink-2:rgba(26,26,26,.74); --muted:rgba(26,26,26,.56); --faint:rgba(26,26,26,.4);
-    --line:rgba(0,0,0,.08); --line-2:rgba(0,0,0,.12);
-    --gold:#111111; --gold-soft:rgba(0,0,0,.05); --gold-line:rgba(0,0,0,.24); --white:#fff;
+    --bg:#FBF7F1; --paper:#ffffff; --paper-2:#F5EEE3; --paper-3:#EFE6D8;
+    --ink:#16130F; --ink-2:rgba(22,19,15,.74); --muted:rgba(22,19,15,.58); --faint:rgba(22,19,15,.42);
+    --line:#EFE6D8; --line-2:#E2D6C3;
+    --gold:#16130F; --gold-soft:rgba(242,179,61,.14); --gold-line:#F2D79A; --white:#fff;
     /* Quiz verdicts. Filled swatches carry --bg text, so these must clear 4.5:1
        against it in BOTH themes — hence a dark pair here, a light pair below. */
     --ok:#0f6b46; --bad:#a62d1c;
-    --radius:0px; --shadow:0 4px 20px rgba(0,0,0,.08);
+    --radius:16px; --shadow:0 4px 20px rgba(60,40,10,.08);
     --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-    --sans:"Poppins",ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    --serif:"Poppins",ui-sans-serif,Georgia,serif;
+    --sans:"Plus Jakarta Sans",ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --serif:"Plus Jakarta Sans",ui-sans-serif,Georgia,serif;
   }
   [data-theme="dark"] {
     /* Dark theme */
@@ -37,9 +37,9 @@
     --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.18);
     --gold:#f5f5f5; --gold-soft:rgba(255,255,255,.08); --gold-line:rgba(255,255,255,.32); --white:#fff;
     --ok:#5ee0a8; --bad:#ff8377;
-    --radius:0px; --shadow:0 12px 34px rgba(0,0,0,.5);
+    --radius:16px; --shadow:0 12px 34px rgba(0,0,0,.5);
   }
-  * { box-sizing:border-box; border-radius:0 !important; }
+  * { box-sizing:border-box; }
   html,body { height:100%; }
   body { margin:0; font:500 15px/1.6 var(--sans); color:var(--ink); background:var(--bg);
     -webkit-font-smoothing:antialiased; -webkit-tap-highlight-color:transparent;
@@ -662,6 +662,168 @@
     .ovl { padding:0; align-items:flex-end; }
     .ovl-panel { max-width:100%; max-height:92vh; border-bottom:0; }
   }
+
+  /* ====================================================================
+     Redesign layer (2026-10) — warm, rounded, AI-first.
+     Views: Home · Ask (the chat) · Learn · Library. Nii Obodai, the AI
+     guide, is on every view. Everything below is additive: the chat, flag
+     cards, quiz, contribute and review keep their own styles.
+     ==================================================================== */
+  :root {
+    --display:"Bricolage Grotesque","Plus Jakarta Sans",ui-sans-serif,sans-serif;
+    --accent:#F2B33D; --accent-ink:#7A5200; --accent-soft:#FBF3E2; --accent-line:#F2D79A;
+    --sage:#E3F1E4; --sage-ink:#1F7A4A; --sage-deep:#2E9A5E;
+    --sky:#E1ECFA; --sky-ink:#1E5AA8; --sky-deep:#2F6FC6;
+    --blush:#FBE4E3; --blush-ink:#A3312A; --blush-deep:#C0473D;
+    --sand:#FBEFD6; --sand-ink:#8A5A00; --sand-deep:#D9922A;
+    --x-shadow:0 1px 2px rgba(60,40,10,.05), 0 8px 24px rgba(60,40,10,.07);
+    --x-shadow-lg:0 2px 4px rgba(60,40,10,.06), 0 16px 40px rgba(60,40,10,.10);
+    --tab-h:78px;
+  }
+  [data-theme="dark"] {
+    --accent-soft:#2A2418; --accent-line:#5A4720;
+    --sage:#1C2A21; --sage-ink:#8FD4A9; --sky:#1B2433; --sky-ink:#9CC0F0;
+    --blush:#2F1E1D; --blush-ink:#F2A79F; --sand:#2C2416; --sand-ink:#F0C779;
+    --x-shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    --x-shadow-lg:0 2px 4px rgba(0,0,0,.35), 0 16px 40px rgba(0,0,0,.45);
+  }
+
+  /* views */
+  .view { display:none; flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  body[data-view="home"] #viewHome, body[data-view="learn"] #viewLearn, body[data-view="library"] #viewLibrary { display:block; }
+  body:not([data-view="ask"]) .chat { display:none; }
+  .x-wrap { max-width:1180px; margin:0 auto; padding:28px 32px 56px; display:flex; flex-direction:column; gap:36px; }
+
+  /* header */
+  header .brand h1 { font:800 22px/1 var(--display); letter-spacing:-.4px; }
+  header .brand .mark { background:var(--ink); color:var(--bg); border:0; border-radius:10px; width:32px; height:32px; font:800 15px var(--display); }
+  .x-nav { display:flex; gap:4px; background:var(--paper-2); padding:4px; border-radius:999px; margin-left:18px; }
+  .x-nav button { border:0; background:transparent; color:var(--ink-2); font:700 14px var(--sans); padding:0 16px; min-height:40px; border-radius:999px; cursor:pointer; display:inline-flex; align-items:center; gap:7px; }
+  .x-nav button.on { background:var(--paper); color:var(--ink); box-shadow:var(--x-shadow); }
+  .x-back { display:none; }
+  .iconbtn, .menu-btn { border-radius:999px; }
+
+  /* AI guide */
+  .x-av { width:44px; height:44px; flex:none; border-radius:50%; background:var(--accent); color:#16130F; display:grid; place-items:center; box-shadow:0 0 0 4px rgba(242,179,61,.22); }
+  .x-av.sm { width:30px; height:30px; box-shadow:0 0 0 3px rgba(242,179,61,.22); }
+  .x-ai { background:var(--paper); border-radius:26px; padding:16px; display:flex; flex-direction:column; gap:12px; box-shadow:0 0 0 2px var(--accent-line), var(--x-shadow-lg); }
+  .x-ai-head { display:flex; align-items:center; gap:11px; }
+  .x-ai-head b { display:block; font:800 16px/1.1 var(--display); }
+  .x-ai-head .s { display:block; font:600 12px var(--sans); color:var(--muted); margin-top:2px; }
+  .x-live { margin-left:auto; font:700 11px var(--sans); color:var(--sage-ink); display:inline-flex; align-items:center; gap:5px; }
+  .x-live i { width:8px; height:8px; border-radius:50%; background:#2E9A5E; display:block; box-shadow:0 0 0 3px rgba(46,154,94,.18); }
+  .x-bubble { background:var(--accent-soft); padding:12px 14px; border-radius:6px 18px 18px 18px; font:500 14.5px/1.5 var(--sans); align-self:flex-start; }
+  .x-me { align-self:flex-end; background:var(--ink); color:var(--bg); padding:10px 14px; border-radius:18px 18px 6px 18px; font:600 14.5px var(--sans); }
+  .x-ask { display:flex; align-items:center; gap:10px; background:var(--paper-2); padding:6px 6px 6px 18px; border-radius:999px; }
+  .x-ask .ga-wrap { flex:1; min-width:0; }
+  .x-ask input { flex:1; min-width:0; border:0; outline:0; background:transparent; font:500 16px var(--sans); color:var(--ink); }
+  .x-go { width:46px; height:46px; flex:none; border:0; background:var(--ink); color:var(--bg); display:grid; place-items:center; border-radius:50%; cursor:pointer; }
+  .x-follow { display:flex; gap:8px; flex-wrap:wrap; }
+  .x-follow button { border:1.5px solid var(--accent-line); background:var(--accent-soft); color:var(--ink); font:600 13px var(--sans); min-height:40px; padding:0 14px; border-radius:999px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+  .x-follow button:hover { border-color:var(--accent); }
+  .x-keys { font:500 12px var(--sans); color:var(--muted); }
+  .x-keys b { color:var(--ink); background:var(--paper-2); padding:1px 7px; border-radius:6px; font:700 12px var(--mono); }
+
+  /* home */
+  .x-hero { display:flex; flex-wrap:wrap; gap:40px; align-items:center; }
+  .x-hero-text { flex:1 1 460px; min-width:0; display:flex; flex-direction:column; gap:14px; }
+  .x-pill { align-self:flex-start; font:700 11px var(--sans); letter-spacing:.14em; padding:6px 12px; border-radius:999px; background:var(--sand); color:var(--sand-ink); }
+  .x-greet { margin:0; font:800 84px/0.95 var(--display); letter-spacing:-3px; }
+  .x-greet-en { font:700 14px var(--sans); color:var(--accent-ink); }
+  [data-theme="dark"] .x-greet-en { color:var(--accent); }
+  .x-sub { margin:0; font:800 28px/1.15 var(--display); letter-spacing:-.6px; }
+  .x-lead { margin:0; color:var(--ink-2); font-size:16px; line-height:1.55; max-width:560px; }
+  .x-art { flex:1 1 340px; min-width:0; position:relative; min-height:440px; }
+  .x-blob { position:absolute; inset:0 0 40px 30px; border-radius:58% 42% 46% 54% / 52% 48% 52% 48%; background:var(--sand); display:grid; place-items:center; overflow:hidden; }
+  .x-blob span { font:800 150px/1 var(--display); color:var(--accent); letter-spacing:-6px; opacity:.85; }
+  .x-wotd { background:var(--ink); color:var(--bg); padding:18px; display:flex; gap:14px; align-items:center; border-radius:22px; box-shadow:var(--x-shadow-lg); }
+  .x-art .x-wotd { position:absolute; left:0; bottom:0; width:300px; }
+  .x-wotd .w { font:800 32px/1 var(--display); letter-spacing:-.6px; }
+  .x-wotd .m { opacity:.75; font-size:13.5px; margin-top:4px; }
+  .x-eyebrow { font:700 11px var(--sans); letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+  .x-badge { position:absolute; right:0; top:28px; background:var(--paper); border-radius:18px; box-shadow:var(--x-shadow-lg); padding:12px 16px; display:flex; align-items:center; gap:10px; }
+  .x-sec-h { display:flex; align-items:center; justify-content:space-between; margin:0 0 14px; gap:12px; }
+  .x-sec-h h3 { margin:0; font:800 24px/1.2 var(--display); letter-spacing:-.4px; }
+  .x-link { border:0; background:transparent; color:var(--muted); font:600 14px var(--sans); cursor:pointer; min-height:44px; }
+  .x-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:14px; }
+  .x-tile { display:flex; align-items:center; gap:12px; padding:16px 14px; min-height:92px; border:0; text-align:left; border-radius:20px; cursor:pointer; color:var(--ink); font-family:var(--sans); }
+  .x-tile .ic { width:52px; height:52px; flex:none; display:grid; place-items:center; color:#fff; border-radius:16px; }
+  .x-tile b { display:block; font:800 15.5px/1.2 var(--sans); }
+  .x-tile .s { display:block; font:500 12.5px/1.35 var(--sans); color:var(--ink-2); margin-top:3px; }
+  .x-tile .chev { margin-left:auto; width:30px; height:30px; flex:none; border-radius:50%; background:rgba(255,255,255,.7); display:grid; place-items:center; color:#16130F; }
+  .t-sage { background:var(--sage); } .t-sage .ic { background:var(--sage-deep); }
+  .t-sky { background:var(--sky); } .t-sky .ic { background:var(--sky-deep); }
+  .t-blush { background:var(--blush); } .t-blush .ic { background:var(--blush-deep); }
+  .t-sand { background:var(--sand); } .t-sand .ic { background:var(--sand-deep); }
+  .x-phrases { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; }
+  .x-phrase { background:var(--paper); border:0; border-radius:20px; box-shadow:var(--x-shadow); padding:14px; display:flex; align-items:center; gap:14px; text-align:left; cursor:pointer; color:var(--ink); font-family:var(--sans); }
+  .x-phrase .pic { width:44px; height:44px; flex:none; border-radius:14px; display:grid; place-items:center; }
+  .x-phrase .en { font:700 13px var(--sans); color:var(--muted); }
+  .x-phrase .ga { font:800 21px/1.15 var(--display); letter-spacing:-.3px; }
+  .x-phrase .go { margin-left:auto; width:40px; height:40px; flex:none; border-radius:50%; background:var(--paper-2); display:grid; place-items:center; }
+  .x-explore { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px; }
+  .x-ex { border:0; background:transparent; padding:0; text-align:left; cursor:pointer; color:var(--ink); font-family:var(--sans); }
+  .x-ex .art { height:150px; border-radius:20px; display:grid; place-items:center; }
+  .x-ex b { display:block; font:800 16px var(--sans); margin-top:10px; }
+  .x-ex span.s { display:block; font:500 13px var(--sans); color:var(--muted); }
+  .x-teach { background:var(--sand); border-radius:28px; padding:30px 32px; display:flex; flex-wrap:wrap; gap:18px; align-items:center; }
+  .x-btn { min-height:48px; border:0; background:var(--ink); color:var(--bg); font:700 14px var(--sans); padding:0 22px; display:inline-flex; align-items:center; justify-content:center; gap:8px; border-radius:999px; cursor:pointer; text-decoration:none; }
+  .x-btn.ghost { background:transparent; color:var(--ink); box-shadow:inset 0 0 0 1.5px var(--ink); }
+  .x-btn.gold { background:var(--accent); color:#16130F; }
+
+  /* learn */
+  .x-h1 { margin:0; font:800 52px/1 var(--display); letter-spacing:-1.6px; }
+  .x-challenge { background:var(--ink); color:var(--bg); border-radius:26px; padding:24px; display:flex; flex-direction:column; gap:12px; }
+  .x-row { display:flex; flex-wrap:wrap; gap:22px; align-items:stretch; }
+
+  /* library + Bible reader */
+  .x-seg { display:flex; background:var(--paper-2); padding:4px; border-radius:999px; gap:2px; }
+  .x-seg button { flex:1; min-height:42px; border:0; background:transparent; font:700 13.5px var(--sans); color:var(--muted); border-radius:999px; cursor:pointer; padding:0 14px; white-space:nowrap; }
+  .x-seg button.on { background:var(--paper); color:var(--ink); box-shadow:var(--x-shadow); }
+  .x-search { display:flex; align-items:center; gap:10px; background:var(--paper); border-radius:999px; box-shadow:0 0 0 2px var(--accent-line), var(--x-shadow); padding:4px 4px 4px 8px; min-height:56px; }
+  .x-search input { flex:1; min-width:0; border:0; outline:0; background:transparent; font:500 16px var(--sans); color:var(--ink); }
+  .x-books { display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:10px; }
+  .x-book { display:flex; align-items:center; gap:12px; padding:10px 12px; background:var(--paper); border:0; border-radius:16px; box-shadow:var(--x-shadow); text-align:left; cursor:pointer; color:var(--ink); font-family:var(--sans); }
+  .x-book .ab { width:42px; height:42px; flex:none; border-radius:13px; display:grid; place-items:center; font:800 14px var(--display); }
+  .x-book .ga { display:block; font:800 16px/1.15 var(--display); }
+  .x-book .en { display:block; font:600 12px var(--sans); color:var(--muted); }
+  .x-reader { background:var(--paper); border-radius:26px; box-shadow:var(--x-shadow); padding:22px 24px; display:flex; flex-direction:column; gap:4px; }
+  .x-rhead { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:10px; }
+  .x-rtitle { margin:0; font:800 36px/1 var(--display); letter-spacing:-.8px; }
+  .x-verse { display:grid; grid-template-columns:30px minmax(0, 1fr); gap:10px; padding:10px 12px; border-radius:16px; border:0; background:transparent; text-align:left; cursor:pointer; color:var(--ink); font-family:var(--sans); width:100%; }
+  .x-verse.sel { background:var(--sand); }
+  .x-verse .n { font:800 13px var(--display); color:var(--accent-ink); padding-top:4px; }
+  [data-theme="dark"] .x-verse .n { color:var(--accent); }
+  .x-verse .g { display:block; font:600 17.5px/1.6 var(--sans); }
+  .x-verse .e { display:block; font:500 14.5px/1.55 var(--sans); color:var(--muted); margin-top:3px; }
+  .x-reader.ga-only .x-verse .e { display:none; }
+  .x-chip { border:1px solid var(--line-2); background:var(--paper); color:var(--ink); padding:0 14px; min-height:42px; font:700 13px var(--sans); display:inline-flex; align-items:center; gap:7px; border-radius:999px; cursor:pointer; }
+  .x-list { display:flex; flex-direction:column; gap:10px; }
+
+  /* bottom tab bar (phones) */
+  .x-tabbar { display:none; }
+  @media (max-width:860px) {
+    .x-nav, header .brand .sub { display:none; }
+    .x-wrap { padding:16px 16px calc(var(--tab-h) + 28px); gap:28px; }
+    .x-greet { font-size:48px; letter-spacing:-1.6px; }
+    .x-sub { font-size:20px; }
+    .x-art { min-height:200px; flex-basis:100%; }
+    .x-blob span { font-size:96px; }
+    .x-art .x-wotd { position:relative; width:auto; margin-top:150px; }
+    .x-badge { display:none; }
+    .x-h1 { font-size:36px; }
+    .x-rtitle { font-size:28px; }
+    .x-tabbar { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); align-items:end; position:fixed; left:12px; right:12px; bottom:calc(10px + env(safe-area-inset-bottom, 0px)); z-index:30;
+      background:var(--paper); border-radius:26px; box-shadow:var(--x-shadow-lg); padding:6px; }
+    .x-tabbar button { border:0; background:transparent; display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 0 10px; min-height:58px; color:var(--muted); font:600 11.5px var(--sans); position:relative; cursor:pointer; }
+    .x-tabbar button.on { color:var(--ink); font-weight:800; }
+    .x-tabbar button.on::after { content:""; position:absolute; bottom:3px; left:30%; right:30%; height:4px; background:var(--accent); border-radius:4px; }
+    .x-tabbar .x-tab-ai { margin-top:-26px; color:var(--ink); font-weight:800; }
+    .x-tabbar .x-tab-ai .o { width:60px; height:60px; border-radius:50%; background:var(--ink); color:var(--accent); display:grid; place-items:center; box-shadow:0 0 0 5px var(--bg), 0 10px 22px rgba(22,19,15,.28); }
+    body[data-view="ask"] .x-tabbar { display:none; }
+    body[data-view="ask"] .x-back { display:inline-grid; place-items:center; }
+    body[data-view="ask"] header .brand { display:none; }
+  }
 </style>
 </head>
 <body>
@@ -704,11 +866,17 @@
       <button class="menu-btn hidden" id="menuBtn" aria-label="Toggle sidebar" title="Toggle sidebar">
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18"/><path d="M9 3v18"/></svg>
       </button>
+      <button class="iconbtn x-back" type="button" data-go="home" aria-label="Back to home"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
       <div class="brand">
         <span class="mark">H</span>
         <h1>Heritage</h1>
-        <span class="sub">Ga Language Companion</span>
       </div>
+      <nav class="x-nav" aria-label="Main">
+        <button type="button" data-go="home">Home</button>
+        <button type="button" data-go="ask"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M12 7.5l1.1 2.4 2.4 1.1-2.4 1.1L12 14.5l-1.1-2.4L8.5 11l2.4-1.1z" fill="currentColor" stroke="none"/></svg>Ask Nii Obodai</button>
+        <button type="button" data-go="learn">Learn</button>
+        <button type="button" data-go="library">Library</button>
+      </nav>
       <span class="tag score-tag hidden" id="scoreTag" title="Quiz score this session">SCORE 0/0</span>
       <span class="tag score-tag hidden" id="streakTag" title="Correct answers in a row">STREAK 0</span>
       <div class="spacer"></div>
@@ -724,44 +892,162 @@
       <a class="iconbtn primary" id="signInBtn" href="/auth">Sign in</a>
     </header>
 
+    <section class="view" id="viewHome" aria-label="Home">
+      <div class="x-wrap">
+        <div class="x-hero">
+          <div class="x-hero-text">
+            <span class="x-pill">LEARN · ASK · PLAY</span>
+            <h2 class="x-greet"><span data-greet>Ojekoo</span>!</h2>
+            <div class="x-greet-en">“<span data-greet-en>good morning</span>” in Ga — say it back!</div>
+            <p class="x-sub">Your Ga language companion.</p>
+            <div class="x-ai">
+            <div class="x-ai-head"><span class="x-av"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M12 7.5l1.1 2.4 2.4 1.1-2.4 1.1L12 14.5l-1.1-2.4L8.5 11l2.4-1.1z" fill="currentColor" stroke="none"/></svg></span><div><b>Nii Obodai</b><span class="s">Your Ga guide · answers from the archive</span></div><span class="x-live"><i></i>Ready</span></div>
+            <div class="x-bubble"><span data-greet>Ojekoo</span>! Ask me how to say anything in Ga — words, greetings, verses, stories. If I don't know, I'll say so.</div>
+            <form class="x-ask" id="homeAskForm"><input id="homeAsk" type="text" placeholder="Ask Nii Obodai…" aria-label="Ask Nii Obodai" autocomplete="off" autocorrect="off" spellcheck="false" /><button class="x-go" type="submit" aria-label="Ask"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></form>
+            <div class="x-follow"><button type="button" data-q="how do you say thank you in Ga">“Thank you” in Ga</button><button type="button" data-q="Exodus 20:3">Exodus 20:3</button><button type="button" data-q="tell me a ga story">Tell me a Ga story</button></div>
+            <div class="x-keys">No Ga keyboard? Type <b>3</b>→ɛ <b>)</b>→ɔ <b>nn</b>→ŋ</div>
+          </div>
+          </div>
+          <div class="x-art" aria-hidden="false">
+            <div class="x-blob" aria-hidden="true"><span>ɛ ɔ ŋ</span></div>
+            <div class="x-badge"><span style="width:34px;height:34px;border-radius:50%;background:var(--sage);color:var(--sage-ink);display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span><b style="display:block;font:800 14px var(--sans)">Verified answers</b><span style="font:600 12px var(--sans);color:var(--muted)">straight from the archive</span></span></div>
+            <div class="x-wotd"><div style="flex:1;min-width:0"><div class="x-eyebrow" style="color:var(--accent)">Word of the day</div><div class="w" id="wotdGa" style="margin-top:8px">Miifala</div><div class="m" id="wotdEn">welcome</div></div><button type="button" class="x-btn gold" id="wotdAsk" style="min-height:42px;padding:0 16px">Practise</button></div>
+          </div>
+        </div>
+
+        <div class="x-tiles">
+          <button type="button" class="x-tile t-sage" data-q="how do you say good morning in Ga"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="10" x2="16" y2="10"/></svg></span><span><b>Say a phrase</b><span class="s">good morning → Ojekoo</span></span><span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></button>
+          <button type="button" class="x-tile t-sky" data-go="library"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg></span><span><b>Read the Bible</b><span class="s">all 66 books in Ga</span></span><span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></button>
+          <button type="button" class="x-tile t-blush" data-go="learn"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg></span><span><b>Quiz me</b><span class="s">4 ways to practise</span></span><span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></button>
+          <button type="button" class="x-tile t-sand" data-action="contribute"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span><span><b>Teach me</b><span class="s">add a word or story</span></span><span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></button>
+        </div>
+
+        <div>
+          <div class="x-sec-h"><h3>Common phrases</h3><button type="button" class="x-link" data-go="ask">Ask for any phrase →</button></div>
+          <div class="x-phrases">
+            <button type="button" class="x-phrase" data-q="how do you say thank you in Ga"><span class="pic" style="background:var(--sand);color:var(--sand-deep)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3z"/><path d="M7 11l4-7a2 2 0 0 1 2 2v4h5a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 16.8 21H7"/></svg></span><span><span class="en" style="display:block">“Thank you”</span><span class="ga" style="display:block">Oyiwaladɔŋ</span></span><span class="go"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span></button>
+            <button type="button" class="x-phrase" data-q="how do you say how are you in Ga"><span class="pic" style="background:var(--blush);color:var(--blush-deep)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 10h.01M15 10h.01"/><path d="M8.5 14.5a4 4 0 0 0 7 0"/></svg></span><span><span class="en" style="display:block">“How are you?”</span><span class="ga" style="display:block">Te oyɔɔ tɛŋ?</span></span><span class="go"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span></button>
+            <button type="button" class="x-phrase" data-q="how do you say please in Ga"><span class="pic" style="background:var(--sage);color:var(--sage-deep)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg></span><span><span class="en" style="display:block">“Please”</span><span class="ga" style="display:block">Ofainɛ</span></span><span class="go"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span></button>
+            <button type="button" class="x-phrase" data-q="how do you say goodbye in Ga"><span class="pic" style="background:var(--sky);color:var(--sky-deep)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0v5"/><path d="M14 10V4a2 2 0 0 0-4 0v6"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-6-2.4l-3.6-3.6a2 2 0 0 1 2.8-2.8L7 15"/></svg></span><span><span class="en" style="display:block">“Goodbye”</span><span class="ga" style="display:block">Yaaba jogbaŋŋ</span></span><span class="go"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span></button>
+          </div>
+        </div>
+
+        <div>
+          <div class="x-sec-h"><h3>Explore</h3><button type="button" class="x-link" data-go="library">Open the library →</button></div>
+          <div class="x-explore">
+            <button type="button" class="x-ex" data-go="library"><span class="art" style="background:var(--sky);color:var(--sky-deep);display:grid"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg></span><b>Bible</b><span class="s">66 books · Ga &amp; English</span></button>
+            <button type="button" class="x-ex" data-libtab="stories"><span class="art" style="background:var(--sand);color:var(--sand-deep);display:grid"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M8 7h8M8 11h6"/></svg></span><b>Stories</b><span class="s">6 storybooks, line by line</span></button>
+            <button type="button" class="x-ex" data-libtab="poems"><span class="art" style="background:var(--blush);color:var(--blush-deep);display:grid"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><b>Poems &amp; songs</b><span class="s">Fishermen's song &amp; more</span></button>
+            <button type="button" class="x-ex" data-go="learn"><span class="art" style="background:var(--sage);color:var(--sage-deep);display:grid"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><b>Games</b><span class="s">Choose · Match · Unscramble</span></button>
+          </div>
+        </div>
+
+        <div class="x-teach">
+          <div style="flex:1 1 380px">
+            <div style="font:800 28px/1.1 var(--display);letter-spacing:-.5px">Know a Ga word Nii Obodai doesn't?</div>
+            <p class="x-lead" style="margin-top:8px">Teach it. Reviewers check every contribution, and once it's verified everyone can find it.</p>
+          </div>
+          <button type="button" class="x-btn" data-action="contribute">Teach a word</button>
+          <button type="button" class="x-btn ghost" data-action="contribute-doc">Share a document</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="viewLearn" aria-label="Learn">
+      <div class="x-wrap">
+        <div><h2 class="x-h1">Learn Ga</h2><p class="x-lead" style="margin-top:8px">Short rounds built from the verified dictionary — a few minutes a day.</p></div>
+        <div class="x-row">
+          <div class="x-ai" style="flex:1 1 460px">
+            <div class="x-ai-head"><span class="x-av"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M12 7.5l1.1 2.4 2.4 1.1-2.4 1.1L12 14.5l-1.1-2.4L8.5 11l2.4-1.1z" fill="currentColor" stroke="none"/></svg></span><div><b>Practise with Nii Obodai</b><span class="s">It asks, you answer in Ga — every answer checked against the archive</span></div></div>
+            <div class="x-bubble">What is “water” in Ga?</div>
+            <div class="x-me">Nu</div>
+            <div class="x-bubble">Correct! Next one…</div>
+            <button type="button" class="x-btn gold" data-quiz="mixed" style="align-self:flex-start">Start a lesson</button>
+          </div>
+          <div class="x-challenge" style="flex:1 1 320px">
+            <span class="x-eyebrow" style="color:var(--accent)">Quick round</span>
+            <div style="font:800 30px/1.1 var(--display);letter-spacing:-.6px">5 questions, about 2 minutes</div>
+            <div style="opacity:.75;font-size:14px">Pick the right Ga word for each English one.</div>
+            <button type="button" class="x-btn gold" data-quiz="choice" style="align-self:flex-start;margin-top:auto">Start</button>
+          </div>
+        </div>
+        <div>
+          <div class="x-sec-h"><h3>Ways to practise</h3></div>
+          <div class="x-tiles">
+            <button type="button" class="x-tile t-sage" data-quiz="choice"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><span><b>Choose</b><span class="s">pick the right word</span></span><span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></button>
+            <button type="button" class="x-tile t-sky" data-quiz="match"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><path d="M10 6.5h4a3 3 0 0 1 3 3V14"/></svg></span><span><b>Match</b><span class="s">pair Ga &amp; English</span></span><span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></button>
+            <button type="button" class="x-tile t-blush" data-quiz="blank"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h6M14 12h6M4 17h16"/><rect x="10" y="10" width="4" height="4" rx="1"/></svg></span><span><b>Fill the blank</b><span class="s">finish the phrase</span></span><span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></button>
+            <button type="button" class="x-tile t-sand" data-quiz="scramble"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="6" height="10" rx="1.5"/><rect x="9" y="7" width="6" height="10" rx="1.5"/><rect x="16" y="7" width="6" height="10" rx="1.5"/></svg></span><span><b>Unscramble</b><span class="s">rebuild the word</span></span><span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></button>
+          </div>
+        </div>
+        <div>
+          <div class="x-sec-h"><h3>Ask Nii Obodai to…</h3></div>
+          <div class="x-follow">
+            <button type="button" data-q="count from 1 to 10"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M12 7.5l1.1 2.4 2.4 1.1-2.4 1.1L12 14.5l-1.1-2.4L8.5 11l2.4-1.1z" fill="currentColor" stroke="none"/></svg>Count from 1 to 10 in Ga</button>
+            <button type="button" data-q="how do you say good afternoon in Ga"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M12 7.5l1.1 2.4 2.4 1.1-2.4 1.1L12 14.5l-1.1-2.4L8.5 11l2.4-1.1z" fill="currentColor" stroke="none"/></svg>Teach me the greetings</button>
+            <button type="button" data-q="tell me a ga story"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M12 7.5l1.1 2.4 2.4 1.1-2.4 1.1L12 14.5l-1.1-2.4L8.5 11l2.4-1.1z" fill="currentColor" stroke="none"/></svg>Tell me a Ga story</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="viewLibrary" aria-label="Library">
+      <div class="x-wrap" style="gap:22px">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:14px"><h2 class="x-h1" style="flex:1 1 auto">Library</h2>
+          <div class="x-seg" style="flex:0 1 420px" role="tablist" aria-label="Library sections">
+            <button type="button" class="on" data-libtab="bible" role="tab">Bible</button>
+            <button type="button" data-libtab="stories" role="tab">Stories</button>
+            <button type="button" data-libtab="poems" role="tab">Poems &amp; songs</button>
+          </div>
+        </div>
+        <div id="libBible" style="display:flex;flex-direction:column;gap:18px">
+          <form class="x-search" id="bibleFind"><span class="x-av sm"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M12 7.5l1.1 2.4 2.4 1.1-2.4 1.1L12 14.5l-1.1-2.4L8.5 11l2.4-1.1z" fill="currentColor" stroke="none"/></svg></span><input id="bibleFindInput" type="text" placeholder="Find a verse or ask — John 3:16, Lalai 23, verses about light" aria-label="Find a verse or ask Nii Obodai" /><button class="x-go" type="submit" aria-label="Find"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></form>
+          <div id="bibleBrowse" style="display:flex;flex-direction:column;gap:14px">
+            <div class="x-seg" style="max-width:420px">
+              <button type="button" class="on" data-testament="old">Old Testament</button>
+              <button type="button" data-testament="new">New Testament</button>
+            </div>
+            <div class="x-books" id="bibleBooks"><div class="x-keys">Loading the books…</div></div>
+          </div>
+          <div id="bibleReader" class="x-reader hidden">
+            <div class="x-rhead">
+              <button type="button" class="x-chip" id="readerBack" aria-label="Back to the books">← Books</button>
+              <div style="flex:1 1 200px;min-width:0"><h3 class="x-rtitle" id="readerTitle">…</h3><div class="x-keys" id="readerSub"></div></div>
+              <div class="x-seg" style="flex:none"><button type="button" class="on" data-rmode="both">Ga + English</button><button type="button" data-rmode="ga">Ga only</button></div>
+              <div class="x-seg" style="flex:none"><button type="button" class="on" data-ed="NEGAB" title="Modern spelling">NEGAB</button><button type="button" data-ed="GBV96" title="The 1996 text, original spelling">GBV96</button></div>
+            </div>
+            <div class="x-ai hidden" id="readerAI" style="margin-bottom:10px">
+              <div class="x-ai-head"><span class="x-av sm"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M12 7.5l1.1 2.4 2.4 1.1-2.4 1.1L12 14.5l-1.1-2.4L8.5 11l2.4-1.1z" fill="currentColor" stroke="none"/></svg></span><b id="readerAIref" style="font-size:15px">Ask Nii Obodai</b></div>
+              <div class="x-follow" id="readerAIfollow"></div>
+            </div>
+            <div id="readerVerses"></div>
+            <div style="display:flex;gap:10px;margin-top:14px">
+              <button type="button" class="x-btn ghost" id="readerPrev">← Previous</button>
+              <span class="spacer"></span>
+              <button type="button" class="x-btn" id="readerNext">Next chapter →</button>
+            </div>
+          </div>
+        </div>
+        <div id="libStories" class="hidden"><div class="x-explore" id="storyList"></div></div>
+        <div id="libPoems" class="hidden"><div class="x-list" id="poemList"></div></div>
+      </div>
+    </section>
+
     <section class="chat">
     <div class="stream" id="stream">
       <div class="stream-inner" id="streamInner">
-        <div class="hero" id="hero">
-          <h2><span id="greet">Ojekoo</span>! Your Ga language companion.</h2>
-          <p>Ask me about Ga words, phrases, Bible verses, stories, poems and songs — take a quiz, or correct me when I'm wrong and I'll learn. I answer from what I know.</p>
-          <div class="suggestions" id="chips">
-            <div class="sg">
-              <div class="sg-h">Start here</div>
-              <div class="sg-c feat">
-                <button data-q="how do you say good morning in Ga"><b>Say a phrase</b><i>good morning → ojekoo</i></button>
-                <button data-q="Genesis 1:1"><b>Read a verse</b><i>the Bible in Ga</i></button>
-                <button data-action="quiz"><b>Quiz me</b><i>test your Ga</i></button>
-                <button data-action="contribute"><b>Teach me</b><i>add a word or story</i></button>
-              </div>
-            </div>
-            <div class="sg">
-              <div class="sg-h">Common phrases</div>
-              <div class="sg-c">
-                <button data-q="how do you say thank you in Ga">“Thank you” in Ga</button>
-                <button data-q="count from 1 to 10">Count 1–10 in Ga</button>
-                <button data-q="21 in Ga">21 in Ga</button>
-              </div>
-            </div>
-            <div class="sg">
-              <div class="sg-h">Bible</div>
-              <div class="sg-c">
-                <button data-q="Exodus 20:3">Exodus 20:3</button>
-                <button data-q="quote a bible verse in ga">Quote a verse</button>
-              </div>
-            </div>
-            <div class="sg">
-              <div class="sg-h">Learn &amp; play</div>
-              <div class="sg-c">
-                <button data-q="tell me a ga story">Tell a story</button>
-                <button data-q="tell me a poem in ga">Recite a poem</button>
-                <button data-action="puzzle">Unscramble</button>
-              </div>
+        <div class="hero" id="hero" style="max-width:660px;padding-top:28px">
+          <div class="x-ai" style="text-align:left">
+            <div class="x-ai-head"><span class="x-av"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M12 7.5l1.1 2.4 2.4 1.1-2.4 1.1L12 14.5l-1.1-2.4L8.5 11l2.4-1.1z" fill="currentColor" stroke="none"/></svg></span><div><b>Nii Obodai</b><span class="s">Your Ga guide · answers from the archive</span></div><span class="x-live"><i></i>Ready</span></div>
+            <div class="x-bubble"><span id="greet">Ojekoo</span>! Ask me how to say anything in Ga — words, greetings, Bible verses, stories, poems. If I don't know, I'll say so, and you can teach me.</div>
+            <div class="x-follow" id="chips">
+              <button type="button" data-q="how do you say good morning in Ga">Good morning in Ga</button>
+              <button type="button" data-q="how do you say thank you in Ga">“Thank you” in Ga</button>
+              <button type="button" data-q="count from 1 to 10">Count 1–10</button>
+              <button type="button" data-q="Genesis 1:1">Genesis 1:1</button>
+              <button type="button" data-q="tell me a ga story">Tell me a story</button>
+              <button type="button" data-action="quiz">Quiz me</button>
+              <button type="button" data-action="contribute">Teach me a word</button>
             </div>
           </div>
         </div>
@@ -777,7 +1063,7 @@
         <div class="inputbar">
           <div class="ta-wrap">
             <div class="ta-mirror" id="taMirror" aria-hidden="true"><span id="taMirrorText"></span><span id="ghostSuffix"></span></div>
-            <textarea id="input" rows="1" placeholder="Type a message…" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+            <textarea id="input" rows="1" placeholder="Ask Nii Obodai…" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
           </div>
           <div class="bar-row">
             <button class="send" id="sendBtn" title="Send (Enter)" aria-label="Send">
@@ -790,6 +1076,13 @@
       </div>
     </div>
     </section>
+    <nav class="x-tabbar" aria-label="Main">
+      <button type="button" data-go="home"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5V21H3z"/><path d="M9 21v-7h6v7"/></svg>Home</button>
+      <button type="button" data-go="learn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>Learn</button>
+      <button type="button" class="x-tab-ai" data-go="ask"><span class="o"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M12 7.5l1.1 2.4 2.4 1.1-2.4 1.1L12 14.5l-1.1-2.4L8.5 11l2.4-1.1z" fill="currentColor" stroke="none"/></svg></span>Ask</button>
+      <button type="button" data-go="library"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg>Library</button>
+      <button type="button" id="tabMe"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Me</button>
+    </nav>
   </div>
 
   <div class="backdrop" id="backdrop"></div>
@@ -942,6 +1235,8 @@
 const API = "/api/v1";
 // One mode for everyone: the agent picks Bible, dictionary or archive itself.
 let conversationId = null, me = null, busy = false, lastPrompt = "";
+// The Ask view's empty state (Nii Obodai's welcome), restored by New chat.
+const ASK_HERO_HTML = '<div class="hero" id="hero" style="max-width:660px;padding-top:28px">\n          <div class="x-ai" style="text-align:left">\n            <div class="x-ai-head"><span class="x-av"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M12 7.5l1.1 2.4 2.4 1.1-2.4 1.1L12 14.5l-1.1-2.4L8.5 11l2.4-1.1z" fill="currentColor" stroke="none"/></svg></span><div><b>Nii Obodai</b><span class="s">Your Ga guide · answers from the archive</span></div><span class="x-live"><i></i>Ready</span></div>\n            <div class="x-bubble"><span id="greet">Ojekoo</span>! Ask me how to say anything in Ga — words, greetings, Bible verses, stories, poems. If I don\'t know, I\'ll say so, and you can teach me.</div>\n            <div class="x-follow" id="chips">\n              <button type="button" data-q="how do you say good morning in Ga">Good morning in Ga</button>\n              <button type="button" data-q="how do you say thank you in Ga">“Thank you” in Ga</button>\n              <button type="button" data-q="count from 1 to 10">Count 1–10</button>\n              <button type="button" data-q="Genesis 1:1">Genesis 1:1</button>\n              <button type="button" data-q="tell me a ga story">Tell me a story</button>\n              <button type="button" data-action="quiz">Quiz me</button>\n              <button type="button" data-action="contribute">Teach me a word</button>\n            </div>\n          </div>\n        </div>';
 const mode = "agent";
 // Guests persist nothing server-side, so keep the last assistant reply in
 // memory and resend it — that's all the context "continue"/"another" needs.
@@ -1178,9 +1473,6 @@ function attachActions(bubble, query, interactionId) {
   const copy = actBtn("Copy", ICON.copy);
   copy.onclick = () => copyText(bubble.innerText, copy);
   bar.appendChild(copy);
-  const listen = actBtn("Listen", ICON.listen);
-  listen.onclick = () => { speakBubbleText(bubble.innerText, listen); };
-  bar.appendChild(listen);
   if (query) {
     const retry = actBtn("Retry", ICON.retry);
     retry.onclick = () => { if (!busy) regenerate(bubble, query); };
@@ -1680,11 +1972,13 @@ input.addEventListener("keydown", (e) => {
   }
 });
 $("sendBtn").onclick = () => send();
-$("chips") && $("chips").addEventListener("click", (e) => {
-  const b = e.target.closest("button"); if (!b) return;
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-q],[data-action]"); if (!b || b.closest(".ovl")) return;
+  if (b.dataset.action === "contribute") { $("cfGuestRow").classList.toggle("hidden", !!me); setCfTab("text"); return openOverlay("contribOvl"); }
+  if (b.dataset.action === "contribute-doc") { $("cfGuestRow").classList.toggle("hidden", !!me); setCfTab("doc"); return openOverlay("contribOvl"); }
+  setView("ask");
   if (b.dataset.action === "quiz") return startQuiz();
   if (b.dataset.action === "puzzle") return startPuzzle();
-  if (b.dataset.action === "contribute") { $("cfGuestRow").classList.toggle("hidden", !!me); return openOverlay("contribOvl"); }
   if (!b.dataset.q) return;
   send(b.dataset.q);
 });
@@ -1695,7 +1989,8 @@ function newChat() {
   conversationId = null; busy = false; $("sendBtn").disabled = false;
   $("cancelBtn").classList.remove("show");
   setConversationUrl(null);
-  inner.innerHTML = `<div class="hero" id="hero"><h2>New chat</h2><p>What would you like to know?</p></div>`;
+  inner.innerHTML = ASK_HERO_HTML;
+  { const g = $("greet"); if (g) g.textContent = gaGreeting(); }
   markActiveConv();
 }
 $("newChatBtn").onclick = newChat;
@@ -2763,7 +3058,7 @@ function startQuiz() {
   const card = qCard(bubble, "PRACTICE", "pick a game");
   const grid = document.createElement("div");
   grid.className = "q-modes";
-  for (const key of ["choice", "scramble", "match", "blank", "listen", "mixed"]) {
+  for (const key of ["choice", "scramble", "match", "blank", "mixed"]) {
     const b = document.createElement("button");
     b.className = "q-mode"; b.type = "button";
     b.innerHTML = `<b>${escapeHtml(MODES[key].label)}</b><i>${escapeHtml(MODES[key].blurb)}</i>`;
@@ -3711,6 +4006,234 @@ async function loadReviewQueue() {
     }
   } catch { list.innerHTML = '<div class="rev-empty">Could not load the queue.</div>'; }
 }
+
+/* ====================================================================
+   Redesign: views (Home · Ask · Learn · Library), Nii Obodai entry
+   points, and the Bible reader. The chat itself is the Ask view and is
+   unchanged; everything here routes into it.
+   ==================================================================== */
+const VIEWS = ["home", "ask", "learn", "library"];
+function setView(v) {
+  if (!VIEWS.includes(v)) v = "home";
+  document.body.dataset.view = v;
+  document.querySelectorAll("[data-go]").forEach((b) => b.classList.toggle("on", b.dataset.go === v));
+  if (v === "library" && libTab === "bible") loadBooks();
+  // The chat box sizes itself to its content; measured while hidden it came
+  // out 0px tall (invisible), so measure again whenever Ask is shown.
+  if (v === "ask") { try { autosize(); } catch {} setTimeout(() => { try { input.focus({ preventScroll: true }); } catch {} }, 60); }
+  // The address follows the view, so a view can be linked to (#/learn, #/library).
+  // Ask keeps the conversation link it already uses (#/c/<id>).
+  try {
+    const want = v === "learn" || v === "library" ? "#/" + v
+      : v === "ask" && conversationId && me ? "#/c/" + conversationId : "";
+    if ((location.hash || "") !== want) history.replaceState(null, "", want || location.pathname + location.search);
+  } catch {}
+  const sc = document.querySelector(v === "ask" ? "#stream" : `#view${v[0].toUpperCase()}${v.slice(1)}`);
+  if (sc && v !== "ask") sc.scrollTop = 0;
+}
+
+document.addEventListener("click", (e) => {
+  const go = e.target.closest("[data-go]");
+  if (go) { e.preventDefault(); setView(go.dataset.go); return; }
+  const qz = e.target.closest("[data-quiz]");
+  if (qz) { setView("ask"); clearHero(); beginRound(addTurn("bot"), qz.dataset.quiz, 5); return; }
+  const lt = e.target.closest("[data-libtab]");
+  if (lt) { setView("library"); setLibTab(lt.dataset.libtab); return; }
+  const tm = e.target.closest("[data-testament]");
+  if (tm) { testament = tm.dataset.testament; document.querySelectorAll("[data-testament]").forEach((b) => b.classList.toggle("on", b === tm)); renderBooks(); return; }
+  const rm = e.target.closest("[data-rmode]");
+  if (rm) { $("bibleReader").classList.toggle("ga-only", rm.dataset.rmode === "ga"); document.querySelectorAll("[data-rmode]").forEach((b) => b.classList.toggle("on", b === rm)); return; }
+  const ed = e.target.closest("[data-ed]");
+  if (ed && reader.book) { reader.edition = ed.dataset.ed; document.querySelectorAll("[data-ed]").forEach((b) => b.classList.toggle("on", b === ed)); openChapter(reader.book, reader.ch, reader.sel); return; }
+});
+
+$("tabMe").onclick = () => { if (me) $("menuBtn").click(); else location.href = "/auth"; };
+
+/* Greeting by time of day, everywhere it appears. */
+{
+  const g = gaGreeting();
+  const en = { "Ojekoo": "good morning", "Oshwiee": "good afternoon", "M'naokoo": "good evening" }[g] || "hello";
+  document.querySelectorAll("[data-greet]").forEach((el) => { el.textContent = g; });
+  document.querySelectorAll("[data-greet-en]").forEach((el) => { el.textContent = en; });
+}
+
+/* Word of the day — rotates daily through verified everyday words. */
+{
+  const WORDS = [["Miifala", "welcome"], ["Oyiwaladɔŋ", "thank you"], ["Ojekoo", "good morning"], ["Ofainɛ", "please"],
+    ["Nu", "water"], ["Yaaba jogbaŋŋ", "goodbye"], ["Te oyɔɔ tɛŋ?", "how are you?"], ["Mi yɛ ojogbaŋŋ", "I'm fine"]];
+  const day = Math.floor(Date.now() / 86400000);
+  const [ga, en] = WORDS[day % WORDS.length];
+  $("wotdGa").textContent = ga; $("wotdEn").textContent = en;
+  $("wotdAsk").onclick = () => { setView("ask"); send(`what does ${ga} mean`); };
+}
+
+/* Home's Nii Obodai box → the chat. */
+$("homeAskForm").onsubmit = (e) => {
+  e.preventDefault();
+  const t = $("homeAsk").value.trim();
+  if (!t) return;
+  $("homeAsk").value = "";
+  setView("ask");
+  send(t);
+};
+try { bindGaKeys($("homeAsk")); } catch {}
+
+/* ---- Library ---- */
+let libTab = "bible", testament = "old", BOOKS = null, booksLoading = null;
+const reader = { book: null, ch: 1, edition: "NEGAB", sel: null, data: null };
+const TINTS = ["sky", "blush", "sage", "sand"];
+
+function setLibTab(t) {
+  libTab = t;
+  document.querySelectorAll("[data-libtab]").forEach((b) => b.classList.toggle("on", b.dataset.libtab === t && b.closest(".x-seg")));
+  $("libBible").style.display = t === "bible" ? "flex" : "none";
+  $("libStories").classList.toggle("hidden", t !== "stories");
+  $("libPoems").classList.toggle("hidden", t !== "poems");
+  if (t === "bible") loadBooks();
+}
+
+function loadBooks() {
+  if (BOOKS) return Promise.resolve();
+  if (!booksLoading) {
+    booksLoading = fetch(`${API}/bible/books`)
+      .then((r) => r.json()).then((d) => { BOOKS = d.books || []; renderBooks(); })
+      .catch(() => { booksLoading = null; $("bibleBooks").innerHTML = '<div class="x-keys">Could not load the books — try again.</div>'; });
+  }
+  return booksLoading;
+}
+
+function bookAbbr(name) {
+  const m = name.match(/^(\d)\s*(.*)$/);
+  return m ? m[1] + (m[2][0] || "") : name.slice(0, 2);
+}
+
+function renderBooks() {
+  const box = $("bibleBooks");
+  if (!BOOKS) return;
+  box.innerHTML = "";
+  BOOKS.filter((b) => b.testament === testament).forEach((b, i) => {
+    const t = TINTS[i % TINTS.length];
+    const el = document.createElement("button");
+    el.type = "button"; el.className = "x-book";
+    el.innerHTML = `<span class="ab" style="background:var(--${t});color:var(--${t}-deep)">${escapeHtml(bookAbbr(b.ga))}</span>` +
+      `<span style="min-width:0"><span class="ga">${escapeHtml(b.ga)}</span><span class="en">${escapeHtml(b.book)} · ${b.chapters} chapter${b.chapters === 1 ? "" : "s"}</span></span>`;
+    el.onclick = () => openChapter(b.book, 1);
+    box.appendChild(el);
+  });
+}
+
+async function openChapter(book, ch, verse) {
+  reader.book = book; reader.ch = ch; reader.sel = verse || null;
+  $("bibleBrowse").classList.add("hidden");
+  $("bibleReader").classList.remove("hidden");
+  $("readerVerses").innerHTML = '<div class="x-keys" style="padding:10px 12px">Loading…</div>';
+  try {
+    const r = await fetch(`${API}/bible/${encodeURIComponent(book)}/${ch}?edition=${reader.edition}`);
+    if (!r.ok) throw new Error(String(r.status));
+    reader.data = await r.json();
+    renderChapter(true);
+  } catch {
+    $("readerVerses").innerHTML = '<div class="x-keys" style="padding:10px 12px">Could not load this chapter.</div>';
+  }
+}
+
+function renderChapter(scrollToSel) {
+  const d = reader.data; if (!d) return;
+  $("readerTitle").textContent = `${d.ga_book} ${d.chapter}`;
+  $("readerSub").textContent = `${d.book} ${d.chapter} · ${d.edition === "NEGAB" ? "NEGAB, modern spelling" : "GBV96, the 1996 text as printed"}`;
+  const box = $("readerVerses");
+  box.innerHTML = "";
+  for (const v of d.verses) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "x-verse" + (v.n === reader.sel ? " sel" : "");
+    b.innerHTML = `<span class="n">${v.n}</span><span><span class="g">${escapeHtml(v.ga)}</span>${v.en ? `<span class="e">${escapeHtml(v.en)}</span>` : ""}</span>`;
+    b.onclick = () => { reader.sel = reader.sel === v.n ? null : v.n; renderChapter(false); };
+    box.appendChild(b);
+  }
+  $("readerPrev").disabled = d.chapter <= 1;
+  $("readerNext").disabled = d.chapter >= d.chapters;
+  renderVerseAI();
+  // A scroll that fails must never take the loaded chapter down with it.
+  if (scrollToSel && reader.sel) { const el = box.querySelector(".sel"); try { el && el.scrollIntoView({ block: "center" }); } catch {} }
+}
+
+/* Nii Obodai on the selected verse. Word questions are offered only for
+   words the verified dictionary already knows, so every suggestion has
+   a real answer behind it. */
+function renderVerseAI() {
+  const box = $("readerAI"), d = reader.data;
+  if (!reader.sel || !d) { box.classList.add("hidden"); return; }
+  const v = d.verses.find((x) => x.n === reader.sel); if (!v) { box.classList.add("hidden"); return; }
+  const ref = `${d.book} ${d.chapter}:${v.n}`;
+  const known = [];
+  for (const w of new Set(v.ga.match(/[\p{L}\p{M}'’-]+/gu) || [])) {
+    const f = foldGa(w);
+    const hit = GA_VOCABULARY.find((s) => s.en && foldGa(s.text) === f);
+    if (hit && !known.some((k) => k.text === hit.text)) known.push(hit);
+    if (known.length >= 2) break;
+  }
+  $("readerAIref").textContent = `Ask Nii Obodai about ${d.ga_book} ${d.chapter}:${v.n}`;
+  const f = $("readerAIfollow"); f.innerHTML = "";
+  const add = (label, fn) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.onclick = fn; f.appendChild(b); };
+  for (const k of known) add(`What does ${k.text} mean?`, () => { setView("ask"); send(`what does ${k.text} mean`); });
+  add(`Show ${ref} in Ga & English`, () => { setView("ask"); send(ref); });
+  add("Copy verse", function () { copyText(`${v.ga}\n${v.en}\n— ${ref}`, this); });
+  box.classList.remove("hidden");
+}
+
+$("readerBack").onclick = () => { $("bibleReader").classList.add("hidden"); $("bibleBrowse").classList.remove("hidden"); reader.sel = null; };
+$("readerPrev").onclick = () => { if (reader.ch > 1) openChapter(reader.book, reader.ch - 1); };
+$("readerNext").onclick = () => { if (reader.data && reader.ch < reader.data.chapters) openChapter(reader.book, reader.ch + 1); };
+
+/* Find a verse ("John 3:16", "Lalai 23") or hand the question to Nii Obodai. */
+function findRef(q) {
+  const m = q.trim().match(/^(.+?)\s+(\d+)(?:\s*[:.]\s*(\d+))?$/);
+  if (!m || !BOOKS) return null;
+  const key = foldGa(m[1]).replace(/\s+/g, " ").trim();
+  const b = BOOKS.find((x) => foldGa(x.book) === key || foldGa(x.ga) === key) ||
+    (key.length >= 3 ? BOOKS.find((x) => foldGa(x.book).startsWith(key) || foldGa(x.ga).startsWith(key)) : null);
+  return b ? { book: b.book, ch: +m[2], v: m[3] ? +m[3] : null } : null;
+}
+$("bibleFind").onsubmit = async (e) => {
+  e.preventDefault();
+  const q = $("bibleFindInput").value.trim();
+  if (!q) return;
+  await loadBooks();
+  const r = findRef(q);
+  if (r) { $("bibleFindInput").value = ""; return openChapter(r.book, r.ch, r.v); }
+  setView("ask");
+  send(q);
+};
+
+/* Stories and poems: open in the chat, told by Nii Obodai from the archive. */
+{
+  const STORIES = ["Magozwe", "A very tall man", "Tingi and the cows", "Counting animals", "Weather book", "I like to read!"];
+  const POEMS = [["Praise of labor and strength", "Fishermen's song"], ["Roy Ankrah boxing poem", "Poem"], ["Tokyo Joe song", "Song"]];
+  const sl = $("storyList");
+  STORIES.forEach((t, i) => {
+    const tint = TINTS[i % TINTS.length];
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "x-ex";
+    b.innerHTML = `<span class="art" style="background:var(--${tint});color:var(--${tint}-deep);height:120px">` +
+      '<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/></svg></span>' +
+      `<b>${escapeHtml(t)}</b><span class="s">Storybook · Ga &amp; English</span>`;
+    b.onclick = () => { setView("ask"); send(`tell me the story ${t}`); };
+    sl.appendChild(b);
+  });
+  const pl = $("poemList");
+  POEMS.forEach(([t, kind]) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "x-book";
+    b.innerHTML = '<span class="ab" style="background:var(--sand);color:var(--sand-deep)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>' +
+      `<span><span class="ga">${escapeHtml(t)}</span><span class="en">${escapeHtml(kind)}</span></span>`;
+    b.onclick = () => { setView("ask"); send(`recite the poem ${t}`); };
+    pl.appendChild(b);
+  });
+}
+
+/* Start where the link points: a shared conversation opens in Ask. */
+{ const h = location.hash; setView(/^#\/c\//.test(h) ? "ask" : h === "#/learn" ? "learn" : h === "#/library" ? "library" : h === "#/ask" ? "ask" : "home"); }
 </script>
 </body>
 </html>
