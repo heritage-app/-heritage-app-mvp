@@ -219,7 +219,7 @@ async function* askBible(
     for (const b of BIBLE_BOOK_TOKENS) if (qLow.includes(b)) { book = BOOK_MAP[b] ?? cap(b); break; }
     const v = await getRandomVerse(env, book ?? undefined);
     yield v
-      ? `Hɛloo naanyo! Here is a verse from the archive:\n\n${formatBibleQuote(v)}`
+      ? `Hɛloo naanyo!\n\n${formatBibleQuote(v)}`
       : "This is not in my Ga Bible archives.";
     return;
   }
@@ -271,7 +271,7 @@ async function* askBible(
   if (isSpecific && requestedV) {
     matchedMeta = await getVerse(env, requestedBook!, requestedCh!, requestedV);
     if (matchedMeta && isFormattableBibleRecord(matchedMeta)) {
-      yield `Hɛloo naanyo! Here is the verse you requested:\n\n${formatBibleQuote(matchedMeta)}`;
+      yield `Hɛloo naanyo!\n\n${formatBibleQuote(matchedMeta)}`;
       return;
     }
   }
@@ -321,7 +321,7 @@ async function* askBible(
     await logKnowledgeGap(env, query, 'bible_citation', 'Bible verse/chapter not found');
     grounded = generateLearningNotFoundResponse(query, 'bible');
   } else if (matchedMeta && isFormattableBibleRecord(matchedMeta)) {
-    grounded = `Hɛloo naanyo! Here is the verse you requested:\n\n${formatBibleQuote(matchedMeta)}`;
+    grounded = `Hɛloo naanyo!\n\n${formatBibleQuote(matchedMeta)}`;
   } else {
     // Non-exact bible request ("quote a verse", "a verse about light", etc.).
     const relevant = nodes.filter((n) => (n.score ?? 0) >= MIN_RELEVANCE_SCORE);
@@ -341,7 +341,7 @@ async function* askBible(
           .slice(0, count)
           .map((n) => formatBibleQuote(n.metadata as VerseRecord))
           .join("\n\n———\n\n");
-        grounded = `Hɛloo naanyo! Here ${count > 1 ? "are some verses" : "is a verse"} from the archive:\n\n${quotes}`;
+        grounded = `Hɛloo naanyo!\n\n${quotes}`;
       } else {
         if (strict) return;
         const answer = await groundWithGuardrail(env, query, formatRetrievedContext(relevant), model);
@@ -372,7 +372,7 @@ async function* askGeneral(
     const start = parseInt(rangeMatch[1], 10);
     const end = parseInt(rangeMatch[2], 10);
     if (start > 0 && start <= end && end <= 999 && end - start <= 50) {
-      const lines = ["Here are the numbers you requested:\n", "| Number | Ga Translation |", "| :--- | :--- |"];
+      const lines = ["Hɛloo naanyo!\n", "| Number | Ga Translation |", "| :--- | :--- |"];
       for (let n = start; n <= end; n++) lines.push(`| **${n}** | ${cap(numToGa(n))} |`);
       yield lines.join("\n"); // deterministic numeric table
       return;

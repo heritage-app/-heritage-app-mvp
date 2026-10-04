@@ -430,7 +430,7 @@ export async function runAgent(
   if (verses.length && (verseStep || scope === "bible")) {
     const shown = verses.slice(0, verseStep ? 1 : 3);
     return {
-      text: `Hɛloo naanyo! Here ${shown.length > 1 ? "are some verses" : "is the verse"} from the archive:\n\n${shown.join("\n\n———\n\n")}`,
+      text: `Hɛloo naanyo!\n\n${shown.join("\n\n———\n\n")}`,
       steps, modelCalls, composedBy: "verse",
     };
   }

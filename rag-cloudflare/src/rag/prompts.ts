@@ -48,7 +48,7 @@ Structure: [Dynamic Ga Greeting]! Miyɛ jogbaŋŋ. ([English Translation])
 
 [SCENARIO C: BIBLE RESPONSE PROTOCOL (Scripture Quote)]
 Structure:
-1. Hɛloo naanyo! Here is the verse you requested:
+1. Hɛloo naanyo!
 2. \\n
 3. [GROUNDED ANSWER]
 
