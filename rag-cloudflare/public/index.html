@@ -961,15 +961,65 @@
   .x-rmodes { max-width:340px; }
   .x-reader { position:relative; }
   #readerAI .x-ask { background:var(--paper-2); }
+  /* Reading: the text gets the room; the book list steps aside (‹ Books). */
+  #libBible.reading #bibleBrowse { display:none !important; }
+  .x-bookbtn { width:auto; padding:0 16px 0 10px; border-radius:999px; display:inline-flex; align-items:center; gap:4px; font:700 13.5px var(--sans); }
+  .x-rx { width:36px; height:36px; flex:none; border:0; border-radius:50%; background:var(--paper-2); color:var(--ink); display:grid; place-items:center; cursor:pointer; }
+  #readerAI { overflow:hidden; }
+  #readerAI > :not(.x-rthread) { flex-shrink:0; }
+  .x-rthread { display:flex; flex-direction:column; gap:12px; overflow-y:auto; min-height:0; flex:1 1 auto; padding:2px; }
+  .x-rthread:empty { display:none; }
+  .x-rthread .turn { display:flex; flex-direction:column; gap:6px; margin:0; max-width:none; }
+  .x-rthread .turn .who { display:none; }
+  .x-rthread .turn.user { align-items:flex-end; }
+  .x-rthread .turn.user .bubble { max-width:88%; font:600 14px/1.4 var(--sans); padding:9px 14px; }
+  .x-rthread .turn.bot .bubble { background:var(--paper-2); box-shadow:none; border-radius:6px 18px 18px 18px; padding:12px 14px; font-size:14.5px; max-width:none; }
+  .x-rthread .actions { margin-top:0; }
+  .x-rthread .act { min-height:32px; font-size:12px; padding:0 11px; }
+  .x-rthread .x-fu { display:none; }
+  .x-rmore { align-self:flex-start; border:0; background:transparent; font:700 13px var(--sans); color:var(--accent); cursor:pointer; padding:2px 4px; }
+  .x-rfab { position:fixed; right:16px; bottom:var(--sheet-bottom, 16px); z-index:40; display:inline-flex; align-items:center; gap:10px; border:0; border-radius:999px; background:var(--ink); color:var(--bg); padding:7px 18px 7px 7px; font:700 14px var(--sans); box-shadow:var(--x-shadow-lg); cursor:pointer; }
+  .x-rfab .x-av { width:34px; height:34px; }
+  .x-rfab.hidden { display:none; }
+  .x-verse .n { white-space:nowrap; }
   @media (min-width:1100px) {
-    #libBible.reading { display:grid; grid-template-columns:260px minmax(0, 1fr) 300px; grid-template-areas:"find find find" "browse read ai"; gap:20px; align-items:start; }
+    #libBible.reading { display:grid; grid-template-columns:minmax(0, 1fr) 380px; grid-template-areas:"find find" "read ai"; gap:24px; align-items:start; }
     #libBible.reading #bibleFind { grid-area:find; }
-    #libBible.reading #bibleBrowse { grid-area:browse; display:flex !important; max-height:78vh; overflow-y:auto; padding:2px 4px 8px 2px; }
-    #libBible.reading #bibleBrowse .x-cont, #libBible.reading #bibleBrowse .x-votd { display:none; }
-    #libBible.reading .x-books { grid-template-columns:1fr; }
     #libBible.reading #bibleReader { grid-area:read; }
-    #libBible.reading #readerAI { grid-area:ai; position:sticky; top:12px; }
+    #libBible.reading #readerAI { grid-area:ai; position:sticky; top:12px; max-height:calc(100dvh - 180px); }
     #libBible.reading #readerAI.hidden { display:flex !important; }
+    #libBible.reading .x-verse .g { font-size:17.5px; }
+    #readerAIclose, .x-rfab { display:none !important; }
+  }
+  @media (max-width:1099px) {
+    /* Phones and tablets: Nii Obodai opens as a sheet over the chapter. */
+    #readerAI { position:fixed; left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom, 0px)); z-index:45; max-width:640px; margin:0 auto; max-height:min(64dvh, 560px);
+      box-shadow:0 0 0 2px var(--accent-line), 0 24px 60px rgba(22,19,15,.3); }
+    #bibleReader { padding-bottom:84px; }
+    body.rkb #readerAI { bottom:8px; max-height:calc(100dvh - 90px); }
+    body.rkb .x-tabbar, body[data-view="library"].rsheet .x-tabbar { display:none !important; }
+    /* suggestions in one swipeable row, so the answer keeps the room */
+    #readerAIfollow { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; margin:0 -16px; padding:0 16px; }
+    #readerAIfollow::-webkit-scrollbar { display:none; }
+    #readerAIfollow button { flex:none; }
+  }
+  @media (max-width:860px) {
+    :root { --sheet-bottom:calc(var(--tab-h) + 26px + env(safe-area-inset-bottom, 0px)); }
+  }
+
+  /* Practice — a screen of its own, one question at a time */
+  body[data-view="practice"] #viewPractice { display:block; }
+  .x-pwrap { max-width:640px; gap:18px; }
+  .x-phead { display:flex; align-items:center; gap:14px; }
+  .x-phead b { display:block; font:800 24px/1.1 var(--display); letter-spacing:-.4px; }
+  .x-phead .s { display:block; font:600 13px var(--sans); color:var(--muted); margin-top:3px; }
+  #practiceStage .bubble { background:none; box-shadow:none; padding:0; border:0; }
+  #practiceStage .quiz { max-width:none; margin:0; box-shadow:var(--x-shadow-lg); }
+  #practiceStage .q-foot span { font:600 12.5px var(--sans); letter-spacing:0; color:var(--muted); }
+  .quiz .q-badge { font:800 11px var(--sans); letter-spacing:.06em; padding:4px 10px; border-radius:999px; }
+  @media (max-width:860px) {
+    body[data-view="practice"] .x-tabbar { display:none !important; }
+    .x-pwrap { padding-top:16px; }
   }
 
   /* chat — bubbles like the mock */
@@ -1451,7 +1501,7 @@
           </div>
           <div id="bibleReader" class="x-reader hidden">
             <div class="x-rhead">
-              <button type="button" class="x-round" id="readerBack" aria-label="Back to the books"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+              <button type="button" class="x-round x-bookbtn" id="readerBack" aria-label="Back to the books"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg><span>Books</span></button>
               <label class="x-chip x-chap"><span class="sr-only">Chapter</span><select id="readerChapter" aria-label="Chapter"></select></label>
               <span class="spacer"></span>
               <div class="x-seg" style="flex:none"><button type="button" class="on" data-ed="NEGAB" title="Modern spelling">NEGAB</button><button type="button" data-ed="GBV96" title="The 1996 text, original spelling">GBV96</button></div>
@@ -1466,14 +1516,27 @@
               <button type="button" class="x-btn" id="readerNext">Next chapter →</button>
             </div>
           </div>
-          <div class="x-ai hidden" id="readerAI">
-            <div class="x-ai-head"><span class="x-av"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M12 7.5l1.1 2.4 2.4 1.1-2.4 1.1L12 14.5l-1.1-2.4L8.5 11l2.4-1.1z" fill="currentColor" stroke="none"/></svg></span><div><b>Nii Obodai</b><span class="s" id="readerAIref">About this verse</span></div></div>
+          <div class="x-ai hidden" id="readerAI" aria-label="Ask Nii Obodai about this chapter">
+            <div class="x-ai-head"><span class="x-av"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M12 7.5l1.1 2.4 2.4 1.1-2.4 1.1L12 14.5l-1.1-2.4L8.5 11l2.4-1.1z" fill="currentColor" stroke="none"/></svg></span><div style="flex:1;min-width:0"><b>Nii Obodai</b><span class="s" id="readerAIref">About this verse</span></div><button type="button" class="x-rx" id="readerAIclose" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button></div>
+            <div class="x-rthread" id="readerThread" aria-live="polite"></div>
             <div class="x-follow" id="readerAIfollow"></div>
             <form class="x-ask" id="readerAIform"><input id="readerAIinput" type="text" placeholder="Ask about this chapter…" aria-label="Ask Nii Obodai about this chapter" autocomplete="off" /><button class="x-go" type="submit" aria-label="Ask"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></form>
+            <button type="button" class="x-rmore hidden" id="readerToChat">Continue in chat →</button>
           </div>
+          <button type="button" class="x-rfab hidden" id="readerFab"><span class="x-av"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M12 7.5l1.1 2.4 2.4 1.1-2.4 1.1L12 14.5l-1.1-2.4L8.5 11l2.4-1.1z" fill="currentColor" stroke="none"/></svg></span><span>Ask Nii Obodai</span></button>
         </div>
         <div id="libStories" class="hidden"><div class="x-explore" id="storyList"></div></div>
         <div id="libPoems" class="hidden"><div class="x-list" id="poemList"></div></div>
+      </div>
+    </section>
+
+    <section class="view" id="viewPractice" aria-label="Practice">
+      <div class="x-wrap x-pwrap">
+        <div class="x-phead">
+          <button type="button" class="x-round" id="practiceClose" aria-label="Close practice"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+          <div style="min-width:0"><b id="practiceTitle">Practice</b><span class="s" id="practiceSub">5 questions · verified archive words</span></div>
+        </div>
+        <div id="practiceStage"></div>
       </div>
     </section>
 
@@ -2312,6 +2375,18 @@ async function send(text) {
   lastPrompt = text;                 // remember for ↑ recall / resubmit
   input.value = ""; autosize(); closeAc(); ghostSug = null; renderGhost();
   addTurn("user").textContent = text;
+  // "quiz me" / "let's play" — practice has its own screen; the chat offers
+  // a way in instead of running the round between messages.
+  if (/^(?:please\s+)?(?:quiz|test)\s+me\b|^(?:let'?s\s+)?(?:play\s+(?:a\s+)?(?:game|quiz)|practi[cs]e)\b|\bunscramble\b/i.test(text)) {
+    const b = addTurn("bot"), pm = /unscramble/i.test(text) ? "scramble" : null;
+    b.innerHTML = "Let's practise! Quizzes open on their own screen, so this chat stays clear.<br>";
+    const go = document.createElement("button");
+    go.type = "button"; go.className = "x-btn gold"; go.style.marginTop = "12px";
+    go.textContent = pm ? "Start unscramble" : "Start practice";
+    go.onclick = () => openPractice(pm, 5, null);
+    b.appendChild(go); scrollDown();
+    return;
+  }
   await streamInto(addTurn("bot"), text);
 }
 
@@ -2431,9 +2506,9 @@ document.addEventListener("click", (e) => {
     if (fr) fr.classList.toggle("hidden", !me);
   }
   if (b.dataset.action === "contribute-doc") { $("cfGuestRow").classList.toggle("hidden", !!me); setCfTab("doc"); return openOverlay("contribOvl"); }
+  if (b.dataset.action === "quiz") return openPractice(null, 5, null);
+  if (b.dataset.action === "puzzle") return openPractice("scramble", 5, null);
   setView("ask");
-  if (b.dataset.action === "quiz") return startQuiz();
-  if (b.dataset.action === "puzzle") return startPuzzle();
   if (!b.dataset.q) return;
   send(b.dataset.q);
 });
@@ -3515,11 +3590,29 @@ function progressHtml() {
   return out + "</div>";
 }
 
+/* ---- Practice: its own screen. Quizzes never go into the chat. ---- */
+let practiceFrom = "learn";
+function practiceBubble() {
+  const st = $("practiceStage"); st.innerHTML = "";
+  const b = document.createElement("div"); b.className = "bubble";
+  st.appendChild(b); return b;
+}
+function openPractice(mode, len, topic) {
+  const cur = document.body.dataset.view;
+  if (cur && cur !== "practice") practiceFrom = cur;
+  if (topic !== undefined) quizTopic = topic;
+  setView("practice");
+  const label = quizTopic ? quizTopic.replace(/[-_]+/g, " ").replace(/^./, (c) => c.toUpperCase()) : "";
+  $("practiceTitle").textContent = label ? `Practice · ${label}` : "Practice";
+  $("practiceSub").textContent = `${len || 5} questions · verified archive words`;
+  if (!mode) return startQuiz();
+  beginRound(practiceBubble(), mode, len || 5);
+}
+$("practiceClose").onclick = () => { round = null; setView(practiceFrom || "learn"); };
+
 /* ---- Entry point: offer the modes, then run a round ---- */
 function startQuiz() {
-  quizTopic = null;
-  clearHero();
-  const bubble = addTurn("bot");
+  const bubble = practiceBubble();
   const card = qCard(bubble, "PRACTICE", "pick a game");
   const grid = document.createElement("div");
   grid.className = "q-modes";
@@ -3539,10 +3632,7 @@ function startQuiz() {
 }
 
 /** Kept so the existing "Unscramble" chip still works — it's a 5-item round. */
-function startPuzzle() {
-  clearHero();
-  beginRound(addTurn("bot"), "scramble", 5);
-}
+function startPuzzle() { openPractice("scramble", 5, null); }
 
 function beginRound(bubble, mode, len) {
   round = { mode, len, i: 0, correct: 0, misses: [], bubble };
@@ -3613,7 +3703,7 @@ function roundFoot(card, statusText) {
   foot.innerHTML = `<span class="q-status">${escapeHtml(statusText)}</span>`;
   const next = document.createElement("button");
   next.className = "q-next"; next.type = "button"; next.disabled = true;
-  next.textContent = round && round.i + 1 >= round.len ? "SEE RESULTS →" : "NEXT →";
+  next.textContent = round && round.i + 1 >= round.len ? "See results →" : "Next →";
   next.onclick = () => nextQuestion();
   foot.appendChild(next);
   card.appendChild(foot);
@@ -3772,7 +3862,7 @@ function renderTiles(bubble, q, mode) {
 
   const { next, status } = roundFoot(card, `${letters.length} letters`);
   const check = document.createElement("button");
-  check.className = "q-next"; check.type = "button"; check.textContent = "CHECK";
+  check.className = "q-next"; check.type = "button"; check.textContent = "Check";
   check.style.marginLeft = "auto";
   next.parentNode.insertBefore(check, next);
 
@@ -3888,16 +3978,16 @@ function renderSummary() {
   foot.className = "q-foot";
   foot.innerHTML = `<span>streak ${score.s}</span>`;
   const again = document.createElement("button");
-  again.className = "q-next"; again.type = "button"; again.textContent = "ANOTHER ROUND →";
+  again.className = "q-next"; again.type = "button"; again.textContent = "Another round →";
   again.style.marginLeft = "auto";
-  again.onclick = () => beginRound(addTurn("bot"), mode, len);
+  again.onclick = () => beginRound(practiceBubble(), mode, len);
   foot.appendChild(again);
 
   if (misses.length) {
     const drill = document.createElement("button");
     drill.className = "q-next"; drill.type = "button";
-    drill.textContent = `DRILL THE ${misses.length}`;
-    drill.onclick = () => beginRound(addTurn("bot"), mode, Math.max(3, misses.length));
+    drill.textContent = `Practise the ${misses.length} missed`;
+    drill.onclick = () => beginRound(practiceBubble(), mode, Math.max(3, misses.length));
     foot.insertBefore(drill, again);
     again.style.marginLeft = "0"; // only the first button takes the auto margin
   }
@@ -4480,7 +4570,7 @@ async function loadReviewQueue() {
    points, and the Bible reader. The chat itself is the Ask view and is
    unchanged; everything here routes into it.
    ==================================================================== */
-const VIEWS = ["home", "ask", "learn", "library"];
+const VIEWS = ["home", "ask", "learn", "library", "practice"];
 function setView(v) {
   if (!VIEWS.includes(v)) v = "home";
   document.body.dataset.view = v;
@@ -4504,7 +4594,7 @@ document.addEventListener("click", (e) => {
   const go = e.target.closest("[data-go]");
   if (go) { e.preventDefault(); setView(go.dataset.go); return; }
   const qz = e.target.closest("[data-quiz]");
-  if (qz) { quizTopic = qz.dataset.topic || null; setView("ask"); clearHero(); beginRound(addTurn("bot"), qz.dataset.quiz, 5); return; }
+  if (qz) { openPractice(qz.dataset.quiz, 5, qz.dataset.topic || null); return; }
   const lt = e.target.closest("[data-libtab]");
   if (lt) { setView("library"); setLibTab(lt.dataset.libtab); return; }
   const tm = e.target.closest("[data-testament]");
@@ -4616,7 +4706,7 @@ function renderChapter(scrollToSel) {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "x-verse" + (v.n === reader.sel ? " sel" : "");
-    b.innerHTML = `<span class="n">${v.n}</span><span><span class="g">${escapeHtml(v.ga)}</span>${v.en ? `<span class="e">${escapeHtml(v.en)}</span>` : ""}</span>`;
+    b.innerHTML = `<span class="n">${v.n}${v.to ? "–" + v.to : ""}</span><span><span class="g">${escapeHtml(v.ga)}</span>${v.en ? `<span class="e">${escapeHtml(v.en)}</span>` : ""}</span>`;
     b.onclick = () => { reader.sel = reader.sel === v.n ? null : v.n; renderChapter(false); };
     box.appendChild(b);
   }
@@ -4627,31 +4717,6 @@ function renderChapter(scrollToSel) {
   if (scrollToSel && reader.sel) { const el = box.querySelector(".sel"); try { el && el.scrollIntoView({ block: "center" }); } catch {} }
 }
 
-/* Nii Obodai on the selected verse. Word questions are offered only for
-   words the verified dictionary already knows, so every suggestion has
-   a real answer behind it. */
-function renderVerseAI() {
-  const box = $("readerAI"), d = reader.data;
-  if (!reader.sel || !d) { box.classList.add("hidden"); return; }
-  const v = d.verses.find((x) => x.n === reader.sel); if (!v) { box.classList.add("hidden"); return; }
-  const ref = `${d.book} ${d.chapter}:${v.n}`;
-  const known = [];
-  for (const w of new Set(v.ga.match(/[\p{L}\p{M}'’-]+/gu) || [])) {
-    const f = foldGa(w);
-    const hit = GA_VOCABULARY.find((s) => s.en && foldGa(s.text) === f);
-    if (hit && !known.some((k) => k.text === hit.text)) known.push(hit);
-    if (known.length >= 2) break;
-  }
-  $("readerAIref").textContent = `Ask Nii Obodai about ${d.ga_book} ${d.chapter}:${v.n}`;
-  const f = $("readerAIfollow"); f.innerHTML = "";
-  const add = (label, fn) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.onclick = fn; f.appendChild(b); };
-  for (const k of known) add(`What does ${k.text} mean?`, () => { setView("ask"); send(`what does ${k.text} mean`); });
-  add(`Show ${ref} in Ga & English`, () => { setView("ask"); send(ref); });
-  add("Copy verse", function () { copyText(`${v.ga}\n${v.en}\n— ${ref}`, this); });
-  box.classList.remove("hidden");
-}
-
-$("readerBack").onclick = () => { $("bibleReader").classList.add("hidden"); $("bibleBrowse").classList.remove("hidden"); reader.sel = null; };
 $("readerPrev").onclick = () => { if (reader.ch > 1) openChapter(reader.book, reader.ch - 1); };
 $("readerNext").onclick = () => { if (reader.data && reader.ch < reader.data.chapters) openChapter(reader.book, reader.ch + 1); };
 
@@ -4671,6 +4736,7 @@ $("bibleFind").onsubmit = async (e) => {
   await loadBooks();
   const r = findRef(q);
   if (r) { $("bibleFindInput").value = ""; return openChapter(r.book, r.ch, r.v); }
+  if (reader.data && $("libBible").classList.contains("reading")) { $("bibleFindInput").value = ""; return readerAsk(q); }
   setView("ask");
   send(q);
 };
@@ -4818,6 +4884,8 @@ function setLibTab(t) {
   libTab = t;
   document.querySelectorAll(".x-libseg [data-libtab]").forEach((b) => b.classList.toggle("on", b.dataset.libtab === t));
   $("libBible").style.display = t === "bible" ? "" : "none";
+  if (t !== "bible") document.body.classList.remove("rsheet");
+  else if (reader.data) renderVerseAI();
   $("libStories").classList.toggle("hidden", t !== "stories");
   $("libPoems").classList.toggle("hidden", t !== "poems");
   if (t === "bible") loadBooks();
@@ -4843,11 +4911,7 @@ async function openChapter(book, ch, verse) {
   reader.book = book; reader.ch = ch; reader.sel = verse || null;
   $("libBible").classList.add("reading");
   $("bibleReader").classList.remove("hidden");
-  if (window.matchMedia && window.matchMedia("(min-width:1100px)").matches) {
-    renderBooks();
-  } else {
-    $("bibleBrowse").classList.add("hidden");
-  }
+  $("bibleBrowse").classList.add("hidden");
   $("readerVerses").innerHTML = '<div class="x-keys" style="padding:10px 12px">Loading…</div>';
   try {
     const r = await fetch(`${API}/bible/${encodeURIComponent(book)}/${ch}?edition=${reader.edition}`);
@@ -4879,7 +4943,7 @@ function renderChapter(scrollToSel) {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "x-verse" + (v.n === reader.sel ? " sel" : "");
-    b.innerHTML = `<span class="n">${v.n}</span><span><span class="g">${escapeHtml(v.ga)}</span>${v.en ? `<span class="e">${escapeHtml(v.en)}</span>` : ""}</span>`;
+    b.innerHTML = `<span class="n">${v.n}${v.to ? "–" + v.to : ""}</span><span><span class="g">${escapeHtml(v.ga)}</span>${v.en ? `<span class="e">${escapeHtml(v.en)}</span>` : ""}</span>`;
     b.onclick = () => { reader.sel = reader.sel === v.n ? null : v.n; renderChapter(false); };
     box.appendChild(b);
   }
@@ -4889,22 +4953,34 @@ function renderChapter(scrollToSel) {
   if (scrollToSel && reader.sel) { const el = box.querySelector(".sel"); try { el && el.scrollIntoView({ block: "center" }); } catch {} }
 }
 
-/* Nii Obodai beside the text: about the selected verse, or the chapter. */
+/* Nii Obodai beside the text: about the selected verse, or the chapter.
+   Questions are answered right here, in the panel — the reader never gets
+   thrown into the chat. "Continue in chat" carries the thread over. */
+const isDesk = () => !!(window.matchMedia && window.matchMedia("(min-width:1100px)").matches);
+let readerConv = null, readerLast = { q: "", text: "" }, readerBusy = false;
+
 function renderVerseAI() {
-  const box = $("readerAI"), d = reader.data;
-  if (!d) { box.classList.add("hidden"); return; }
+  const box = $("readerAI"), fab = $("readerFab"), d = reader.data;
+  if (!d) { box.classList.add("hidden"); fab.classList.add("hidden"); return; }
   const v = reader.sel ? d.verses.find((x) => x.n === reader.sel) : null;
-  box.classList.toggle("hidden", !v);
+  const open = isDesk() || reader.sheet || !!v;
+  box.classList.toggle("hidden", !open);
+  fab.classList.toggle("hidden", open || isDesk());
+  document.body.classList.toggle("rsheet", open && !isDesk());
+  $("readerToChat").classList.toggle("hidden", !$("readerThread").children.length);
   const f = $("readerAIfollow"); f.innerHTML = "";
   const add = (label, fn) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.onclick = fn; f.appendChild(b); };
   if (!v) {
     $("readerAIref").textContent = `About ${d.ga_book} ${d.chapter} — tap a verse`;
-    add(`Show ${d.book} ${d.chapter}:1`, () => { setView("ask"); send(`${d.book} ${d.chapter}:1`); });
-    add("Quiz me", () => { setView("ask"); quizTopic = null; clearHero(); beginRound(addTurn("bot"), "choice", 5); });
+    $("readerAIinput").placeholder = "Ask about this chapter…";
+    add("Quiz me", () => openPractice("choice", 5, null));
     return;
   }
   const ref = `${d.book} ${d.chapter}:${v.n}`;
-  $("readerAIref").textContent = `About ${d.ga_book} ${d.chapter}:${v.n}`;
+  $("readerAIref").textContent = `About ${d.ga_book} ${d.chapter}:${v.n}${v.to ? "–" + v.to : ""}`;
+  $("readerAIinput").placeholder = "Ask about this verse…";
+  // Word questions only for words the verified dictionary knows, so every
+  // suggestion has a real answer behind it.
   const known = [];
   for (const w of new Set(v.ga.match(/[\p{L}\p{M}'’-]+/gu) || [])) {
     const fw = foldGa(w);
@@ -4912,21 +4988,96 @@ function renderVerseAI() {
     if (hit && !known.some((k) => k.text === hit.text)) known.push(hit);
     if (known.length >= 2) break;
   }
-  for (const k of known) add(`What does ${k.text} mean?`, () => { setView("ask"); send(`what does ${k.text} mean`); });
-  add(`Show ${ref} in Ga & English`, () => { setView("ask"); send(ref); });
+  add("Explain this verse", () => readerAsk(`Explain ${ref}`));
+  for (const k of known) add(`What does ${k.text} mean?`, () => readerAsk(`what does ${k.text} mean`));
   add("Copy verse", function () { copyText(`${v.ga}\n${v.en}\n— ${ref}`, this); });
+}
+
+function readerTurn(role) {
+  const turn = document.createElement("div");
+  turn.className = "turn " + role;
+  const who = document.createElement("div"); who.className = "who";
+  const bubble = document.createElement("div"); bubble.className = "bubble";
+  turn.append(who, bubble);
+  $("readerThread").appendChild(turn);
+  return bubble;
+}
+
+async function readerAsk(q) {
+  q = (q || "").trim();
+  if (!q || readerBusy) return;
+  const d = reader.data, th = $("readerThread");
+  const v = d && reader.sel ? d.verses.find((x) => x.n === reader.sel) : null;
+  if (!isDesk()) reader.sheet = true;
+  readerTurn("user").textContent = q;
+  const bubble = readerTurn("bot");
+  setTyping(bubble);
+  renderVerseAI();
+  th.scrollTop = th.scrollHeight;
+  readerBusy = true;
+  // The first question carries the verse being read, so "who is Joseph
+  // here?" is about this verse. After that, guests send the last answer
+  // (their turns aren't saved); signed-in users' history lives on the server.
+  let context, prev;
+  if (!readerConv && v) { prev = `${d.book} ${d.chapter}:${v.n}`; context = `${prev}\nGa: ${v.ga}\nEnglish: ${v.en}`; }
+  else if (!me && readerLast.text) { prev = readerLast.q; context = readerLast.text; }
+  try {
+    const res = await fetch(`${API}${readerConv ? "/chat/" + readerConv : "/chat/new"}?stream=true`, {
+      method: "POST", headers: headers(), credentials: "include",
+      body: JSON.stringify({ query: q, mode, context, prev_query: prev }),
+    });
+    if (!res.ok) throw new Error(String(res.status));
+    const cid = res.headers.get("X-Conversation-Id");
+    if (cid) readerConv = cid;
+    let text = await res.text(), meta = {};
+    const m = /\n__META__:({.*?})\s*$/.exec(text);
+    if (m) { try { meta = JSON.parse(m[1]); } catch {} text = text.replace(/\n__META__:({.*?})\s*$/, "").trim(); }
+    text = text || "(no response)";
+    render(bubble, text);
+    if (meta.trace) renderTrace(bubble, meta.trace);
+    attachActions(bubble, q, meta.interactionId);
+    // Retry belongs to the main chat's stream — not offered here.
+    const retry = [...bubble.closest(".turn").querySelectorAll(".act")].find((b) => /Retry/.test(b.textContent));
+    if (retry) retry.remove();
+    if (meta.flag) renderFlagCard(bubble, meta.flag);
+    readerLast = { q, text };
+    if (me) setTimeout(loadConversations, 1200);
+  } catch {
+    bubble.className = "bubble error";
+    bubble.textContent = "Couldn't reach Nii Obodai. Check your connection and try again.";
+  }
+  readerBusy = false;
+  renderVerseAI();
+  th.scrollTop = th.scrollHeight;
 }
 
 $("readerBack").onclick = () => {
   $("bibleReader").classList.add("hidden"); $("bibleBrowse").classList.remove("hidden");
-  $("libBible").classList.remove("reading"); $("readerAI").classList.add("hidden");
-  reader.sel = null; renderBooks();
+  $("libBible").classList.remove("reading"); $("readerAI").classList.add("hidden"); $("readerFab").classList.add("hidden"); document.body.classList.remove("rsheet");
+  reader.sel = null; reader.sheet = false; reader.data = null; renderBooks();
 };
 $("readerChapter").onchange = (e) => { if (reader.book) openChapter(reader.book, +e.target.value); };
 $("readerAIform").onsubmit = (e) => {
   e.preventDefault();
   const t = $("readerAIinput").value.trim(); if (!t) return;
-  $("readerAIinput").value = ""; setView("ask"); send(t);
+  $("readerAIinput").value = ""; readerAsk(t);
+};
+$("readerAIclose").onclick = () => { reader.sel = null; reader.sheet = false; renderChapter(false); };
+$("readerFab").onclick = () => { reader.sheet = true; renderVerseAI(); if (!isTouch) $("readerAIinput").focus(); };
+$("readerAIinput").addEventListener("focus", () => document.body.classList.add("rkb"));
+$("readerAIinput").addEventListener("blur", () => document.body.classList.remove("rkb"));
+if (window.matchMedia) { try { window.matchMedia("(min-width:1100px)").addEventListener("change", renderVerseAI); } catch {} }
+// Carry the reader's thread over to the chat, as its own conversation.
+$("readerToChat").onclick = () => {
+  const th = $("readerThread"); if (!th.children.length || readerBusy) return;
+  newChat(); clearHero();
+  while (th.firstChild) inner.appendChild(th.firstChild);
+  conversationId = readerConv;
+  if (me && conversationId) setConversationUrl(conversationId);
+  lastAssistantText = readerLast.text; lastAssistantQuery = readerLast.q;
+  readerConv = null; readerLast = { q: "", text: "" };
+  renderVerseAI(); setView("ask"); scrollDown();
+  if (me) setTimeout(loadConversations, 300);
 };
 
 function renderCont() {
@@ -4975,7 +5126,7 @@ function addFollowups(bubble, query) {
     add("How do I reply?", () => send(`how do you reply to ${ga}`));
   }
   add("Use it in a sentence", () => send(`${ga} in a sentence`));
-  add("Quiz me on it", () => { quizTopic = null; clearHero(); beginRound(addTurn("bot"), "choice", 5); });
+  add("Quiz me on it", () => openPractice("choice", 5, null));
   turn.appendChild(box);
 }
 

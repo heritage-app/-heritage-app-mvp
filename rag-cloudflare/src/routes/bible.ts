@@ -68,6 +68,29 @@ app.get("/bible/:book/:chapter", async (c) => {
   const rows = res.results ?? [];
   if (!rows.length) return c.json({ detail: "Chapter not found" }, 404);
 
+  // NEGAB sometimes folds two verses into one (Exodus 1:20 carries 21's Ga),
+  // so its numbering jumps 20 → 22. Show that verse as "20–21" with both
+  // English verses instead of a silent gap. Only single gaps are treated as
+  // merges; a run of missing verses is a numbering difference, left alone.
+  const verses: { n: number; to?: number; ga: string; en: string }[] =
+    rows.map((r) => ({ n: r.verse_num, ga: r.ga, en: r.en ?? "" }));
+  if (edition === "NEGAB") {
+    const other = await c.env.DB.prepare(
+      `SELECT verse_num, en FROM bible_verses
+        WHERE book = ? AND chapter_num = ? AND ga_version_abbr = 'GBV96' AND verse_num > 0`
+    ).bind(book, chapter).all<{ verse_num: number; en: string | null }>();
+    const have = new Set(verses.map((v) => v.n));
+    const otherNums = (other.results ?? []).map((r) => r.verse_num);
+    const last = Math.max(0, ...otherNums);
+    for (const r of other.results ?? []) {
+      const n = r.verse_num;
+      if (have.has(n) || !have.has(n - 1) || (n < last && !have.has(n + 1))) continue;
+      const prev = verses.find((v) => v.n === n - 1)!;
+      prev.to = n;
+      if (r.en) prev.en = `${prev.en} ${r.en}`.trim();
+    }
+  }
+
   const count = await c.env.DB.prepare(
     "SELECT COUNT(DISTINCT chapter_num) AS n FROM bible_verses WHERE book = ?"
   ).bind(book).first<{ n: number }>();
@@ -80,7 +103,7 @@ app.get("/bible/:book/:chapter", async (c) => {
     chapter_title_ga: rows[0].chapter_title_ga ? modernizeGa(rows[0].chapter_title_ga) : null,
     edition,
     // GBV96 is shown as printed — modernising it would defeat the point of the edition.
-    verses: rows.map((r) => ({ n: r.verse_num, ga: r.ga, en: r.en ?? "" })),
+    verses,
   }, 200, { "Cache-Control": "public, max-age=3600" });
 });
 
