@@ -172,7 +172,7 @@ document.getElementById("themeToggle")?.addEventListener("click", toggleTheme);
 (async function () {
   try {
     const r = await fetch(`${API}/auth/session`, { credentials: "include" });
-    if (r.ok) { const d = await r.json(); const u = d.user; if (u) window.location.href = u.role === "admin" ? "/admin" : "/"; }
+    if (r.ok) { const d = await r.json(); const u = d.user; if (u) window.location.href = "/"; }
   } catch {}
 })();
 
@@ -202,7 +202,7 @@ $("form").onsubmit = async (e) => {
     const d = await r.json();
     if (!r.ok) { status.className = "status err"; status.textContent = d.detail || "Something went wrong"; $("submitBtn").disabled = false; return; }
     status.className = "status ok"; status.textContent = "Success — redirecting…";
-    window.location.href = d.user && d.user.role === "admin" ? "/admin" : "/";
+    window.location.href = "/";
   } catch (err) {
     status.className = "status err"; status.textContent = err.message; $("submitBtn").disabled = false;
   }

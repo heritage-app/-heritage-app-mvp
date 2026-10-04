@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Heritage · Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    /* Archive-ledger monochrome (same token layer as the chat UI) */
+    --canvas:#fafafa; --paper:#fff; --paper-2:#f1f1f1; --paper-3:#e8e8e8;
+    --ink:#0a0a0a; --ink-2:rgba(10,10,10,.74); --muted:rgba(10,10,10,.56); --faint:rgba(10,10,10,.4);
+    --line:rgba(0,0,0,.09); --line-2:rgba(0,0,0,.16);
+    --acc:#0a0a0a; --acc-soft:rgba(10,10,10,.06); --acc-line:rgba(10,10,10,.3);
+    --rail:#fff; --rail-line:rgba(0,0,0,.09); --rail-txt:rgba(10,10,10,.64); --rail-hover:rgba(0,0,0,.05);
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Poppins",ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  [data-theme="dark"] {
+    --canvas:#0e0e0e; --paper:#161616; --paper-2:#1e1e1e; --paper-3:#262626;
+    --ink:#f2f2f2; --ink-2:rgba(255,255,255,.74); --muted:rgba(255,255,255,.5); --faint:rgba(255,255,255,.32);
+    --line:rgba(255,255,255,.1); --line-2:rgba(255,255,255,.2);
+    --acc:#f2f2f2; --acc-soft:rgba(255,255,255,.08); --acc-line:rgba(255,255,255,.4);
+    --rail:#111; --rail-line:rgba(255,255,255,.1); --rail-txt:rgba(255,255,255,.58); --rail-hover:rgba(255,255,255,.07);
+  }
+  * { box-sizing:border-box; border-radius:0 !important; }
+  html,body { height:100%; }
+  body { margin:0; font:500 15px/1.55 var(--sans); color:var(--ink); background:var(--canvas);
+    -webkit-font-smoothing:antialiased; display:flex; }
+  ::selection { background:var(--acc); color:var(--paper); }
+  a { color:inherit; text-decoration:none; }
+  .hidden { display:none !important; }
+
+  /* Sidebar — paper rail matching the chat sidebar */
+  .nav { width:244px; flex:none; background:var(--rail); border-right:1px solid var(--rail-line);
+    display:flex; flex-direction:column; height:100vh; position:sticky; top:0; z-index:40; }
+  .nav .brand { display:flex; align-items:center; gap:11px; padding:20px 18px 16px; border-bottom:1px solid var(--rail-line); }
+  .nav .mark { width:34px; height:34px; background:var(--acc); color:var(--paper);
+    display:grid; place-items:center; font:700 16px var(--mono); }
+  .nav .brand .x1 { font:600 9px var(--mono); letter-spacing:.26em; text-transform:uppercase; color:var(--faint); }
+  .nav .brand .x2 { font:600 15px var(--sans); letter-spacing:-.2px; margin-top:2px; }
+  .nav .label { padding:12px 20px 6px; font:600 9px var(--mono); letter-spacing:.24em; text-transform:uppercase; color:var(--faint); }
+  .nav .items { flex:1; padding:0 10px; display:flex; flex-direction:column; gap:2px; overflow-y:auto; }
+  .nav .item { display:flex; align-items:center; gap:11px; padding:10px 12px;
+    font:500 13.5px var(--sans); color:var(--rail-txt); cursor:pointer; border:0; background:transparent;
+    width:100%; text-align:left; border-left:2px solid transparent; transition:.12s; }
+  .nav .item:hover { background:var(--rail-hover); color:var(--ink); }
+  .nav .item.active { background:var(--acc); color:var(--paper); font-weight:600; border-left-color:var(--acc); }
+  .nav .item svg { width:16px; height:16px; flex:none; }
+  .nav .item .badge { margin-left:auto; min-width:20px; height:18px; padding:0 5px; background:var(--acc-soft);
+    border:1px solid var(--acc-line); color:var(--ink); font:700 10px var(--mono); display:grid; place-items:center; }
+  .nav .item.active .badge { background:rgba(255,255,255,.18); border-color:transparent; color:inherit; }
+  [data-theme="dark"] .nav .item.active .badge { background:rgba(0,0,0,.3); }
+  .nav .foot { padding:12px; border-top:1px solid var(--rail-line); display:flex; flex-direction:column; gap:2px; }
+  .nav .foot a, .nav .foot button { display:flex; align-items:center; gap:9px; padding:9px 12px;
+    font:600 10.5px var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+    cursor:pointer; background:transparent; border:0; width:100%; text-align:left; }
+  .nav .foot a:hover, .nav .foot button:hover { color:var(--ink); background:var(--rail-hover); }
+
+  .backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:35; }
+  .backdrop.show { display:block; }
+
+  /* Main */
+  .main { flex:1; min-width:0; height:100vh; overflow-y:auto; }
+  .topbar { position:sticky; top:0; z-index:20; height:58px; display:flex; align-items:center; gap:13px;
+    padding:0 26px; background:var(--canvas); border-bottom:1px solid var(--line); }
+  .hamb { display:none; border:1px solid var(--line-2); background:var(--paper); color:var(--ink); padding:6px 8px; cursor:pointer; }
+  .hamb svg { width:17px; height:17px; display:block; }
+  .sun-icon, .moon-icon { display:block; }
+  .sun-icon.hidden, .moon-icon.hidden { display:none; }
+  .topbar h1 { margin:0; font:600 12px var(--mono); letter-spacing:.18em; text-transform:uppercase; color:var(--ink-2); }
+  .topbar .sp { flex:1; }
+  .op { display:inline-flex; align-items:center; gap:7px; font:600 10px var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  .op b { width:7px; height:7px; background:var(--acc); }
+  .iconbtn { border:1px solid var(--line-2); background:var(--paper); color:var(--ink); padding:6px 8px; cursor:pointer; display:inline-flex; align-items:center; }
+  .iconbtn:hover { background:var(--acc-soft); }
+  .who { display:inline-flex; align-items:center; gap:9px; padding:4px 5px 4px 12px; border:1px solid var(--line-2);
+    background:var(--paper); font:600 12px var(--sans); color:var(--ink-2); max-width:42vw; }
+  .who span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .who .av { width:24px; height:24px; background:var(--acc); color:var(--paper); display:grid; place-items:center;
+    font:700 11px var(--mono); flex:none; text-transform:uppercase; }
+
+  .content { max-width:1080px; margin:0 auto; padding:32px 30px 56px; }
+  .section { display:none; }
+  .section.active { display:block; animation:fade .22s ease; }
+  @keyframes fade { from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+
+  .head { margin-bottom:24px; }
+  .head .eyebrow { font:600 10px var(--mono); letter-spacing:.2em; text-transform:uppercase; color:var(--acc); margin-bottom:9px; }
+  .head h2 { margin:0 0 5px; font:700 25px/1.15 var(--sans); letter-spacing:-.7px; }
+  .head p { margin:0; color:var(--muted); font-size:14px; }
+
+  /* Stat cards — ledger cells sharing hairlines */
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(196px,1fr)); gap:0; margin-bottom:26px;
+    border:1px solid var(--line); }
+  .card { background:var(--paper); border-right:1px solid var(--line); border-bottom:1px solid var(--line); padding:18px 20px; }
+  .card .top { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .card .ic { width:32px; height:32px; border:1px solid var(--line-2); color:var(--ink-2); display:grid; place-items:center; }
+  .card .ic svg { width:16px; height:16px; }
+  .card .v { font:700 32px/1 var(--sans); letter-spacing:-1.4px; font-variant-numeric:tabular-nums; }
+  .card .l { font:600 10px var(--mono); letter-spacing:.15em; text-transform:uppercase; color:var(--muted); margin-top:8px; }
+  .card .sub { font:500 11px var(--mono); color:var(--faint); margin-top:3px; }
+  .card.warn { background:var(--acc-soft); }
+
+  /* Panels / tables */
+  .panel { background:var(--paper); border:1px solid var(--line); margin-bottom:20px; }
+  .panel-h { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 20px; border-bottom:1px solid var(--line); }
+  .panel-h h3 { margin:0; font:600 11px var(--mono); letter-spacing:.13em; text-transform:uppercase; }
+  .panel-b { padding:20px; }
+  .tablewrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13px; min-width:460px; }
+  thead th { text-align:left; font:600 9.5px var(--mono); letter-spacing:.13em; text-transform:uppercase; color:var(--muted);
+    padding:11px 20px; background:var(--paper-2); border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:11px 20px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  tr:last-child td { border-bottom:0; }
+  tbody tr { transition:.1s; } tbody tr:hover td { background:var(--paper-2); }
+
+  /* Monochrome pills — state by glyph + fill, never hue */
+  .pill { display:inline-flex; align-items:center; gap:6px; font:600 9.5px var(--mono); letter-spacing:.1em;
+    text-transform:uppercase; padding:3px 9px; border:1px solid var(--line-2); color:var(--muted); }
+  .pill::before { content:""; width:5px; height:5px; background:currentColor; }
+  .pill.ok, .pill.indexed, .pill.approved { background:var(--acc); color:var(--paper); border-color:var(--acc); }
+  .pill.ok::before, .pill.indexed::before, .pill.approved::before { background:var(--paper); }
+  .pill.error, .pill.rejected { text-decoration:line-through; color:var(--ink-2); border-style:dashed; }
+  .pill.indexing, .pill.uploaded, .pill.uploading { color:var(--ink-2); }
+  .pill.vpend { border-style:dashed; color:var(--muted); }
+  .pill.conflict { background:var(--acc-soft); color:var(--ink); border-color:var(--acc-line); }
+  .tchip { display:inline-block; font:600 9px var(--mono); letter-spacing:.1em; text-transform:uppercase;
+    border:1px solid var(--line-2); padding:3px 8px; color:var(--muted); }
+
+  select, input[type="text"], input[type="number"], textarea { border:1px solid var(--line-2); background:var(--paper);
+    color:var(--ink); padding:7px 11px; font:600 11.5px var(--mono); outline:0; }
+  select { padding-right:28px; cursor:pointer; appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23737373' stroke-width='3'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 10px center; }
+  select:focus, input:focus, textarea:focus { border-color:var(--acc); }
+
+  .btn { border:1px solid var(--acc); background:var(--acc); color:var(--paper); padding:10px 16px;
+    font:600 12.5px var(--sans); cursor:pointer; transition:.13s; }
+  .btn:hover { opacity:.85; } .btn:disabled { opacity:.4; cursor:not-allowed; }
+  .btn.ghost { background:var(--paper); color:var(--ink); border-color:var(--line-2); }
+  .btn.ghost:hover { background:var(--acc-soft); opacity:1; }
+  .btn.sm { padding:4px 11px; font:600 10px var(--mono); letter-spacing:.08em; text-transform:uppercase; }
+  .icon-del { border:1px solid var(--line-2); background:transparent; color:var(--muted);
+    width:28px; height:28px; display:grid; place-items:center; cursor:pointer; }
+  .icon-del:hover { background:var(--acc); color:var(--paper); border-color:var(--acc); }
+  .icon-del svg { width:14px; height:14px; }
+  .refresh { border:1px solid var(--line-2); background:transparent; color:var(--ink-2);
+    font:600 9.5px var(--mono); letter-spacing:.12em; text-transform:uppercase; padding:6px 12px; cursor:pointer; }
+  .refresh:hover { background:var(--acc); color:var(--paper); border-color:var(--acc); }
+  .empty { color:var(--muted); font-size:12.5px; padding:30px; text-align:center; }
+
+  /* Upload */
+  .uploader { display:grid; grid-template-columns:1fr 220px; gap:18px; }
+  .dropzone { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9px; padding:28px 16px;
+    border:1.5px dashed var(--line-2); background:var(--paper-2); cursor:pointer; text-align:center; color:var(--muted); transition:.15s; min-height:150px; }
+  .dropzone:hover, .dropzone.drag { border-color:var(--acc); color:var(--ink); background:var(--paper-3); }
+  .dropzone.has-file { border-style:solid; border-color:var(--acc-line); color:var(--ink); background:var(--paper-3); }
+  .dropzone svg { color:var(--faint); } .dropzone:hover svg, .dropzone.has-file svg { color:var(--ink); }
+  .dropzone .m1 { font:600 13.5px var(--sans); } .dropzone.has-file .m1 { font:12px var(--mono); word-break:break-all; }
+  .dropzone .m2 { font:500 10.5px var(--mono); color:var(--faint); }
+  .up-side { display:flex; flex-direction:column; gap:8px; }
+  .up-side label { font:600 9.5px var(--mono); letter-spacing:.13em; text-transform:uppercase; color:var(--muted); }
+  .up-side select { width:100%; }
+  .status { font:500 11.5px var(--mono); margin-top:13px; min-height:14px; color:var(--muted); }
+  .actions-row { display:flex; gap:10px; flex-wrap:wrap; }
+  textarea#ocrJsonl { width:100%; min-height:300px; resize:vertical; background:var(--canvas); color:var(--ink);
+    border:1px solid var(--line-2); padding:13px; font:12.5px/1.65 var(--mono); }
+
+  /* Pagination */
+  .pager { display:flex; align-items:center; gap:10px; padding:10px 20px; border-top:1px solid var(--line);
+    font:600 10px var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  .pager .pinfo { flex:1; }
+  .pager select { padding:4px 24px 4px 8px; font-size:10px; background-position:right 7px center; }
+  .pager button { border:1px solid var(--line-2); background:transparent; color:var(--ink-2);
+    font:600 10px var(--mono); letter-spacing:.1em; text-transform:uppercase; padding:5px 12px; cursor:pointer; }
+  .pager button:hover:not(:disabled) { background:var(--acc); color:var(--paper); border-color:var(--acc); }
+  .pager button:disabled { opacity:.35; cursor:default; }
+
+  /* Activity feed */
+  .act-row { display:flex; align-items:center; gap:12px; padding:11px 20px; border-bottom:1px solid var(--line); }
+  .act-row[data-sec] { cursor:pointer; } .act-row[data-sec]:hover { background:var(--paper-2); }
+  .act-row .g { width:22px; text-align:center; font:600 13px var(--mono); color:var(--ink-2); flex:none; }
+  .act-row .txt { flex:1; font:500 12.5px var(--sans); color:var(--ink-2); }
+  .act-row .time { font:500 10.5px var(--mono); color:var(--faint); white-space:nowrap; }
+
+  /* Confirm bar (destructive / commit actions) */
+  .confirm { display:none; position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:60;
+    background:var(--acc); color:var(--paper); padding:13px 18px; font:600 12.5px var(--sans);
+    border:1px solid var(--acc-line); align-items:center; gap:14px; max-width:92vw; }
+  .confirm.show { display:flex; }
+  .confirm button { border:1px solid var(--paper); background:transparent; color:var(--paper);
+    font:600 10px var(--mono); letter-spacing:.1em; text-transform:uppercase; padding:6px 12px; cursor:pointer; }
+  .confirm button.yes { background:var(--paper); color:var(--acc); border-color:var(--paper); }
+
+  .gate { margin:auto; align-self:center; text-align:center; color:var(--muted); font:600 11px var(--mono); letter-spacing:.22em; text-transform:uppercase; width:100%; }
+
+  @media (max-width:980px){
+    .nav { position:fixed; left:0; top:0; bottom:0; transform:translateX(-100%); transition:transform .2s ease; box-shadow:0 0 60px rgba(0,0,0,.4); }
+    .nav.open { transform:translateX(0); }
+    .hamb { display:inline-flex; }
+    .content { padding:20px 14px; }
+    .uploader { grid-template-columns:1fr; }
+    .head h2 { font-size:22px; }
+    .topbar { padding:0 14px; }
+    .op { display:none; }
+    .who span:first-child { display:none; }
+  }
+</style>
+</head>
+<body>
+<aside class="nav hidden" id="nav">
+  <div class="brand">
+    <span class="mark">H</span>
+    <div><div class="x1">Heritage</div><div class="x2">Admin Control</div></div>
+  </div>
+  <div class="label">Menu</div>
+  <div class="items">
+    <button class="item active" data-sec="overview">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+      Overview
+    </button>
+    <button class="item" data-sec="documents">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Heritage Archive
+    </button>
+    <button class="item" data-sec="ocr">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+      OCR Import
+    </button>
+    <button class="item" data-sec="users">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      User Management
+    </button>
+    <button class="item" data-sec="learning">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      Learning Analytics
+    </button>
+    <button class="item" data-sec="contributions">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Contributions
+      <span class="badge hidden" id="contribBadge">0</span>
+    </button>
+  </div>
+  <div class="foot">
+    <a href="https://heritage-rag.heritage-app.workers.dev/" target="_blank" rel="noopener">Open the Heritage app ↗</a>
+    <button id="logoutBtn">Sign out</button>
+  </div>
+</aside>
+
+<div class="backdrop" id="backdrop"></div>
+
+<div class="main hidden" id="main">
+  <div class="topbar">
+    <button class="hamb" id="hamb" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    <h1 id="topTitle">Overview</h1>
+    <div class="sp"></div>
+    <span class="op"><b></b>Operational</span>
+    <button class="iconbtn" id="themeToggle" aria-label="Toggle theme" title="Toggle theme">
+      <svg class="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      <svg class="moon-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    <span class="who"><span id="whoEmail">—</span><span class="av" id="whoAv">A</span></span>
+  </div>
+  <div class="content">
+    <!-- Overview -->
+    <section class="section active" id="sec-overview">
+      <div class="head"><div class="eyebrow">Dashboard</div><h2 id="welcome">Welcome back</h2><p>Manage your Heritage archive, users, and review system activity.</p></div>
+      <div class="cards" id="statCards"></div>
+      <div class="panel">
+        <div class="panel-h"><h3>Quick actions</h3></div>
+        <div class="panel-b">
+          <div class="actions-row">
+            <button class="btn" style="padding:12px 20px;" data-goto="documents">Upload a document</button>
+            <button class="btn ghost" style="padding:12px 20px;" data-goto="users">Manage users</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><h3>Recent activity</h3><button class="refresh" id="refreshActivity">Refresh</button></div>
+        <div class="panel-b" id="activityFeed" style="padding:0;">
+          <div class="empty" id="activityEmpty">Loading…</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Documents -->
+    <section class="section" id="sec-documents">
+      <div class="head"><div class="eyebrow">Archive</div><h2>Heritage Archive</h2><p>Upload and index documents — Bible, stories, and heritage content.</p></div>
+      <div class="panel">
+        <div class="panel-h"><h3>Add document</h3></div>
+        <div class="panel-b">
+          <div class="uploader">
+            <label class="dropzone" id="dropzone">
+              <input type="file" id="upFile" accept=".txt,.md,.json,.jsonl,.pdf,image/*" hidden />
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span class="m1" id="dropText">Drop a file or click to browse</span>
+              <span class="m2">txt · md · json · jsonl · pdf · png · jpg · webp</span>
+            </label>
+            <div class="up-side">
+              <label>Category</label>
+              <select id="upCategory">
+                <option value="">Auto-detect</option>
+                <option value="bible">Bible</option>
+                <option value="heritage">Heritage</option>
+                <option value="stories">Stories</option>
+              </select>
+              <button class="btn" id="uploadBtn" style="margin-top:auto;">Upload &amp; index</button>
+            </div>
+          </div>
+          <div class="status" id="upStatus"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-h">
+          <h3>Indexed documents</h3>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" id="docSearch" placeholder="Search…" style="width:150px;font:500 12px var(--sans);" />
+            <button class="refresh" id="refreshDocs">Refresh</button>
+          </div>
+        </div>
+        <div class="tablewrap">
+          <table><thead><tr><th>Document</th><th>Status</th><th>Category</th><th>Rows</th><th>Uploaded</th><th></th></tr></thead><tbody id="docsBody"></tbody></table>
+        </div>
+        <div class="empty" id="docsEmpty" style="display:none">No documents indexed yet.</div>
+        <div class="pager" id="docsPager" style="display:none"></div>
+      </div>
+      <div class="panel" id="docDetailPanel" style="display:none">
+        <div class="panel-h"><h3>Document detail</h3><button class="btn ghost" id="closeDocDetail" style="padding:5px 12px;font-size:11px;">Close</button></div>
+        <div class="panel-b" id="docDetailBody"></div>
+      </div>
+    </section>
+
+    <!-- Users -->
+    <section class="section" id="sec-users">
+      <div class="head"><div class="eyebrow">Accounts</div><h2>User Management</h2><p>Registered accounts and their roles.</p></div>
+      <div class="panel">
+        <div class="panel-h"><h3>Users</h3><button class="refresh" id="refreshUsers">Refresh</button></div>
+        <div class="tablewrap">
+          <table><thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Joined</th></tr></thead><tbody id="usersBody"></tbody></table>
+        </div>
+        <div class="empty" id="usersEmpty" style="display:none">No users.</div>
+        <div class="pager" id="usersPager" style="display:none"></div>
+      </div>
+    </section>
+
+    <!-- Learning Analytics -->
+    <section class="section" id="sec-learning">
+      <div class="head"><div class="eyebrow">Learning</div><h2>Learning Analytics</h2><p>Track feedback, contributions, knowledge gaps, and learning cycles.</p></div>
+      <div class="cards" id="learningCards"></div>
+      <div class="panel">
+        <div class="panel-h"><h3>Recent Conflicts</h3><button class="refresh" id="refreshLearning">Refresh</button></div>
+        <div class="tablewrap">
+          <table><thead><tr><th>Query</th><th>Answers</th><th>Status</th></tr></thead><tbody id="conflictsBody"></tbody></table>
+        </div>
+        <div class="empty" id="conflictsEmpty" style="display:none">No conflicts detected.</div>
+        <div class="pager" id="conflictsPager" style="display:none"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><h3>Weekly Learning Cycles</h3></div>
+        <div class="tablewrap">
+          <table><thead><tr><th>Week</th><th>Feedback</th><th>Contributions</th><th>Gaps Resolved</th><th>Score</th></tr></thead><tbody id="cyclesBody"></tbody></table>
+        </div>
+        <div class="empty" id="cyclesEmpty" style="display:none">No learning cycles yet.</div>
+        <div class="pager" id="cyclesPager" style="display:none"></div>
+      </div>
+    </section>
+
+    <!-- Contributions Review -->
+    <section class="section" id="sec-contributions">
+      <div class="head"><div class="eyebrow">Review</div><h2>User Contributions</h2><p>Review, approve, or reject user-submitted translations.</p></div>
+      <div class="panel">
+        <div class="panel-h">
+          <h3>Pending Review</h3>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select id="contribFilter">
+              <option value="pending_review">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <button class="refresh" id="refreshContrib">Refresh</button>
+          </div>
+        </div>
+        <div class="tablewrap">
+          <table><thead><tr><th>Query (English)</th><th>Answer (Ga)</th><th>Type</th><th>Category</th><th>Agreement</th><th>Submitted</th><th></th></tr></thead><tbody id="contribBody"></tbody></table>
+        </div>
+        <div class="empty" id="contribEmpty" style="display:none">No contributions to review.</div>
+        <div class="pager" id="contribPager" style="display:none"></div>
+      </div>
+    </section>
+
+    <!-- OCR Import -->
+    <section class="section" id="sec-ocr">
+      <div class="head"><div class="eyebrow">Import</div><h2>OCR &amp; Convert</h2><p>Read a scanned page or document, convert it to English↔Ga pairs, review, then index.</p></div>
+      <div class="panel">
+        <div class="panel-h"><h3>1 · Upload &amp; extract</h3></div>
+        <div class="panel-b">
+          <div class="uploader">
+            <label class="dropzone" id="ocrDrop">
+              <input type="file" id="ocrFile" accept="image/*,.pdf,.txt,.md" hidden />
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+              <span class="m1" id="ocrText">Drop a page image or PDF</span>
+              <span class="m2">png · jpg · webp (scanned) · pdf · txt</span>
+            </label>
+            <div class="up-side">
+              <label>Engine</label>
+              <select id="ocrEngine"><option value="auto">Auto (vision for images · text for PDFs)</option><option value="vision">Vision OCR (all files)</option><option value="text">Text extract (PDF/text only)</option></select>
+              <button class="btn" id="ocrBtn" style="margin-top:auto;">Extract pairs</button>
+            </div>
+          </div>
+          <div class="status" id="ocrStatus"></div>
+        </div>
+      </div>
+      <div class="panel" id="ocrReview" style="display:none">
+        <div class="panel-h"><h3>2 · Review &amp; edit JSONL <span id="ocrCount" style="color:var(--muted);font:600 10px var(--mono);"></span></h3><button class="btn" id="ocrCommit" style="padding:8px 16px;">Index pairs</button></div>
+        <div class="panel-b">
+          <textarea id="ocrJsonl" spellcheck="false" placeholder='{"english":"Good morning","ga":"Ojekoo"}'></textarea>
+          <div class="status" id="ocrCommitStatus"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="gate" id="gate">Verifying credentials…</div>
+
+<div class="confirm" id="confirmBar">
+  <span id="confirmText">Are you sure?</span>
+  <button class="yes" id="confirmYes">Confirm</button>
+  <button id="confirmNo">Cancel</button>
+</div>
+
+<script>
+const API = "/api/v1";
+const $ = (id) => document.getElementById(id);
+const TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+const ICONS = {
+  users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>',
+  chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+  guest: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+  doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+};
+
+// Theme switching
+function initTheme() {
+  const savedTheme = localStorage.getItem("theme");
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const theme = savedTheme || (prefersDark ? "dark" : "light");
+  document.documentElement.setAttribute("data-theme", theme);
+  updateThemeIcons(theme);
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme") || "light";
+  const next = current === "light" ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", next);
+  localStorage.setItem("theme", next);
+  updateThemeIcons(next);
+}
+function updateThemeIcons(theme) {
+  const sun = document.querySelector(".sun-icon");
+  const moon = document.querySelector(".moon-icon");
+  if (sun && moon) {
+    sun.classList.toggle("hidden", theme === "dark");
+    moon.classList.toggle("hidden", theme === "light");
+  }
+}
+initTheme();
+document.getElementById("themeToggle")?.addEventListener("click", toggleTheme);
+
+// --- Pagination helper: server-side pages, size select, prev/next ---
+function renderPager(el, state, onGo) {
+  if (!el) return;
+  const { page, size, total } = state;
+  if (!total) { el.style.display = "none"; return; }
+  el.style.display = "";
+  const pages = Math.max(1, Math.ceil(total / size));
+  const from = page * size + 1, to = Math.min(total, (page + 1) * size);
+  el.innerHTML = "";
+  const info = document.createElement("span"); info.className = "pinfo";
+  info.textContent = `${from}–${to} of ${total}`;
+  const sizeSel = document.createElement("select");
+  for (const s of [10, 25, 50]) { const o = document.createElement("option"); o.value = s; o.textContent = `${s}/pg`; if (s === size) o.selected = true; sizeSel.appendChild(o); }
+  sizeSel.onchange = () => { state.size = parseInt(sizeSel.value, 10); state.page = 0; onGo(); };
+  const prev = document.createElement("button"); prev.textContent = "‹ Prev"; prev.disabled = page <= 0;
+  prev.onclick = () => { state.page--; onGo(); };
+  const next = document.createElement("button"); next.textContent = "Next ›"; next.disabled = page >= pages - 1;
+  next.onclick = () => { state.page++; onGo(); };
+  el.append(info, sizeSel, prev, next);
+}
+
+// --- Confirm bar (destructive/commit actions) ---
+let confirmCb = null;
+function askConfirm(text, cb) {
+  $("confirmText").textContent = text;
+  $("confirmBar").classList.add("show");
+  confirmCb = cb;
+}
+$("confirmYes").onclick = () => { $("confirmBar").classList.remove("show"); const cb = confirmCb; confirmCb = null; cb && cb(); };
+$("confirmNo").onclick = () => { $("confirmBar").classList.remove("show"); confirmCb = null; };
+
+// --- Gate: admins only ---
+(async function guard() {
+  let me = null;
+  try { const r = await fetch(`${API}/auth/me`, { credentials: "include" }); if (r.ok) me = await r.json(); } catch {}
+  if (!me) { window.location.href = "/auth"; return; }
+  // Not "/" — that is this console again, and the gate looped forever.
+  if (me.role !== "admin") { window.location.href = "/auth?denied=1"; return; }
+  $("gate").remove();
+  $("nav").classList.remove("hidden");
+  $("main").classList.remove("hidden");
+  $("whoEmail").textContent = me.email;
+  $("whoAv").textContent = (me.email || "A").charAt(0);
+  $("welcome").textContent = `Welcome back, ${me.first_name || me.email.split("@")[0]}`;
+  loadStats(); loadDocs(); loadActivity();
+})();
+
+// --- Drawer (mobile) ---
+function closeNav() { $("nav").classList.remove("open"); $("backdrop").classList.remove("show"); }
+$("hamb").onclick = () => { const o = $("nav").classList.toggle("open"); $("backdrop").classList.toggle("show", o); };
+$("backdrop").onclick = closeNav;
+
+// --- Nav ---
+function go(sec) {
+  document.querySelectorAll(".item").forEach((b) => b.classList.toggle("active", b.dataset.sec === sec));
+  document.querySelectorAll(".section").forEach((s) => s.classList.toggle("active", s.id === `sec-${sec}`));
+  $("topTitle").textContent = { overview: "Overview", documents: "Heritage Archive", users: "User Management", ocr: "OCR Import", learning: "Learning Analytics", contributions: "Contributions" }[sec];
+  if (sec === "documents") loadDocs();
+  if (sec === "users") loadUsers();
+  if (sec === "learning") loadLearning();
+  if (sec === "contributions") loadContributions();
+  if (sec === "overview") loadActivity();
+  closeNav();
+}
+document.querySelectorAll(".item").forEach((b) => (b.onclick = () => go(b.dataset.sec)));
+document.querySelectorAll("[data-goto]").forEach((b) => (b.onclick = () => go(b.dataset.goto)));
+
+// --- Stats ---
+async function loadStats() {
+  try {
+    const r = await fetch(`${API}/admin/stats`, { credentials: "include" });
+    if (!r.ok) return;
+    const s = await r.json();
+    const cards = [
+      { l: "Registered Users", v: s.registered_users, ic: ICONS.users },
+      { l: "Member Chats", v: s.user_conversations, ic: ICONS.chat },
+      { l: "Guest Chats", v: s.guest_conversations, ic: ICONS.guest },
+      { l: "Documents", v: s.total_documents, ic: ICONS.doc },
+    ];
+    $("statCards").innerHTML = cards
+      .map((c) => `<div class="card"><div class="top"><div class="ic">${c.ic}</div></div><div class="v">${c.v}</div><div class="l">${c.l}</div></div>`)
+      .join("");
+  } catch {}
+}
+
+// --- Activity Feed ---
+async function loadActivity() {
+  const feed = $("activityFeed"), empty = $("activityEmpty");
+  const items = [];
+  try {
+    // Gather recent docs, feedback, and contributions in parallel
+    const [docsRes, fbRes, contribRes] = await Promise.all([
+      fetch(`${API}/admin/documents?limit=5`, { credentials: "include" }).catch(() => null),
+      fetch(`${API}/feedback/stats`, { credentials: "include" }).catch(() => null),
+      fetch(`${API}/admin/contributions?status=pending_review`, { credentials: "include" }).catch(() => null),
+    ]);
+    if (docsRes?.ok) {
+      const d = await docsRes.json();
+      for (const doc of (d.documents || []).slice(0, 3)) {
+        items.push({ icon: "↥", text: `<strong>${doc.original_filename}</strong> — ${doc.status}`, time: doc.uploaded_at, sec: "documents" });
+      }
+    }
+    if (fbRes?.ok) {
+      const fb = await fbRes.json();
+      if (fb.total > 0) {
+        items.push({ icon: "◍", text: `${fb.total} feedback responses — ${((fb.ratio || 0) * 100).toFixed(0)}% helpful`, time: "all time" });
+      }
+    }
+    if (contribRes?.ok) {
+      const c = await contribRes.json();
+      const n = c.contributions?.length || 0;
+      const badge = $("contribBadge");
+      if (badge) { badge.textContent = n; badge.classList.toggle("hidden", !n); }
+      if (n) {
+        items.push({ icon: "✎", text: `${n} contributions pending review`, time: "now", sec: "contributions" });
+      }
+    }
+  } catch {}
+  if (!items.length) { feed.innerHTML = ""; empty.style.display = "block"; feed.appendChild(empty); return; }
+  empty.style.display = "none"; feed.innerHTML = "";
+  for (const it of items) {
+    const row = document.createElement("div");
+    row.className = "act-row";
+    if (it.sec) { row.dataset.sec = it.sec; row.onclick = () => go(it.sec); }
+    row.innerHTML = `<span class="g">${it.icon}</span><span class="txt">${it.text}</span><span class="time">${it.time}</span>`;
+    feed.appendChild(row);
+  }
+}
+$("refreshActivity").onclick = loadActivity;
+
+// --- Documents (server-side pages; search fetches all once then slices locally) ---
+const docsState = { page: 0, size: 25, total: 0, all: null };
+async function loadDocs() {
+  try {
+    const q = ($("docSearch")?.value || "").trim().toLowerCase();
+    if (q) {
+      if (!docsState.all) {
+        docsState.all = [];
+        let off = 0, total = Infinity;
+        while (off < total) {
+          const r = await fetch(`${API}/admin/documents?limit=100&offset=${off}`, { credentials: "include" });
+          if (!r.ok) break;
+          const d = await r.json();
+          docsState.all.push(...(d.documents || []));
+          total = d.total ?? docsState.all.length;
+          off += 100;
+        }
+      }
+      const filtered = docsState.all.filter(d =>
+        (d.original_filename || "").toLowerCase().includes(q) ||
+        (d.status || "").toLowerCase().includes(q) ||
+        (d.category || "").toLowerCase().includes(q));
+      docsState.total = filtered.length;
+      const maxPage = Math.max(0, Math.ceil(filtered.length / docsState.size) - 1);
+      if (docsState.page > maxPage) docsState.page = maxPage;
+      renderDocs(filtered.slice(docsState.page * docsState.size, (docsState.page + 1) * docsState.size));
+    } else {
+      docsState.all = null;
+      const r = await fetch(`${API}/admin/documents?limit=${docsState.size}&offset=${docsState.page * docsState.size}`, { credentials: "include" });
+      if (!r.ok) return;
+      const d = await r.json();
+      docsState.total = d.total ?? (d.documents || []).length;
+      if (!(d.documents || []).length && docsState.total > 0 && docsState.page > 0) {
+        docsState.page--; loadDocs(); return;
+      }
+      renderDocs(d.documents || []);
+    }
+    renderPager($("docsPager"), docsState, loadDocs);
+  } catch {}
+}
+function renderDocs(filtered) {
+  const body = $("docsBody"), empty = $("docsEmpty");
+  if (!filtered.length) { body.innerHTML = ""; empty.style.display = "block"; return; }
+  empty.style.display = "none"; body.innerHTML = "";
+  for (const doc of filtered) {
+    const tr = document.createElement("tr");
+    tr.style.cursor = "pointer";
+    tr.onclick = () => showDocDetail(doc);
+    let meta = {};
+    try { meta = JSON.parse(doc.metadata || "{}"); } catch {}
+    const name = document.createElement("td"); name.style.fontWeight = "600"; name.textContent = doc.original_filename;
+    const st = document.createElement("td"); st.style.whiteSpace = "nowrap";
+    st.innerHTML = `<span class="pill ${doc.status}">${doc.status}</span>${meta.vector_pending ? ' <span class="pill vpend">◌ vectors pending</span>' : ""}`;
+    const cat = document.createElement("td"); cat.style.color = "var(--muted)"; cat.textContent = doc.category || "—";
+    const rows = document.createElement("td"); rows.style.fontFamily = "var(--mono)"; rows.style.color = "var(--muted)";
+    rows.textContent = meta.record_count != null ? Number(meta.record_count).toLocaleString() : "—";
+    const up = document.createElement("td"); up.style.color = "var(--muted)"; up.style.whiteSpace = "nowrap"; up.textContent = doc.uploaded_at;
+    const act = document.createElement("td"); act.style.textAlign = "right";
+    const del = document.createElement("button"); del.className = "icon-del"; del.title = "Delete"; del.innerHTML = TRASH;
+    del.onclick = (e) => { e.stopPropagation(); askConfirm(`Delete "${doc.original_filename}"? This removes the file and its index entries.`, () => deleteDoc(doc.id)); };
+    act.appendChild(del);
+    tr.append(name, st, cat, rows, up, act); body.appendChild(tr);
+  }
+}
+function showDocDetail(doc) {
+  const panel = $("docDetailPanel"), body = $("docDetailBody");
+  panel.style.display = "block";
+  let meta = {};
+  try { meta = JSON.parse(doc.metadata || "{}"); } catch {}
+  const metaRows = Object.entries(meta).map(([k,v]) => `<tr><td style="font:600 12px var(--mono);color:var(--muted);padding:6px 14px 6px 0;white-space:nowrap;">${k}</td><td style="font:12.5px var(--mono);word-break:break-all;">${typeof v === 'object' ? JSON.stringify(v) : v}</td></tr>`).join("");
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+      <div><div style="font:600 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">File</div><div style="font:600 14px var(--sans);">${doc.original_filename}</div></div>
+      <div><div style="font:600 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Status</div><span class="pill ${doc.status}">${doc.status}</span></div>
+    </div>
+    ${meta.error ? `<div style="padding:10px 14px;border:1px dashed var(--line-2);color:var(--ink-2);font:500 13px var(--sans);margin-bottom:16px;">${meta.error}</div>` : ""}
+    ${meta.record_count ? `<div style="font:600 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Metadata</div>` : ""}
+    <table style="width:100%;font-size:12.5px;">${metaRows}</table>
+  `;
+  panel.scrollIntoView({ behavior: "smooth" });
+}
+let docSearchTimer = null;
+if ($("docSearch")) {
+  $("docSearch").addEventListener("input", () => { clearTimeout(docSearchTimer); docSearchTimer = setTimeout(() => { docsState.page = 0; loadDocs(); }, 250); });
+}
+if ($("closeDocDetail")) {
+  $("closeDocDetail").onclick = () => { $("docDetailPanel").style.display = "none"; };
+}
+async function deleteDoc(id) {
+  try { await fetch(`${API}/admin/documents/${id}`, { method: "DELETE", credentials: "include" }); loadDocs(); loadStats(); } catch {}
+}
+
+// Upload (dropzone)
+const dz = $("dropzone"), upFile = $("upFile"), dropText = $("dropText");
+function showFile(f) {
+  if (f) { dropText.textContent = f.name; dz.classList.add("has-file"); }
+  else { dropText.textContent = "Drop a file or click to browse"; dz.classList.remove("has-file"); }
+}
+upFile.addEventListener("change", () => showFile(upFile.files[0]));
+["dragover", "dragenter"].forEach((e) => dz.addEventListener(e, (ev) => { ev.preventDefault(); dz.classList.add("drag"); }));
+["dragleave", "dragend"].forEach((e) => dz.addEventListener(e, () => dz.classList.remove("drag")));
+dz.addEventListener("drop", (e) => { e.preventDefault(); dz.classList.remove("drag"); if (e.dataTransfer.files.length) { upFile.files = e.dataTransfer.files; showFile(upFile.files[0]); } });
+
+$("uploadBtn").onclick = async () => {
+  const file = upFile.files[0], status = $("upStatus");
+  if (!file) { status.textContent = "Choose a file first"; return; }
+  const isImg = file.type.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(file.name);
+  status.textContent = isImg ? "↥ Uploading image…" : "↥ Uploading file…";
+  $("uploadBtn").disabled = true;
+  if (isImg) setTimeout(() => { if ($("uploadBtn").disabled) status.textContent = "◌ OCR indexing in background…"; }, 2000);
+  const fd = new FormData(); fd.append("file", file);
+  const cat = $("upCategory").value; if (cat) fd.append("metadata", JSON.stringify({ category: cat }));
+  try {
+    const r = await fetch(`${API}/admin/upload`, { method: "POST", credentials: "include", body: fd });
+    const d = await r.json();
+    if (!r.ok) { status.textContent = d.detail || "Upload failed"; return; }
+    status.textContent = "✓ " + (d.message || "Indexing started");
+    upFile.value = ""; showFile(null);
+    setTimeout(() => { loadDocs(); loadStats(); }, 1500); setTimeout(loadDocs, 5000);
+  } catch (e) { status.textContent = e.message; }
+  finally { $("uploadBtn").disabled = false; }
+};
+$("refreshDocs").onclick = () => { docsState.all = null; loadDocs(); };
+
+// --- Users (server-side pages) ---
+const ROLES = ["admin", "moderator", "member", "user"];
+const usersState = { page: 0, size: 25, total: 0 };
+async function loadUsers() {
+  try {
+    const r = await fetch(`${API}/admin/users?limit=${usersState.size}&offset=${usersState.page * usersState.size}`, { credentials: "include" });
+    if (!r.ok) return;
+    const d = await r.json();
+    usersState.total = d.total ?? (d.users || []).length;
+    if (!(d.users || []).length && usersState.total > 0 && usersState.page > 0) {
+      usersState.page--; loadUsers(); return;
+    }
+    renderPager($("usersPager"), usersState, loadUsers);
+    const body = $("usersBody"), empty = $("usersEmpty");
+    if (!d.users.length) { body.innerHTML = ""; empty.style.display = "block"; return; }
+    empty.style.display = "none"; body.innerHTML = "";
+    for (const u of d.users) {
+      const tr = document.createElement("tr");
+      const em = document.createElement("td"); em.style.fontWeight = "600"; em.textContent = u.email;
+      const nm = document.createElement("td"); nm.style.color = "var(--muted)";
+      nm.textContent = [u.first_name, u.last_name].filter(Boolean).join(" ") || u.display_name || "—";
+      const rl = document.createElement("td");
+      const sel = document.createElement("select");
+      sel.dataset.prev = u.role;
+      for (const role of ROLES) { const o = document.createElement("option"); o.value = role; o.textContent = role; if (role === u.role) o.selected = true; sel.appendChild(o); }
+      sel.onchange = () => updateRole(u.id, sel.value, sel, u.email);
+      rl.appendChild(sel);
+      const jd = document.createElement("td"); jd.style.color = "var(--muted)"; jd.style.whiteSpace = "nowrap"; jd.textContent = u.created_at;
+      tr.append(em, nm, rl, jd); body.appendChild(tr);
+    }
+  } catch {}
+}
+function updateRole(id, role, sel, email) {
+  const prev = sel.dataset.prev;
+  askConfirm(`Change ${email || "this user"}'s role to "${role}"?`, async () => {
+    sel.disabled = true;
+    try { const r = await fetch(`${API}/admin/users/${id}/role?role=${encodeURIComponent(role)}`, { method: "PATCH", credentials: "include" }); if (r.ok) sel.dataset.prev = role; else { sel.value = prev; loadUsers(); } }
+    catch { sel.value = prev; loadUsers(); } finally { sel.disabled = false; }
+  });
+  if (prev) sel.value = prev; // revert pending confirm
+}
+$("refreshUsers").onclick = loadUsers;
+
+// --- OCR Import ---
+const ocrDz = $("ocrDrop"), ocrFile = $("ocrFile"), ocrTextEl = $("ocrText");
+function ocrShow(f) {
+  if (f) { ocrTextEl.textContent = f.name; ocrDz.classList.add("has-file"); }
+  else { ocrTextEl.textContent = "Drop a page image or PDF"; ocrDz.classList.remove("has-file"); }
+}
+ocrFile.addEventListener("change", () => ocrShow(ocrFile.files[0]));
+["dragover", "dragenter"].forEach((e) => ocrDz.addEventListener(e, (ev) => { ev.preventDefault(); ocrDz.classList.add("drag"); }));
+["dragleave", "dragend"].forEach((e) => ocrDz.addEventListener(e, () => ocrDz.classList.remove("drag")));
+ocrDz.addEventListener("drop", (e) => { e.preventDefault(); ocrDz.classList.remove("drag"); if (e.dataTransfer.files.length) { ocrFile.files = e.dataTransfer.files; ocrShow(ocrFile.files[0]); } });
+
+$("ocrBtn").onclick = async () => {
+  const file = ocrFile.files[0], status = $("ocrStatus");
+  if (!file) { status.textContent = "Choose a file first"; return; }
+  const engine = $("ocrEngine").value;
+  const engineLabel = engine === "vision" ? "vision OCR" : engine === "text" ? "text extraction" : "auto";
+  const isImg = file.type.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(file.name);
+  // Show stage-specific messages
+  if (engine === "vision" || (engine === "auto" && isImg)) {
+    status.textContent = "↥ Uploading image…";
+    setTimeout(() => { if ($("ocrBtn").disabled) status.textContent = "◌ Running vision model…"; }, 2000);
+    setTimeout(() => { if ($("ocrBtn").disabled) status.textContent = "◌ Structuring Ga↔English pairs…"; }, 8000);
+  } else {
+    status.textContent = "↥ Uploading file…";
+    setTimeout(() => { if ($("ocrBtn").disabled) status.textContent = "◌ Parsing/extracting text…"; }, 1500);
+    setTimeout(() => { if ($("ocrBtn").disabled) status.textContent = "◌ Structuring Ga↔English pairs…"; }, 5000);
+  }
+  $("ocrBtn").disabled = true;
+  const fd = new FormData(); fd.append("file", file); fd.append("engine", engine);
+  try {
+    const r = await fetch(`${API}/admin/ocr/preview`, { method: "POST", credentials: "include", body: fd });
+    const d = await r.json();
+    if (!r.ok) { status.textContent = d.detail || "Extraction failed"; return; }
+    status.textContent = `✓ Found ${d.record_count} pairs${d.note ? " · " + d.note : ""}. Review below, then index.`;
+    $("ocrJsonl").value = d.jsonl || "";
+    $("ocrCount").textContent = `${d.record_count} pairs`;
+    $("ocrReview").style.display = "block";
+    $("ocrReview").scrollIntoView({ behavior: "smooth" });
+  } catch (e) { status.textContent = e.message; }
+  finally { $("ocrBtn").disabled = false; }
+};
+
+$("ocrCommit").onclick = async () => {
+  const jsonl = $("ocrJsonl").value.trim(), status = $("ocrCommitStatus");
+  if (!jsonl) { status.textContent = "Nothing to index"; return; }
+  status.textContent = "Indexing…"; $("ocrCommit").disabled = true;
+  try {
+    const r = await fetch(`${API}/admin/heritage/commit`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ jsonl, original_filename: (ocrFile.files[0]?.name || "ocr-import") + ".jsonl" }),
+    });
+    const d = await r.json();
+    if (!r.ok) { status.textContent = d.detail || "Index failed"; return; }
+    status.textContent = "✓ " + (d.message || "Indexed");
+    setTimeout(() => { loadDocs(); loadStats(); }, 1200);
+  } catch (e) { status.textContent = e.message; }
+  finally { $("ocrCommit").disabled = false; }
+};
+
+// --- Learning Analytics (client-side pages over returned arrays) ---
+const conflictsState = { page: 0, size: 10, total: 0, rows: [] };
+const cyclesState = { page: 0, size: 10, total: 0, rows: [] };
+function renderConflicts() {
+  const body = $("conflictsBody"), empty = $("conflictsEmpty");
+  const rows = conflictsState.rows;
+  if (!rows.length) { body.innerHTML = ""; empty.style.display = "block"; renderPager($("conflictsPager"), { ...conflictsState, total: 0 }, renderConflicts); return; }
+  empty.style.display = "none"; body.innerHTML = "";
+  const slice = rows.slice(conflictsState.page * conflictsState.size, (conflictsState.page + 1) * conflictsState.size);
+  for (const c of slice) {
+    const tr = document.createElement("tr");
+    const q = document.createElement("td"); q.style.fontWeight = "600"; q.textContent = c.original_query;
+    const a = document.createElement("td"); a.textContent = c.answer_count;
+    const s = document.createElement("td"); s.innerHTML = `<span class="pill indexing">Pending</span>`;
+    tr.append(q, a, s); body.appendChild(tr);
+  }
+  conflictsState.total = rows.length;
+  renderPager($("conflictsPager"), conflictsState, renderConflicts);
+}
+function renderCycles() {
+  const body = $("cyclesBody"), empty = $("cyclesEmpty");
+  const rows = cyclesState.rows;
+  if (!rows.length) { body.innerHTML = ""; empty.style.display = "block"; return; }
+  empty.style.display = "none"; body.innerHTML = "";
+  const slice = rows.slice(cyclesState.page * cyclesState.size, (cyclesState.page + 1) * cyclesState.size);
+  for (const c of slice) {
+    const tr = document.createElement("tr");
+    const wk = document.createElement("td"); wk.style.whiteSpace = "nowrap"; wk.textContent = `${c.weekStart} – ${c.weekEnd}`;
+    const fb = document.createElement("td"); fb.textContent = `${c.feedback?.helpful ?? 0}/${c.feedback?.total ?? 0}`;
+    const cn = document.createElement("td"); cn.textContent = `${c.contributions?.approved ?? 0}/${c.contributions?.total ?? 0}`;
+    const gp = document.createElement("td"); gp.textContent = `${c.gaps?.resolved ?? 0}/${c.gaps?.total ?? 0}`;
+    const sc = document.createElement("td"); sc.style.fontWeight = "600"; sc.style.color = c.score > 0.5 ? "var(--ink)" : "var(--muted)"; sc.textContent = `${(c.score * 100).toFixed(0)}%`;
+    tr.append(wk, fb, cn, gp, sc); body.appendChild(tr);
+  }
+  cyclesState.total = rows.length;
+  renderPager($("cyclesPager"), cyclesState, renderCycles);
+}
+async function loadLearning() {
+  try {
+    const [progressRes, conflictRes, cycleRes] = await Promise.all([
+      fetch(`${API}/analytics/progress`, { credentials: "include" }),
+      fetch(`${API}/conflicts/stats`, { credentials: "include" }),
+      fetch(`${API}/analytics/cycles`, { credentials: "include" }),
+    ]);
+
+    if (progressRes.ok) {
+      const p = await progressRes.json();
+      const cards = [
+        { l: "Total Feedback", v: p.feedback?.total ?? 0, sub: `${((p.feedback?.ratio ?? 0) * 100).toFixed(0)}% helpful` },
+        { l: "Contributions", v: p.contributions?.total ?? 0, sub: `${p.contributions?.approved ?? 0} approved` },
+        { l: "Knowledge Gaps", v: p.gaps?.total ?? 0, sub: `${p.gaps?.resolved ?? 0} resolved` },
+        { l: "Active Period", v: p.period, sub: `${p.days} days` },
+      ];
+      $("learningCards").innerHTML = cards
+        .map((c) => `<div class="card"><div class="v" style="font-size:28px;">${c.v}</div><div class="l">${c.l}</div>${c.sub ? `<div class="sub">${c.sub}</div>` : ""}</div>`)
+        .join("");
+    }
+
+    if (conflictRes.ok) {
+      const cf = await conflictRes.json();
+      conflictsState.rows = cf.recentConflicts || [];
+      conflictsState.page = 0;
+      renderConflicts();
+    }
+
+    if (cycleRes.ok) {
+      const cy = await cycleRes.json();
+      cyclesState.rows = cy.cycles || [];
+      cyclesState.page = 0;
+      renderCycles();
+    }
+  } catch {}
+}
+$("refreshLearning").onclick = loadLearning;
+
+// --- Contributions Review (server-side pages) ---
+const contribState = { page: 0, size: 25, total: 0 };
+async function loadContributions() {
+  const status = $("contribFilter").value;
+  try {
+    const r = await fetch(`${API}/admin/contributions?status=${status}&limit=${contribState.size}&offset=${contribState.page * contribState.size}`, { credentials: "include" });
+    if (!r.ok) return;
+    const d = await r.json();
+    contribState.total = d.total ?? (d.contributions || []).length;
+    // Page drained (e.g. last item approved) — step back and reload.
+    if (!d.contributions.length && contribState.total > 0 && contribState.page > 0) {
+      contribState.page--; loadContributions(); return;
+    }
+    renderPager($("contribPager"), contribState, loadContributions);
+    const body = $("contribBody"), empty = $("contribEmpty");
+    if (!d.contributions.length) { body.innerHTML = ""; empty.style.display = "block"; return; }
+    empty.style.display = "none"; body.innerHTML = "";
+    for (const c of d.contributions) {
+      const tr = document.createElement("tr");
+      const q = document.createElement("td");
+      q.style.fontWeight = "600"; q.textContent = c.query;
+      if (c.has_conflict) { const f = document.createElement("span"); f.className = "pill conflict"; f.style.marginLeft = "8px"; f.textContent = "⚑ conflict"; f.title = "Conflicting answers exist — resolves on approve"; q.appendChild(f); }
+      const a = document.createElement("td"); a.textContent = c.answer;
+      const who = [c.contributor_name, c.contributor_email, c.contributor_location].filter(Boolean).join(" · ");
+      if (who) {
+        const w = document.createElement("div");
+        w.style.cssText = "font:500 10px var(--mono);color:var(--muted);margin-top:4px;letter-spacing:.03em";
+        w.textContent = `by ${who}`;
+        a.appendChild(w);
+      }
+      const tp = document.createElement("td"); tp.innerHTML = `<span class="tchip">${c.type || "translation"}</span>`;
+      const cat = document.createElement("td"); cat.innerHTML = `<span class="pill">${c.category}</span>`;
+      const ag = document.createElement("td"); ag.style.fontWeight = "600";
+      ag.style.color = c.agreement_score > 0 ? "var(--ink)" : "var(--muted)";
+      ag.textContent = c.agreement_score > 0 ? `+${c.agreement_score}` : "0";
+      const dt = document.createElement("td"); dt.style.color = "var(--muted)"; dt.style.whiteSpace = "nowrap"; dt.textContent = c.created_at;
+      const act = document.createElement("td"); act.style.textAlign = "right"; act.style.whiteSpace = "nowrap";
+      if (status === "pending_review") {
+        const approve = document.createElement("button"); approve.className = "btn sm"; approve.style.marginRight = "6px";
+        approve.textContent = "Approve";
+        approve.onclick = () => askConfirm(`Approve "${c.query}" → verified knowledge base?`, () => reviewContrib(c.id, "approve", tr));
+        const reject = document.createElement("button"); reject.className = "btn sm ghost";
+        reject.textContent = "Reject";
+        reject.onclick = () => askConfirm(`Reject this contribution?`, () => reviewContrib(c.id, "reject", tr));
+        act.append(approve, reject);
+      } else {
+        const pill = document.createElement("span"); pill.className = `pill ${status}`;
+        pill.textContent = status;
+        act.appendChild(pill);
+      }
+      tr.append(q, a, tp, cat, ag, dt, act); body.appendChild(tr);
+    }
+  } catch {}
+}
+async function reviewContrib(id, action, row) {
+  try {
+    const r = await fetch(`${API}/admin/contributions/${id}/${action}`, { method: "POST", credentials: "include" });
+    if (r.ok) { row.style.opacity = "0.4"; row.style.pointerEvents = "none"; setTimeout(loadContributions, 800); }
+  } catch {}
+}
+$("refreshContrib").onclick = loadContributions;
+$("contribFilter").onchange = () => { contribState.page = 0; loadContributions(); };
+
+// --- Logout (hard reset) ---
+$("logoutBtn").onclick = async () => {
+  try { await fetch(`${API}/auth/logout`, { method: "POST", credentials: "include" }); } catch {}
+  try { localStorage.removeItem("anonId"); } catch {}
+  window.location.href = "/auth";
+};
+</script>
+</body>
+</html>

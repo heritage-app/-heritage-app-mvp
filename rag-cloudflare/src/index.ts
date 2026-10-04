@@ -111,6 +111,12 @@ api.route("/", bible);
 
 app.route("/api/v1", api);
 
+// The admin console moved to its own worker (heritage-admin). Old links and
+// bookmarks to /admin here go there instead of a 404.
+const ADMIN_CONSOLE = "https://heritage-admin.heritage-app.workers.dev";
+app.get("/admin", (c) => c.redirect(`${ADMIN_CONSOLE}/admin.html`, 302));
+app.get("/admin.html", (c) => c.redirect(`${ADMIN_CONSOLE}/admin.html`, 302));
+
 // Friendly root redirect to the API info.
 app.get("/", (c) => c.redirect("/api/v1"));
 
