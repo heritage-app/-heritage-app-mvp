@@ -977,6 +977,7 @@
   .x-rthread .actions { margin-top:0; }
   .x-rthread .act { min-height:32px; font-size:12px; padding:0 11px; }
   .x-rthread .x-fu { display:none; }
+  .x-rsrc { margin-top:8px; font:600 11.5px var(--sans); color:var(--muted); }
   .x-rmore { align-self:flex-start; border:0; background:transparent; font:700 13px var(--sans); color:var(--accent); cursor:pointer; padding:2px 4px; }
   .x-rfab { position:fixed; right:16px; bottom:var(--sheet-bottom, 16px); z-index:40; display:inline-flex; align-items:center; gap:10px; border:0; border-radius:999px; background:var(--ink); color:var(--bg); padding:7px 18px 7px 7px; font:700 14px var(--sans); box-shadow:var(--x-shadow-lg); cursor:pointer; }
   .x-rfab .x-av { width:34px; height:34px; }
@@ -4943,6 +4944,7 @@ async function openChapter(book, ch, verse) {
   try {
     const r = await fetch(`${API}/bible/${encodeURIComponent(book)}/${ch}?edition=${reader.edition}`);
     if (!r.ok) throw new Error(String(r.status));
+    if (reader.data && (reader.data.book !== book || reader.data.chapter !== ch)) { readerHist = []; readerAsked.clear(); }
     reader.data = await r.json();
     try { localStorage.setItem("heritage.lastRead", JSON.stringify({ book, ch, ga: reader.data.ga_book, chapters: reader.data.chapters })); } catch {}
     renderCont();
@@ -5069,28 +5071,62 @@ function renderVerseAI() {
   document.body.classList.toggle("rsheet", open && !isDesk());
   $("readerToChat").classList.toggle("hidden", !$("readerThread").children.length);
   const f = $("readerAIfollow"); f.innerHTML = "";
-  const add = (label, fn) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.onclick = fn; f.appendChild(b); };
+  // A question already asked about this verse drops out of the list.
+  const add = (label, fn) => { if (readerAsked.has(`${reader.sel}|${label}`)) return; const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.onclick = fn; f.appendChild(b); };
   if (!v) {
     $("readerAIref").textContent = `About ${d.ga_book} ${d.chapter} — tap a verse`;
     $("readerAIinput").placeholder = "Ask about this chapter…";
+    add("What is this chapter about?", () => readerAsk("What is this chapter about?"));
     add("Quiz me", () => openPractice("choice", 5, null));
     return;
   }
   const ref = `${d.book} ${d.chapter}:${v.n}`;
   $("readerAIref").textContent = `About ${d.ga_book} ${d.chapter}:${v.n}${v.to ? "–" + v.to : ""}`;
   $("readerAIinput").placeholder = "Ask about this verse…";
-  // Word questions only for words the verified dictionary knows, so every
-  // suggestion has a real answer behind it.
-  const known = [];
-  for (const w of new Set(v.ga.match(/[\p{L}\p{M}'’-]+/gu) || [])) {
-    const fw = foldGa(w);
-    const hit = GA_VOCABULARY.find((s) => s.en && foldGa(s.text) === fw);
-    if (hit && !known.some((k) => k.text === hit.text)) known.push(hit);
-    if (known.length >= 2) break;
+  add("What does this verse mean?", () => readerAsk("What does this verse mean?"));
+  // Word questions come from the verse's own Ga words that the verified
+  // dictionary knows — whole phrases first ("nyɔŋmai kpawo"), never
+  // grammar words like "lɛ", whose dictionary sense misleads in context.
+  const key = `${d.book}|${d.chapter}|${v.n}`;
+  const words = verseWords.get(key);
+  if (words === undefined) {
+    verseWords.set(key, null);
+    fetch(`${API}/bible/${encodeURIComponent(d.book)}/${d.chapter}/${v.n}/words`)
+      .then((r) => (r.ok ? r.json() : { words: [] }))
+      .then((j) => { verseWords.set(key, j.words || []); if (reader.sel === v.n && reader.data === d) renderVerseAI(); })
+      .catch(() => verseWords.set(key, []));
   }
-  add("Explain this verse", () => readerAsk(`Explain ${ref}`));
-  for (const k of known) add(`What does ${k.text} mean?`, () => readerAsk(`what does ${k.text} mean`));
+  const ws = (words || []).slice().sort((x, y) => y.ga.length - x.ga.length).slice(0, 2);
+  for (const w of ws) add(`What does ${w.ga} mean here?`, () => readerAsk(`What does ${w.ga} mean here?`));
+  const who = verseName(v.en);
+  if (who) add(`Who is ${who}?`, () => readerAsk(`Who is ${who}?`));
+  if (words && words.length) add("Ga words in this verse", () => showVerseWords(v, words));
   add("Copy verse", function () { copyText(`${v.ga}\n${v.en}\n— ${ref}`, this); });
+}
+
+const verseWords = new Map(), readerAsked = new Set();
+// A person named in the English verse (not a place, not God).
+const NOT_PEOPLE = new Set(["God", "LORD", "Lord", "Egypt", "Israel", "Canaan", "Jerusalem", "Babylon", "Jordan", "Judah", "Zion",
+  "Sinai", "Galilee", "Judea", "Rome", "Assyria", "Moab", "Edom", "Bethlehem", "Nazareth", "Samaria", "Lebanon", "Gilead",
+  "Jesus", "Christ", "Holy", "Ghost", "Spirit", "Father", "Son", "Behold", "And", "But", "For", "Now", "Then", "Therefore",
+  "Thou", "Thy", "Ye", "He", "She", "They", "Hebrew", "Hebrews", "Egyptians", "Israelites", "Selah", "O", "I", "Amen"]);
+function verseName(en) {
+  const names = (en || "").match(/\b[A-Z][a-z]{2,}\b/g) || [];
+  return names.find((w) => !NOT_PEOPLE.has(w)) || null;
+}
+// The verse's dictionary words, shown straight away — no model involved.
+function showVerseWords(v, words) {
+  const d = reader.data;
+  readerAsked.add(`${reader.sel}|Ga words in this verse`);
+  readerTurn("user").textContent = "Ga words in this verse";
+  const bubble = readerTurn("bot");
+  render(bubble, words.map((w) => `**${w.ga}** — ${w.en}`).join("\n\n") +
+    `\n\n*From the verified dictionary. Words it doesn't have yet aren't listed.*`);
+  attachActions(bubble, `Ga words in ${d.book} ${d.chapter}:${v.n}`, undefined);
+  const retry = [...bubble.closest(".turn").querySelectorAll(".act")].find((b) => /Retry/.test(b.textContent));
+  if (retry) retry.remove();
+  renderVerseAI();
+  const th = $("readerThread"); th.scrollTop = th.scrollHeight;
 }
 
 function readerTurn(role) {
@@ -5103,9 +5139,56 @@ function readerTurn(role) {
   return bubble;
 }
 
+// "how do you say good morning in Ga" isn't about the passage — that one
+// goes to the archive search like the chat does. Everything else is
+// answered from the chapter that is open.
+function aboutPassage(q) {
+  if (/\b(this|that|these|here|verse|chapter|passage|it)\b/i.test(q)) return true;
+  return !/^(please\s+)?(how\s+(do|would|can)\s+(you|i|we)\s+say|translate|what('?s| is) the ga (word )?for)\b/i.test(q);
+}
+let readerHist = [];
+async function readerBibleAsk(q) {
+  const d = reader.data, th = $("readerThread");
+  const v = reader.sel ? d.verses.find((x) => x.n === reader.sel) : null;
+  if (!isDesk()) reader.sheet = true;
+  readerAsked.add(`${reader.sel}|${q}`);
+  readerTurn("user").textContent = q;
+  const bubble = readerTurn("bot");
+  setTyping(bubble);
+  renderVerseAI();
+  th.scrollTop = th.scrollHeight;
+  readerBusy = true;
+  try {
+    const r = await fetch(`${API}/bible/${encodeURIComponent(d.book)}/${d.chapter}/ask`, {
+      method: "POST", headers: headers(), credentials: "include",
+      body: JSON.stringify({ verse: v ? v.n : undefined, question: q, history: readerHist.slice(-2) }),
+    });
+    if (!r.ok) throw new Error(String(r.status));
+    const j = await r.json();
+    const text = j.answer || "I couldn't answer that from this passage.";
+    render(bubble, text);
+    const src = document.createElement("div");
+    src.className = "x-rsrc";
+    src.textContent = `From ${d.ga_book} ${d.chapter}${v ? ":" + v.n : ""} in the archive`;
+    bubble.appendChild(src);
+    attachActions(bubble, q, undefined);
+    const retry = [...bubble.closest(".turn").querySelectorAll(".act")].find((b) => /Retry/.test(b.textContent));
+    if (retry) retry.remove();
+    readerHist.push({ q: v ? `${q} (${d.book} ${d.chapter}:${v.n})` : q, a: text });
+    readerLast = { q, text };
+  } catch {
+    bubble.className = "bubble error";
+    bubble.textContent = "Couldn't reach Nii Obodai. Check your connection and try again.";
+  }
+  readerBusy = false;
+  renderVerseAI();
+  th.scrollTop = th.scrollHeight;
+}
+
 async function readerAsk(q) {
   q = (q || "").trim();
   if (!q || readerBusy) return;
+  if (reader.data && aboutPassage(q)) return readerBibleAsk(q);
   const d = reader.data, th = $("readerThread");
   const v = d && reader.sel ? d.verses.find((x) => x.n === reader.sel) : null;
   if (!isDesk()) reader.sheet = true;
