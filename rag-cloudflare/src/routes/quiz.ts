@@ -94,14 +94,39 @@ function nearestByLength(answer: string, candidates: string[], n: number): strin
     .slice(0, n);
 }
 
+/**
+ * Learn-page topics → dictionary categories. Bible book names (categories
+ * "book"/"bible") are never quizzed: they surfaced English names like
+ * "Numbers" as Ga answer options.
+ */
+export const TOPICS: Record<string, { label: string; cats: string[] }> = {
+  greetings: { label: "Greetings", cats: ["greeting", "phrase", "expressions"] },
+  family: { label: "Family", cats: ["family", "people"] },
+  food: { label: "Food & market", cats: ["food", "kitchen", "market", "shop"] },
+  numbers: { label: "Numbers", cats: ["number"] },
+  time: { label: "Time & weather", cats: ["time", "days", "months", "weather"] },
+  body: { label: "Body & health", cats: ["body", "sickness"] },
+  animals: { label: "Animals", cats: ["animals", "birds", "insects", "fish"] },
+  home: { label: "Home", cats: ["household"] },
+  describing: { label: "Colours & describing", cats: ["colours", "descriptive"] },
+  places: { label: "Places & directions", cats: ["directions", "travel", "school", "post-office"] },
+  chiefs: { label: "Chieftaincy", cats: ["chief", "chieftaincy"] },
+  music: { label: "Music", cats: ["music"] },
+};
+const NEVER = ["book", "bible"];
+
 /** Random verified entries, de-duped by Ga headword and length-sane. */
-async function pool(env: Env, limit: number): Promise<Entry[]> {
+async function pool(env: Env, limit: number, topic?: string): Promise<Entry[]> {
+  const cats = topic && TOPICS[topic] ? TOPICS[topic].cats : null;
+  const where = cats
+    ? `AND LOWER(COALESCE(category, '')) IN (${cats.map(() => "?").join(",")})`
+    : `AND LOWER(COALESCE(category, '')) NOT IN (${NEVER.map(() => "?").join(",")})`;
   const res = await env.DB.prepare(
     `SELECT headword, translations, meanings, phonetic, category, source, verified_at
-       FROM vocabulary WHERE ${GATE}
+       FROM vocabulary WHERE ${GATE} ${where}
        ORDER BY RANDOM() LIMIT ?`
   )
-    .bind(limit)
+    .bind(...(cats ?? NEVER), limit)
     .all<VocabRow>();
 
   const seen = new Set<string>();
@@ -118,16 +143,30 @@ async function pool(env: Env, limit: number): Promise<Entry[]> {
   return out;
 }
 
+/** Topic counts for the Learn page. */
+app.get("/topics", async (c) => {
+  const res = await c.env.DB.prepare(
+    `SELECT LOWER(COALESCE(category, '')) AS cat, COUNT(*) AS n FROM vocabulary WHERE ${GATE} GROUP BY cat`
+  ).all<{ cat: string; n: number }>();
+  const by = new Map((res.results ?? []).map((r) => [r.cat, r.n]));
+  const topics = Object.entries(TOPICS)
+    .map(([id, t]) => ({ id, label: t.label, cats: t.cats, count: t.cats.reduce((a, k) => a + (by.get(k) ?? 0), 0) }))
+    .filter((t) => t.count >= 4);
+  return c.json({ topics }, 200, { "Cache-Control": "public, max-age=600" });
+});
+
 const notEnough = (c: any) =>
   c.json({ detail: "Not enough verified vocabulary for a quiz yet." }, 404);
 
 app.get("/", async (c) => {
   const mode = (c.req.query("mode") || "choice").toLowerCase();
+  const topic = (c.req.query("topic") || "").toLowerCase() || undefined;
   const n = Math.min(Math.max(parseInt(c.req.query("n") ?? "6", 10) || 6, 3), 8);
 
   // --- match: n disjoint pairs ---
   if (mode === "match") {
-    const items = await pool(c.env, n * 4);
+    let items = await pool(c.env, n * 4, topic);
+    if (items.length < n) items = await pool(c.env, n * 4);
     if (items.length < n) return notEnough(c);
     // Distinct English sides too, or two rows read as the same answer.
     const seenEn = new Set<string>();
@@ -194,7 +233,13 @@ app.get("/", async (c) => {
   }
 
   // --- choice (default) ---
-  const items = await pool(c.env, 12);
+  // A topic round asks about that topic; distractors come from it too when
+  // it has enough words, else from the whole dictionary.
+  let items = await pool(c.env, 12, topic);
+  if (items.length < 4) {
+    const extra = await pool(c.env, 12);
+    items = [...items, ...extra.filter((e) => !items.some((x) => x.ga === e.ga))];
+  }
   if (items.length < 4) return notEnough(c);
 
   const pick = items[0];
