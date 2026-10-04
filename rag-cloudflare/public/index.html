@@ -1073,6 +1073,37 @@
     .x-askbar .x-go { width:48px; height:48px; }
     .x-sugg { margin:12px -16px 0; padding:0 16px 2px; }
   }
+
+  /* Hero polish: soft image edges, floating ask bar, word of the day on the challenge */
+  .x-hero-img {
+    -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent 100%), linear-gradient(to right, transparent 0, #000 10%, #000 90%, transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to bottom, #000 72%, transparent 100%), linear-gradient(to right, transparent 0, #000 10%, #000 90%, transparent 100%);
+    mask-composite: intersect;
+  }
+  .x-askbar { padding-left:10px; box-shadow:0 0 0 6px rgba(242,179,61,.14), var(--x-shadow-lg); }
+  .x-askbar .x-av.sm { width:44px; height:44px; box-shadow:none; }
+  .x-askbar .x-av.sm svg { width:20px; height:20px; }
+  .x-home-chal { flex-direction:column; gap:14px; }
+  .x-wotd2 { position:relative; overflow:hidden; border-radius:26px; padding:22px 22px 20px; color:var(--ink);
+    background:radial-gradient(circle at 92% 8%, rgba(255,255,255,.55) 0 18%, transparent 19%), linear-gradient(135deg, var(--sand) 0%, #F7D995 100%); }
+  [data-theme="dark"] .x-wotd2 { background:linear-gradient(135deg, var(--sand) 0%, #3A2E14 100%); }
+  .x-wotd2 .x-wbg { position:absolute; right:-6px; bottom:-48px; font:800 190px/1 var(--display); color:rgba(122,82,0,.12); pointer-events:none; }
+  .x-wotd2 .w { font:800 40px/1 var(--display); letter-spacing:-1px; margin-top:10px; position:relative; }
+  .x-wotd2 .m { font:600 15px var(--sans); color:var(--ink-2); margin-top:6px; position:relative; }
+  .x-wacts { margin-top:14px; position:relative; }
+  @media (min-width:861px) {
+    .x-hero-ai { margin-top:-56px; position:relative; z-index:2; }
+  }
+  @media (max-width:860px) {
+    .x-hero-img {
+      -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent 100%), linear-gradient(to right, transparent 0, #000 38%);
+      mask-image: linear-gradient(to bottom, #000 70%, transparent 100%), linear-gradient(to right, transparent 0, #000 38%);
+    }
+    .x-askbar { padding-left:8px; }
+    .x-askbar .x-av.sm { width:40px; height:40px; }
+    .x-wotd2 .w { font-size:34px; }
+  }
 </style>
 </head>
 <body>
@@ -1153,11 +1184,10 @@
           </div>
           <div class="x-art"><img class="x-hero-img" src="/img/hero.webp" width="1200" height="800" alt="A smiling Ga elder in a printed headwrap and cloth, with the coast, palm trees and a castle behind her" fetchpriority="high" decoding="async" /></div>
           <div class="x-hero-ai">
-            <form class="x-askbar" id="homeAskForm"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.3 9.3 0 0 1-3.9-.8L3 20.5l1.4-4.4A8 8 0 0 1 3 11.5 8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/></svg><input id="homeAsk" type="text" placeholder="Ask me anything in Ga…" aria-label="Ask Nii Obodai anything in Ga" autocomplete="off" autocorrect="off" spellcheck="false" /><button class="x-go" type="submit" aria-label="Ask"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></form>
+            <form class="x-askbar" id="homeAskForm"><span class="x-av sm"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M12 7.5l1.1 2.4 2.4 1.1-2.4 1.1L12 14.5l-1.1-2.4L8.5 11l2.4-1.1z" fill="currentColor" stroke="none"/></svg></span><input id="homeAsk" type="text" placeholder="Ask me anything in Ga…" aria-label="Ask Nii Obodai anything in Ga" autocomplete="off" autocorrect="off" spellcheck="false" /><button class="x-go" type="submit" aria-label="Ask"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></form>
             <div class="x-sugg" id="homeSugg"><button type="button" class="x-chip" data-q="how do you say thank you in Ga">e.g. “Thank you” in Ga</button><button type="button" class="x-chip" data-q="Exodus 20:3">Explain Exodus 20:3</button><button type="button" class="x-chip" data-q="tell me a ga story">Tell a Ga story</button><button type="button" class="x-chip x-sugg-more" id="homeSuggMore" aria-label="More suggestions"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg></button></div>
           </div>
         </div>
-        <div class="x-wotd-m"><div class="x-wotd"><div style="flex:1;min-width:0"><div class="x-eyebrow" style="color:var(--accent)">Word of the day</div><div class="w" data-wotd-ga style="margin-top:8px">Miifala</div><div class="m" data-wotd-en>welcome</div></div><button type="button" class="x-btn gold" data-wotd-ask style="min-height:42px;padding:0 16px">Practise</button></div></div>
 
         <div>
           <div class="x-sec-h"><h3>Quick actions</h3></div>
@@ -1180,6 +1210,13 @@
             </div>
           </div>
           <div class="x-home-chal">
+            <div class="x-wotd2">
+              <span class="x-wbg" aria-hidden="true">ɔ</span>
+              <div class="x-eyebrow" style="color:var(--sand-ink)">Word of the day</div>
+              <div class="w" data-wotd-ga>Miifala</div>
+              <div class="m">means “<span data-wotd-en>welcome</span>”</div>
+              <div class="x-wacts"><button type="button" class="x-btn" data-wotd-ask>Practise it</button></div>
+            </div>
             <div class="x-challenge">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><span class="x-eyebrow" style="color:var(--accent)">Daily challenge</span><span class="x-cmeta">5 questions · about 2 min</span></div>
               <div class="x-ctitle">Greetings you'll hear every day</div>
