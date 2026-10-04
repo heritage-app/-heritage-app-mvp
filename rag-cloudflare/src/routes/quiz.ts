@@ -242,8 +242,11 @@ app.get("/", async (c) => {
   }
   if (items.length < 4) return notEnough(c);
 
-  const pick = items[0];
-  const distractors = nearestByLength(pick.ga, items.slice(1).map((x) => x.ga), 3);
+  // Unscramble rebuilds the word from its letters: a phrase ("may god
+  // protect you", 20 tiles with spaces) is a chore, not a puzzle. Ask for a
+  // single word of 3–10 letters when one is available.
+  const pick = (mode === "scramble" && items.find((e) => /^[^\s]{3,10}$/.test(e.ga))) || items[0];
+  const distractors = nearestByLength(pick.ga, items.filter((x) => x !== pick).map((x) => x.ga), 3);
   const options = shuffle([pick.ga, ...distractors]);
 
   return c.json({

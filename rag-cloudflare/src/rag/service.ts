@@ -5,7 +5,7 @@
  */
 import type { Env, ChatMessage, RagMode, VerseRecord } from "../types";
 import { DEFAULT_TOP_K, MIN_RELEVANCE_SCORE, BOOK_MAP, BIBLE_BOOK_TOKENS } from "../config";
-import { numToGa, foldGa, resolveGaCitation } from "./ga";
+import { numToGa, foldGa, resolveGaCitation, parseEnglishNumber } from "./ga";
 import { modernizeGa } from "./orthography";
 import { isFormattableBibleRecord, formatBibleQuote } from "./validator";
 import { getTradBook } from "./refiner";
@@ -371,7 +371,7 @@ async function* askGeneral(
   if (rangeMatch) {
     const start = parseInt(rangeMatch[1], 10);
     const end = parseInt(rangeMatch[2], 10);
-    if (start > 0 && start <= end && end <= 1000 && end - start <= 50) {
+    if (start > 0 && start <= end && end <= 999 && end - start <= 50) {
       const lines = ["Here are the numbers you requested:\n", "| Number | Ga Translation |", "| :--- | :--- |"];
       for (let n = start; n <= end; n++) lines.push(`| **${n}** | ${cap(numToGa(n))} |`);
       yield lines.join("\n"); // deterministic numeric table
@@ -381,6 +381,20 @@ async function* askGeneral(
 
   const qLow = query.toLowerCase();
   const singleNums = [...query.matchAll(/\b(\d+)\b/g)].map((m) => m[1]);
+
+  // Spelled-out English numbers ("number thirty-three in ga") count as the
+  // numeric subject too; consumed number words are never content words.
+  const numTokens = qLow.match(/[\p{L}\p{N}]+/gu) ?? [];
+  const spelledNums: number[] = [];
+  const numWordSet = new Set<string>();
+  for (let i = 0; i < numTokens.length; ) {
+    const parsed = parseEnglishNumber(numTokens.slice(i));
+    if (parsed) {
+      spelledNums.push(parsed.value);
+      for (let j = i; j < i + parsed.consumed; j++) numWordSet.add(numTokens[j]);
+      i += parsed.consumed;
+    } else i++;
+  }
 
   // Tokens that don't count as "content" when deciding what the query is about.
   const stop = new Set([
@@ -418,16 +432,19 @@ async function* askGeneral(
   const nearStop = (w: string) => w.length >= 6 && [...stop].some((s) => s.length >= 5 && edit1(w, s));
   const queryWords = [...foldGa(qLow).matchAll(/[\p{L}\p{N}'-]+/gu)]
     .map((m) => m[0])
-    .filter((w) => w.length > 1 && !stop.has(w) && !nearStop(w) && !/^\d+$/.test(w));
+    .filter((w) => w.length > 1 && !stop.has(w) && !nearStop(w) && !/^\d+$/.test(w)
+      && !w.split("-").every((p) => numWordSet.has(p)));
 
   // --- Number translation: fire only when a number is the actual subject (no other
   // content words), so "21 in Ga" works but "1 Samuel" / "21st May" don't misfire. ---
   const wantsNumber =
     /\b(?:in|to)\s+ga\b/.test(qLow) ||
     /\b(?:translate|translation|number|count|spell)\b/.test(qLow) ||
-    /^\s*\d+\s*$/.test(query.trim());
-  if (wantsNumber && singleNums.length && queryWords.length === 0) {
-    const num = parseInt(singleNums[0], 10);
+    /^\s*\d+\s*$/.test(query.trim()) ||
+    // A bare spelled-out number ("thirty three") asks the same thing.
+    (spelledNums.length > 0 && numWordSet.size === numTokens.length);
+  if (wantsNumber && (singleNums.length || spelledNums.length) && queryWords.length === 0) {
+    const num = singleNums.length ? parseInt(singleNums[0], 10) : spelledNums[0];
     const ga = numToGa(num);
     yield ga === String(num)
       ? `I can translate Ga numbers from 1 to 999 — **${num}** is outside that range.`
@@ -456,7 +473,10 @@ async function* askGeneral(
   // query with only the trailing "in ga" removed first.
   const fullPhrase = norm(query.trim().replace(/[?!.]+$/, "").replace(/\s+(in|into)\s+ga(\s+language)?$/i, ""));
   const phraseWords = phrase ? phrase.split(" ").length : 0;
-  if ((queryWords.length > 0 && queryWords.length <= 3) || (phraseWords > 0 && phraseWords <= 5)) {
+  // "tell me a Ga story" asks for a story, not the Ga word for "story" —
+  // the dictionary step must not answer it ("In Ga, 'story' is Adesa").
+  const asksToTell = /\b(tell|read|recite|sing|share|give|show)\b[\s\S]*\b(stor(?:y|ies)|tales?|folktales?|legends?|poems?|poetry|songs?)\b/i.test(query);
+  if (!asksToTell && ((queryWords.length > 0 && queryWords.length <= 3) || (phraseWords > 0 && phraseWords <= 5))) {
     const qStr = queryWords.length ? queryWords.join(" ") : phrase;
     const foldedQ = foldGa(qStr);
     const needle = norm(qStr);
@@ -534,6 +554,22 @@ async function* askGeneral(
           if (bestHit?.rank === 0) break;
         }
         if (bestHit) {
+          // A whole-word hit inside a LONGER phrase isn't the word itself:
+          // "good" must not be claimed as "good night". Report the phrase it
+          // appears in and ask for the word (same as the phrase-pair path).
+          const contentWords = (s: string) =>
+            (foldGa(s.toLowerCase()).match(/[\p{L}\p{N}'-]+/gu) ?? [])
+              .filter((w) => w.length > 1 && !stop.has(w) && !nearStop(w)).length;
+          if (
+            !bestHit.gaSide &&
+            contentWords(bestHit.eng) > Math.max(contentWords(needle), 1)
+          ) {
+            const word = cleanEnglish(query);
+            await logKnowledgeGap(env, query, "general", "Word only found inside a phrase");
+            yield `I don't have a Ga word for “${word}” on its own yet — but it appears in this phrase from the archive:\n\n` +
+              `**${modernizeGa(bestHit.ga)}** — “${bestHit.eng}”\n\nKnow the Ga word? Share it and I'll put it forward for review.`;
+            return;
+          }
           yield bestHit.gaSide
             ? `**${bestHit.ga}** is Ga for “${bestHit.eng}”.`
             : `In Ga, “${bestHit.eng}” is **${bestHit.ga}**.`;
@@ -856,8 +892,9 @@ async function* askGeneral(
     // ("shade" in "Let us move into the shade"). Answering "In Ga, 'Let us
     // move into the shade' is …" reads as if the word itself were known.
     // Say what we have, and ask for the word itself.
-    const engLen = hits[0].eng.split(/\s+/).length;
-    if (towardGa && !hits[0].gaSide && queryWords.length <= 2 && engLen >= queryWords.length + 2) {
+    const engContent = (foldGa(hits[0].eng.toLowerCase()).match(/[\p{L}\p{N}'-]+/gu) ?? [])
+      .filter((w) => w.length > 1 && !stop.has(w) && !nearStop(w)).length;
+    if (!hits[0].gaSide && queryWords.length <= 2 && engContent > queryWords.length) {
       const word = cleanEnglish(query);
       await logKnowledgeGap(env, query, "general", "Word only found inside a sentence");
       yield `I don't have a Ga word for “${word}” on its own yet — but it appears in this phrase from the archive:\n\n` +

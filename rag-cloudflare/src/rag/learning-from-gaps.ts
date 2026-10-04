@@ -4,7 +4,7 @@
  */
 
 import type { Env, ChatMessage } from "../types";
-import { getLearningGreeting } from "./dynamic-greetings";
+import { cleanEnglish } from "./flagging";
 
 export interface KnowledgeGap {
   id: string;
@@ -28,7 +28,7 @@ export async function logKnowledgeGap(
   context?: string
 ): Promise<void> {
   const gapId = `gap:${Date.now()}:${Math.random().toString(36).substr(2, 9)}`;
-  
+
   try {
     // Check if this gap already exists
     const existing = await env.DB.prepare(
@@ -66,13 +66,15 @@ export function generateHelpfulNotFoundResponse(
   queryType: string,
   similarTopics?: string[]
 ): string {
-  const greeting = getLearningGreeting();
-  
+  // Name the subject, not the whole question ("computer", not "how do you
+  // say computer in ga"). The trailing phrases are what the client's
+  // NOT_FOUND_MARKERS recognise — keep them word for word.
+  const subject = cleanEnglish(query);
   const responses: Record<string, string> = {
-    bible: `${greeting} I don't have this Bible verse yet. I have Genesis–Deuteronomy. Know it? Share the Ga and English version and I'll add it.`,
-    cultural: `${greeting} I don't have "${query}" in my cultural archives yet. Know about it? Share the Ga and English version and I'll add it.`,
-    translation: `${greeting} I don't know "${query}" yet. Know the Ga word? Share both Ga and English and I'll add it.`,
-    general: `${greeting} I don't have "${query}" yet. Know about it? Share the Ga and English version and I'll add it.`
+    bible: `I couldn't find that verse in the archive — check the book, chapter and verse. Know it? Share the Ga and English version and I'll add it.`,
+    cultural: `I don't have “${subject}” in the archive yet. Know about it? Share the Ga and English version and I'll add it.`,
+    translation: `I don't know the Ga for “${subject}” yet. Know the Ga word? Share both Ga and English and I'll add it.`,
+    general: `I don't have “${subject}” in the archive yet. Know about it? Share the Ga and English version and I'll add it.`
   };
 
   return responses[queryType] || responses.general;
@@ -90,7 +92,7 @@ export function suggestSimilarContent(query: string, availableTopics: string[]):
     // Simple similarity check
     const queryWords = queryLower.split(/\s+/);
     const topicWords = topicLower.split(/\s+/);
-    
+
     const commonWords = queryWords.filter(word => topicWords.includes(word));
     if (commonWords.length > 0) {
       similar.push(topic);
@@ -281,7 +283,7 @@ function isGaQuery(query: string): boolean {
     /\b(ekome|enyɔ|etɛ|ejwɛ|enumɔ|ekpaa|kpawo|kpaanyɔ|nɛɛhu|nyɔŋma)\b/i, // Ga numbers
     /\b(yitso|kuku|bibele|ɛdzɛ|heɛ|daabi|akwei|mi nɔ|ɛfe|me fe|otukwajaŋ)\b/i, // Common Ga words
   ];
-  
+
   return gaPatterns.some(pattern => pattern.test(query));
 }
 
@@ -289,9 +291,7 @@ function isGaQuery(query: string): boolean {
  * Generate Ga-specific learning response
  */
 function generateGaLearningResponse(query: string): string {
-  const greeting = getLearningGreeting();
-  
-  return `${greeting} I don't know "${query}" yet. Know what it means? Share both Ga and English and I'll add it.`;
+  return `I don't know “${cleanEnglish(query)}” yet. Know what it means? Share both Ga and English and I'll add it.`;
 }
 
 /**
@@ -304,8 +304,10 @@ export function generateLearningNotFoundResponse(
   if (isGaQuery(query)) {
     return generateGaLearningResponse(query);
   }
-  
-  const baseResponse = generateHelpfulNotFoundResponse(query, queryType);
-  
+
+  // A question asking for the Ga of something gets the translation wording.
+  const towardGa = /\bin\s+ga\b|\bhow\s+(do\s+(you|i)\s+|to\s+)?say\b|\btranslate\b|\bga\s+(word|for)\b/i.test(query);
+  const baseResponse = generateHelpfulNotFoundResponse(query, queryType === "general" && towardGa ? "translation" : queryType);
+
   return baseResponse;
 }

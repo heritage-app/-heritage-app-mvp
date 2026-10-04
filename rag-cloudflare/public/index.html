@@ -1104,6 +1104,127 @@
     .x-askbar .x-av.sm { width:40px; height:40px; }
     .x-wotd2 .w { font-size:34px; }
   }
+
+  /* ====================================================================
+     UX pass: answers, quizzes, contribution — one visual language.
+     ==================================================================== */
+  /* answers */
+  .actions { opacity:1 !important; margin-top:8px; }
+  #scoreTag, #streakTag { display:none !important; }
+  .trace { font:600 12px var(--sans); color:var(--muted); letter-spacing:0; margin:8px 0 0; }
+  .trace summary { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; min-height:30px; border-radius:999px; background:var(--paper-2); }
+  .trace summary::before { content:"✓"; color:var(--sage-ink); font-weight:800; }
+  .trace[open] summary::before { content:"✓"; }
+  .trace div { padding:6px 0 0 12px; }
+  .composer .hint { font:500 11.5px var(--sans); letter-spacing:0; }
+
+  /* verse card */
+  .verse { gap:6px; }
+  .v-ref { display:flex; flex-direction:column; gap:2px; background:transparent; border:0; padding:0; margin:2px 0 8px; }
+  .v-ref b { font:800 19px/1.25 var(--display); letter-spacing:-.2px; color:var(--ink); }
+  .v-ref span { font:600 13px var(--sans); color:var(--muted); }
+  .v-label { display:flex; align-items:center; gap:6px; margin-top:8px; font:700 11px var(--sans); letter-spacing:.06em; color:var(--muted); text-transform:none; border:0; padding:0; }
+  .v-label span { padding:3px 9px; border-radius:999px; background:var(--sand); color:var(--sand-ink); font-weight:800; }
+  .v-label + .v-text { margin-top:2px; }
+  .v-text { padding-left:0; border:0; font:500 16px/1.6 var(--sans); color:var(--ink); }
+  .v-label:nth-of-type(2) span, .verse .v-label ~ .v-label span { background:var(--sky); color:var(--sky-ink); }
+  .verse .v-label ~ .v-label + .v-text { color:var(--ink-2); font-size:15px; }
+  .v-src { display:none; }
+
+  /* story / poem lines (Ga + English pairs) */
+  .pair { border:0; border-radius:18px; background:var(--paper-2); overflow:hidden; margin:8px 0; }
+  .pair .prow { padding:10px 14px; gap:12px; }
+  .pair .prow + .prow { border-top:1px solid var(--line); }
+  .pair .plab { width:auto; flex:none; align-self:flex-start; margin-top:2px; padding:2px 9px; border-radius:999px; font:800 10.5px var(--sans); letter-spacing:.04em; background:var(--sand); color:var(--sand-ink); }
+  .pair .prow + .prow .plab { background:var(--sky); color:var(--sky-ink); }
+  .pair .ptxt { font:500 15px/1.55 var(--sans); }
+
+  /* flag / fix-it cards */
+  .flag { border:0; border-radius:20px; background:var(--sand); margin:12px 0 4px; overflow:hidden; }
+  .flag .fl-head { border-bottom:0; padding:14px 16px 0; font:800 11px var(--sans); letter-spacing:.1em; color:var(--sand-ink); }
+  .flag .fl-body { padding:10px 16px 16px; gap:12px; }
+  .flag .fl-q { font:700 15.5px/1.45 var(--sans); }
+  .flag .fl-btn { border-radius:999px; min-height:46px; font:700 13.5px var(--sans); letter-spacing:0; }
+  .flag .fl-btn.ghost { color:var(--ink); border:0; box-shadow:inset 0 0 0 1.5px var(--ink); padding:0 20px; }
+  .flag label { font:700 12px var(--sans); letter-spacing:0; color:var(--ink-2); }
+  .flag input { border:0; border-radius:14px; background:var(--paper); min-height:48px; padding:0 14px; box-shadow:inset 0 0 0 1px var(--line-2); }
+  .flag input:focus { box-shadow:inset 0 0 0 2px var(--ink); }
+  .flag .fl-hint { font:500 12px var(--sans); color:var(--ink-2); }
+  .flag .fl-gap { border-left:0; border-radius:16px; background:rgba(255,255,255,.55); padding:12px; }
+  .flag .fl-tag { border-radius:999px; padding:4px 10px; font:800 10px var(--sans); }
+  .flag.fl-done, .flag .fl-done { border:0; }
+
+  /* quiz details */
+  .quiz .q-status { font:600 13px var(--sans); color:var(--muted); letter-spacing:0; }
+  .quiz .q-reveal { margin:0 18px 6px; display:flex; flex-direction:column; gap:8px; }
+  .quiz .q-verdict span { font:600 13px var(--sans); color:var(--ink-2); }
+  .quiz .q-badge.ok { background:var(--sage-deep); color:#fff; }
+  .quiz .q-badge.no { background:var(--blush-deep); color:#fff; }
+  .quiz .q-gloss { font:600 14px var(--sans); color:var(--ink); }
+  .quiz .q-src { font:500 11.5px var(--sans); letter-spacing:0; text-transform:none; color:var(--muted); }
+  .quiz .q-match { padding:6px 18px 12px; gap:10px; }
+  .quiz .q-col { gap:10px; }
+  .quiz .q-pair { border:2px solid var(--line-2); border-radius:14px; min-height:50px; padding:8px 12px; font:600 14px var(--sans); }
+  .quiz .q-pair.ga { font:800 16px var(--display); }
+  .quiz .q-pair.sel { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+  .quiz .q-pair.miss { border-color:var(--blush-deep); background:var(--blush); }
+  .quiz .q-pair:disabled { opacity:.35; background:var(--sage); border-color:var(--sage-deep); }
+  .quiz .q-slots { gap:8px; }
+  .quiz .q-tile { min-width:40px; height:44px; border:2px solid var(--line-2); border-radius:12px; font:800 17px var(--display); }
+  .quiz .q-tile.placed { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+  .quiz .q-tray-lab { font:700 11px var(--sans); letter-spacing:.06em; color:var(--muted); }
+  .quiz .q-bank.ga-only .q-tile { border-color:var(--accent-line); color:var(--sand-ink); background:var(--sand); }
+  .quiz .q-modes { padding:6px 18px 18px; gap:10px; }
+  .quiz .q-mode { border:2px solid var(--line-2); padding:14px; }
+  .quiz .q-mode b { font:800 15px var(--sans); }
+  .quiz .q-mode i { font:500 12px var(--sans); }
+  .quiz .q-score b { font:800 48px/.9 var(--display); }
+  .quiz .q-miss { border-radius:14px; }
+
+  /* overlays: contribute, install, review, menu */
+  .ovl { background:rgba(22,19,15,.45); backdrop-filter:blur(2px); }
+  .ovl-panel { border:0; border-radius:26px; background:var(--bg); box-shadow:0 30px 80px rgba(22,19,15,.3); }
+  .ovl-head { border-bottom:0; padding:20px 22px 6px; font:800 22px/1.15 var(--display); letter-spacing:-.4px; text-transform:none; color:var(--ink); }
+  .ovl-x { width:40px; height:40px; border-radius:50%; background:var(--paper-2); display:grid; place-items:center; color:var(--ink); }
+  .ovl-sub { padding:6px 22px 4px; font:500 14px/1.5 var(--sans); color:var(--muted); }
+  .cf-tabs { margin:8px 22px 4px; border:0; background:var(--paper-2); border-radius:999px; padding:4px; gap:2px; }
+  .cf-tab { border:0; border-radius:999px; min-height:42px; font:700 13.5px var(--sans); letter-spacing:0; color:var(--muted); }
+  .cf-tab.on { background:var(--paper); color:var(--ink); box-shadow:var(--x-shadow); border:0; }
+  #contribForm { padding:10px 22px 22px; }
+  .f-row { margin-bottom:14px; }
+  .f-lab { font:700 12.5px var(--sans); letter-spacing:0; color:var(--ink-2); }
+  .f-lab input, .f-lab select { border:0; border-radius:14px; background:var(--paper); box-shadow:inset 0 0 0 1px var(--line-2); min-height:50px; padding:0 14px; font:500 15px var(--sans); color:var(--ink); margin-top:6px; }
+  .f-lab select { -webkit-appearance:none; appearance:none; padding-right:36px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2316130F' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 14px center; }
+  .f-lab input:focus, .f-lab select:focus { box-shadow:inset 0 0 0 2px var(--ink); }
+  .f-guest { border:0; border-radius:18px; background:var(--paper-2); padding:14px; }
+  .f-guest-lab { font:700 13px var(--sans); letter-spacing:0; color:var(--ink); }
+  .f-row:has(> .f-lab + .f-lab) { display:flex; gap:10px; }
+  .f-row:has(> .f-lab + .f-lab) .f-lab { flex:1; min-width:0; }
+  .f-note { border:0 !important; border-radius:14px; background:var(--sand); padding:10px 12px; font:500 12.5px/1.5 var(--sans); color:var(--ink-2); }
+  .drop { border:2px dashed var(--line-2); border-radius:18px; min-height:110px; background:var(--paper); }
+  .f-file { border-radius:14px; }
+  .f-actions { gap:10px; margin-top:18px; }
+  .btn-solid, .btn-line { min-height:50px; border-radius:999px; padding:0 22px; font:700 14px var(--sans); letter-spacing:0; cursor:pointer; }
+  .btn-solid { flex:1; border:0; background:var(--ink); color:var(--bg); }
+  .btn-line { border:0; background:transparent; color:var(--ink); box-shadow:inset 0 0 0 1.5px var(--ink); }
+  .f-hint { font:500 12px var(--sans); letter-spacing:0; color:var(--muted); }
+  .rev-card { border:0; border-radius:18px; background:var(--paper); box-shadow:var(--x-shadow); overflow:hidden; }
+  .rev-meta { border-bottom:0; font:600 12px var(--sans); letter-spacing:0; }
+  .rev-meta .tag-pill { border-radius:999px; font:800 10px var(--sans); }
+  .rev-a { border:0 !important; border-radius:12px; box-shadow:inset 0 0 0 1px var(--line-2); min-height:46px; padding:0 12px; }
+  .rev-actions { border-top:0; }
+  .rev-actions button { border-radius:999px; font:700 12.5px var(--sans); letter-spacing:0; min-height:40px; padding:0 14px; }
+  @media (max-width:860px) {
+    .ovl-panel { border-radius:26px 26px 0 0; }
+    .ovl-head { font-size:20px; padding:18px 18px 4px; }
+    .cf-tabs { margin:8px 18px 4px; }
+    #contribForm { padding:10px 18px 22px; }
+    .ovl-sub { padding:6px 18px 4px; }
+  }
+  .f-opt { font-weight:500; color:var(--faint); margin-left:4px; }
+  .ovl-head span { text-transform:none; }
 </style>
 </head>
 <body>
@@ -1414,12 +1535,12 @@
   <div class="ovl" id="contribOvl" role="dialog" aria-modal="true" aria-label="Contribute knowledge">
     <div class="ovl-panel">
       <div class="ovl-head">
-        <span>CONTRIBUTE KNOWLEDGE</span>
+        <span>Contribute knowledge</span>
         <button class="ovl-x" data-close type="button" aria-label="Close">✕</button>
       </div>
       <div class="cf-tabs" role="tablist" aria-label="Contribution kind">
-        <button class="cf-tab on" id="cfTabText" type="button" role="tab" aria-selected="true" aria-controls="cfPaneText">TEXT ENTRY</button>
-        <button class="cf-tab" id="cfTabDoc" type="button" role="tab" aria-selected="false" aria-controls="cfPaneDoc">DOCUMENT</button>
+        <button class="cf-tab on" id="cfTabText" type="button" role="tab" aria-selected="true" aria-controls="cfPaneText">Text entry</button>
+        <button class="cf-tab" id="cfTabDoc" type="button" role="tab" aria-selected="false" aria-controls="cfPaneDoc">Document</button>
       </div>
       <p class="ovl-sub" id="cfSub">Type a Ga word, phrase or cultural note. It lands in the review queue — once verified it becomes searchable for everyone.</p>
       <form id="contribForm">
@@ -1427,7 +1548,7 @@
              entry and a source document are separate submissions. -->
         <div id="cfPaneText" role="tabpanel" aria-labelledby="cfTabText">
           <div class="f-row">
-            <label class="f-lab">TYPE
+            <label class="f-lab">Type
               <select id="cfType">
                 <option value="translation">Translation (word / phrase)</option>
                 <option value="cultural_note">Cultural note</option>
@@ -1436,18 +1557,18 @@
             </label>
           </div>
           <div class="f-row f-bible hidden" id="cfBibleRow">
-            <label class="f-lab">BOOK <input id="cfBook" type="text" placeholder="Genesis" /></label>
-            <label class="f-lab">CH <input id="cfChapter" type="number" min="1" placeholder="1" /></label>
-            <label class="f-lab">V <input id="cfVerse" type="number" min="1" placeholder="1" /></label>
+            <label class="f-lab">Book <input id="cfBook" type="text" placeholder="Genesis" /></label>
+            <label class="f-lab">Chapter <input id="cfChapter" type="number" min="1" placeholder="1" /></label>
+            <label class="f-lab">Verse <input id="cfVerse" type="number" min="1" placeholder="1" /></label>
           </div>
           <div class="f-row">
-            <label class="f-lab">ENGLISH <input id="cfEnglish" type="text" placeholder="good morning" /></label>
+            <label class="f-lab">English <input id="cfEnglish" type="text" placeholder="good morning" /></label>
           </div>
           <div class="f-row">
-            <label class="f-lab">GA <input id="cfGa" type="text" placeholder="Ojekoo" /></label>
+            <label class="f-lab">Ga <input id="cfGa" type="text" placeholder="Ojekoo" /></label>
           </div>
           <div class="f-row">
-            <label class="f-lab">NOTE (SOURCE / CONTEXT — OPTIONAL) <input id="cfNote" type="text" placeholder="e.g. heard from grandmother, Nii 1959" /></label>
+            <label class="f-lab">Note <span class="f-opt">source or context, optional</span> <input id="cfNote" type="text" placeholder="e.g. heard from grandmother, Nii 1959" /></label>
           </div>
         </div>
 
@@ -1456,7 +1577,7 @@
         <div id="cfPaneDoc" class="hidden" role="tabpanel" aria-labelledby="cfTabDoc">
           <div class="f-row">
             <div class="f-lab" style="display:flex;align-items:baseline;gap:8px">
-              <span>FILES</span>
+              <span>Files</span>
               <span style="margin-left:auto;text-transform:none;letter-spacing:0" id="cfFileCount"></span>
             </div>
             <button class="drop" id="cfDrop" type="button">
@@ -1469,28 +1590,28 @@
             <div id="cfFileList"></div>
           </div>
           <div class="f-row">
-            <label class="f-lab">WHAT IS IT? <input id="cfDesc" type="text" placeholder="e.g. my grandmother's word list, page 12" /></label>
+            <label class="f-lab">What is it? <input id="cfDesc" type="text" placeholder="e.g. my grandmother's word list, page 12" /></label>
           </div>
           <div class="f-row">
-            <label class="f-lab">SOURCE / CONTEXT — OPTIONAL <input id="cfDocNote" type="text" placeholder="e.g. written in Jamestown, 1959" /></label>
+            <label class="f-lab">Source <span class="f-opt">optional</span> <input id="cfDocNote" type="text" placeholder="e.g. written in Jamestown, 1959" /></label>
           </div>
           <div class="f-note">A reviewer checks it first. Once approved, <b>PDF, DOCX and text files</b> are read and indexed automatically; <b>photos and scans</b> are typed in by hand. Nothing is searchable before approval.</div>
           <div class="f-note hidden" id="cfDocSignin">Sign in to upload a document — file submissions are tied to an account.</div>
         </div>
 
         <div class="f-guest" id="cfGuestRow">
-          <div class="f-guest-lab">YOUR DETAILS — so we can credit you (required when not signed in)</div>
+          <div class="f-guest-lab">Your details <span class="f-opt">so we can credit you</span></div>
           <div class="f-row">
-            <label class="f-lab">NAME <input id="cfName" type="text" placeholder="Ama Serwaa" /></label>
-            <label class="f-lab">LOCATION <input id="cfLoc" type="text" placeholder="Accra, Ghana" /></label>
+            <label class="f-lab">Name <input id="cfName" type="text" placeholder="Ama Serwaa" /></label>
+            <label class="f-lab">Location <input id="cfLoc" type="text" placeholder="Accra, Ghana" /></label>
           </div>
           <div class="f-row">
-            <label class="f-lab">EMAIL <input id="cfEmail" type="email" placeholder="you@example.com" /></label>
+            <label class="f-lab">Email <input id="cfEmail" type="email" placeholder="you@example.com" /></label>
           </div>
         </div>
         <div class="f-row f-actions">
-          <button class="btn-solid" type="submit">SUBMIT FOR REVIEW</button>
-          <button class="btn-line" data-close type="button">CANCEL</button>
+          <button class="btn-solid" type="submit">Submit for review</button>
+          <button class="btn-line" data-close type="button">Cancel</button>
         </div>
         <div class="f-hint">Ga keys work here: 3→ɛ &nbsp;)→ɔ &nbsp;nn→ŋ</div>
       </form>
@@ -1501,7 +1622,7 @@
   <div class="ovl" id="installOvl" role="dialog" aria-modal="true" aria-label="Install the app">
     <div class="ovl-panel">
       <div class="ovl-head">
-        <span>INSTALL THE APP</span>
+        <span>Install the app</span>
         <button class="ovl-x" data-close type="button" aria-label="Close">✕</button>
       </div>
       <div class="inst-body">
@@ -1539,7 +1660,7 @@
   <div class="ovl" id="reviewOvl" role="dialog" aria-modal="true" aria-label="Review flagged answers">
     <div class="ovl-panel">
       <div class="ovl-head">
-        <span>REVIEW QUEUE</span>
+        <span>Review queue</span>
         <button class="ovl-x" data-close type="button" aria-label="Close">✕</button>
       </div>
       <div class="cf-tabs hidden" id="revTabs" role="tablist" aria-label="Review queues">
@@ -2048,14 +2169,18 @@ function renderBlock(lines) {
   for (const l of lines) {
     if (!l.trim()) continue;
     if (/Archive Focus/.test(l)) out += `<div class="v-focus">${inlineMd(l)}</div>`;
-    else if (isCitation(l)) out += `<div class="v-ref">${inlineMd(l)}</div>`;
-    else if (/^(?:Ga|English) Version:/.test(l)) out += `<div class="v-label">${inlineMd(l)}</div>`;
-    else {
-      const src = l.match(/^Source:\s*(.+)$/i);
-      out += src
-        ? `<div class="v-src"><span class="dot"></span>${inlineMd(src[1])}</div>`
-        : `<div class="v-text">${inlineMd(l)}</div>`;
-    }
+    else if (isCitation(l)) {
+      const m = l.match(/^(.*)\s*\(([^()]*\d+:\d+)\)\s*$/);
+      out += m
+        ? `<div class="v-ref"><b>${escapeHtml(m[1].replace(/,\s*$/, ""))}</b><span>${escapeHtml(m[2])}</span></div>`
+        : `<div class="v-ref"><b>${inlineMd(l)}</b></div>`;
+    } else if (/^(?:Ga|English) Version:/.test(l)) {
+      const lang = /^Ga/.test(l) ? "Ga" : "English";
+      const abbr = (l.match(/\(([A-Z0-9]+)\)\s*:?\s*$/) || [])[1] || "";
+      out += `<div class="v-label"><span>${lang}</span>${escapeHtml(abbr)}</div>`;
+    } else if (/^Source:/i.test(l)) {
+      // The source line names an internal import file — not for readers.
+    } else out += `<div class="v-text">${inlineMd(l)}</div>`;
   }
   return `<div class="verse">${out}</div>`;
 }
@@ -2301,6 +2426,10 @@ $("sendBtn").onclick = () => send();
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-q],[data-action]"); if (!b || b.closest(".ovl")) return;
   if (b.dataset.action === "contribute") { $("cfGuestRow").classList.toggle("hidden", !!me); setCfTab("text"); return openOverlay("contribOvl"); }
+  if (b.dataset.action === "contribute" || b.dataset.action === "contribute-doc") {
+    const fr = $("cfDrop") && $("cfDrop").closest(".f-row");
+    if (fr) fr.classList.toggle("hidden", !me);
+  }
   if (b.dataset.action === "contribute-doc") { $("cfGuestRow").classList.toggle("hidden", !!me); setCfTab("doc"); return openOverlay("contribOvl"); }
   setView("ask");
   if (b.dataset.action === "quiz") return startQuiz();
@@ -3005,6 +3134,10 @@ function toast(msg, ms = 2800) {
 }
 
 function openOverlay(id) {
+  if (id === "contribOvl") {
+    const fr = $("cfDrop") && $("cfDrop").closest(".f-row");
+    if (fr) fr.classList.toggle("hidden", !me);
+  }
   $(id).classList.add("show");
   document.body.classList.add("ovl-open");
   if (id === "reviewOvl") {
@@ -3464,13 +3597,14 @@ function revealPanel(card, ok, answer, q) {
     `<span>${ok ? "Archive spelling." : "It was “" + escapeHtml(answer) + "”."}</span></div>` +
     (q.gloss ? `<div class="q-gloss">${escapeHtml(q.gloss)}</div>` : "") +
     (q.phonetic ? `<div class="q-gloss">${escapeHtml(q.phonetic)}</div>` : "") +
-    (q.source ? `<div class="q-src">${escapeHtml(q.source.toUpperCase())}</div>` : "");
+    (q.source ? `<div class="q-src">Source: ${escapeHtml(q.source)}</div>` : "");
   const why = document.createElement("button");
   why.className = "q-why"; why.type = "button";
   why.innerHTML = '<span class="x-av sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M12 7.5l1.1 2.4 2.4 1.1-2.4 1.1L12 14.5l-1.1-2.4L8.5 11l2.4-1.1z" fill="currentColor" stroke="none"/></svg></span>Why? Ask Nii Obodai';
   why.onclick = () => { setView("ask"); send(`what does ${answer} mean`); };
   box.appendChild(why);
-  card.appendChild(box);
+  const foot = card.querySelector(".q-foot");
+  if (foot) card.insertBefore(box, foot); else card.appendChild(box);
 }
 
 function roundFoot(card, statusText) {
@@ -4354,7 +4488,7 @@ function setView(v) {
   if (v === "library" && libTab === "bible") loadBooks();
   // The chat box sizes itself to its content; measured while hidden it came
   // out 0px tall (invisible), so measure again whenever Ask is shown.
-  if (v === "ask") { try { autosize(); } catch {} setTimeout(() => { try { input.focus({ preventScroll: true }); } catch {} }, 60); }
+  if (v === "ask") { try { autosize(); } catch {} if (!isTouch) setTimeout(() => { try { input.focus({ preventScroll: true }); } catch {} }, 60); }
   // The address follows the view, so a view can be linked to (#/learn, #/library).
   // Ask keeps the conversation link it already uses (#/c/<id>).
   try {
@@ -4856,7 +4990,7 @@ $("menuBtn").addEventListener("click", (e) => {
     o = document.createElement("div");
     o.className = "ovl"; o.id = "menuOvl";
     o.setAttribute("role", "dialog"); o.setAttribute("aria-modal", "true"); o.setAttribute("aria-label", "Menu");
-    o.innerHTML = '<div class="ovl-panel"><div class="ovl-head"><span>MENU</span><button class="ovl-x" type="button" aria-label="Close">✕</button></div>' +
+    o.innerHTML = '<div class="ovl-panel"><div class="ovl-head"><span>Menu</span><button class="ovl-x" type="button" aria-label="Close">✕</button></div>' +
       '<div class="x-menu-list">' +
       '<button type="button" data-go="home">Home</button><button type="button" data-go="ask">Ask Nii Obodai</button>' +
       '<button type="button" data-go="learn">Learn</button><button type="button" data-go="library">Library</button>' +
