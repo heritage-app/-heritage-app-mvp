@@ -27,6 +27,7 @@ app.get("/conversations", optionalUser, async (c) => {
       title: s.title,
       last_message: lastMessage,
       last_activity: humanizeTimestamp(s.updated_at),
+      updated_at: s.updated_at, // raw, so the sidebar can group by day
       message_count: "Recent session",
     };
   });

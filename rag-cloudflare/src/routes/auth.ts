@@ -22,6 +22,8 @@ app.post("/signup", async (c) => {
   if (!body.email || !body.password) {
     return c.json({ detail: "Email and password are required" }, 400);
   }
+  if (body.password.length < 8) return c.json({ detail: "Choose a password of at least 8 characters." }, 400);
+  if (!/^\S+@\S+\.\S+$/.test(body.email.trim())) return c.json({ detail: "Enter a valid email address." }, 400);
   // Accounts are made in the app; the console only signs admins in.
   if (fromAdminConsole(c)) return c.json({ detail: "Accounts are created in the Heritage app." }, 403);
   const existing = await getUserByEmail(c.env, body.email);

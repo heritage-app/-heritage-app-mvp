@@ -965,6 +965,9 @@
   #readerAI .x-ask { background:var(--paper-2); }
   /* Reading: the text gets the room; the book list steps aside (‹ Books). */
   #libBible.reading #bibleBrowse { display:none !important; }
+  /* One ask box while reading — Nii Obodai's. The "Ask or find" bar is for
+     finding a book or verse on the shelf, so it steps aside once a chapter is open. */
+  #libBible.reading #bibleFind { display:none !important; }
   .x-bookbtn { width:auto; padding:0 16px 0 10px; border-radius:999px; display:inline-flex; align-items:center; gap:4px; font:700 13.5px var(--sans); }
   .x-rx { width:36px; height:36px; flex:none; border:0; border-radius:50%; background:var(--paper-2); color:var(--ink); display:grid; place-items:center; cursor:pointer; }
   #readerAI { overflow:hidden; }
@@ -1011,7 +1014,7 @@
   }
   @media (prefers-reduced-motion: reduce) { .x-verse.rv { transform:none; transition:opacity .2s; } }
   @media (min-width:1100px) {
-    #libBible.reading { display:grid; grid-template-columns:minmax(0, 1fr) 380px; grid-template-areas:"find find" "read ai"; gap:24px; align-items:start; }
+    #libBible.reading { display:grid; grid-template-columns:minmax(0, 1fr) 380px; grid-template-areas:"read ai"; gap:24px; align-items:start; }
     #libBible.reading #bibleFind { grid-area:find; }
     #libBible.reading #bibleReader { grid-area:read; }
     #libBible.reading #readerAI { grid-area:ai; position:sticky; top:12px; max-height:var(--reader-h, calc(100dvh - 180px)); }
@@ -1309,39 +1312,97 @@
   }
   .f-opt { font-weight:500; color:var(--faint); margin-left:4px; }
   .ovl-head span { text-transform:none; }
+
+  /* ====================================================================
+     Sidebar — "Your chats", in the app's warm style.
+     ==================================================================== */
+  .sidebar { width:300px; background:var(--bg); border-right:1px solid var(--line); padding:14px 12px 12px; gap:10px; }
+  body.nav-collapsed .sidebar { padding:0; }
+  .sb-head { display:flex; align-items:center; gap:10px; padding:4px 4px 6px; }
+  .sb-mark { width:32px; height:32px; flex:none; border-radius:10px; background:var(--ink); color:var(--bg); display:grid; place-items:center; font:800 15px var(--display); }
+  .sb-title { flex:1; font:800 19px var(--display); letter-spacing:-.3px; white-space:nowrap; }
+  .sb-collapse { width:40px; height:40px; border-radius:50%; background:var(--paper-2); color:var(--ink-2); padding:0; }
+  .sb-collapse:hover { background:var(--paper-3); color:var(--ink); }
+  .sb-new { margin:0; min-height:48px; justify-content:center; gap:8px; border:0; border-radius:999px; background:var(--ink); color:var(--bg); font:700 14.5px var(--sans); padding:0 16px; }
+  .sb-new:hover { background:var(--ink); color:var(--bg); opacity:.9; }
+  .sb-search { display:flex; align-items:center; gap:8px; padding:0 14px; min-height:44px; border-radius:999px; background:var(--paper-2); color:var(--muted); cursor:text; }
+  .sb-search input { flex:1; min-width:0; border:0; background:transparent; padding:0; font:500 14px var(--sans); color:var(--ink); outline:0; box-shadow:none; }
+  .sb-search input:focus { border:0; box-shadow:none; }
+  .sb-search:focus-within { box-shadow:inset 0 0 0 2px var(--accent-line); }
+  .history-list { padding:2px 0 8px; gap:2px; }
+  .sb-group { padding:12px 10px 4px; font:700 12px var(--sans); color:var(--muted); }
+  .sb-group:first-child { padding-top:4px; }
+  .conv { border-radius:14px; padding:10px 12px; gap:3px; }
+  .conv:hover { background:var(--paper-2); }
+  .conv.active { background:var(--paper); box-shadow:inset 0 0 0 1px var(--line-2); }
+  .conv.active::before { content:""; position:absolute; left:0; top:12px; bottom:12px; width:3px; border-radius:3px; background:var(--accent); }
+  .conv .t { font:700 14px var(--sans); padding-right:30px; }
+  .conv .m { font:500 12.5px var(--sans); color:var(--muted); }
+  .conv .conv-del { opacity:0; }
+  .conv:hover .conv-del, .conv:focus-within .conv-del, .conv.active .conv-del { opacity:1; }
+  .history-empty { margin:6px 4px; padding:16px; border-radius:16px; background:var(--paper-2); color:var(--ink-2); font:500 13.5px/1.5 var(--sans); }
+  .sb-tools { display:flex; flex-direction:column; gap:2px; border-top:1px solid var(--line); padding-top:8px; }
+  .sb-item { margin:0; min-height:46px; border-radius:14px; padding:0 10px; gap:12px; font:600 14px var(--sans); color:var(--ink); border:0 !important; }
+  .sb-item:hover { background:var(--paper-2); }
+  .sb-ic { width:32px; height:32px; flex:none; border-radius:10px; display:grid; place-items:center; }
+  .sb-item .sb-badge { margin-left:auto; padding:2px 9px; border-radius:999px; background:var(--accent); color:#16130F; font:800 11.5px var(--sans); }
+  .sb-foot { border-top:1px solid var(--line); padding:10px 4px 2px; }
+  .sb-av { width:38px; height:38px; background:var(--accent); color:#16130F; font:800 15px var(--display); }
+  .sb-who { min-width:0; display:flex; flex-direction:column; }
+  .sb-who b { font:700 14px var(--sans); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sb-email { font:500 12px var(--sans); color:var(--muted); }
+  .sb-logout { width:40px; height:40px; border:0; border-radius:50%; background:var(--paper-2); color:var(--ink-2); }
+  .sb-logout:hover { background:var(--blush); color:var(--blush-ink); border-color:transparent; }
+  /* The sidebar already has New chat; the header's copy only shows when it's closed. */
+  @media (min-width:861px) {
+    .sidebar:not(.hidden) ~ .maincol #newChatBtn { display:none; }
+    body.nav-collapsed .sidebar:not(.hidden) ~ .maincol #newChatBtn { display:inline-flex; }
+  }
+  @media (max-width:860px) {
+    .sidebar { width:320px; max-width:88vw; border-radius:0 26px 26px 0; padding-top:calc(14px + env(safe-area-inset-top, 0px)); }
+    .sb-new { margin:0; padding:0 16px; font-size:14.5px; }
+    .conv { padding:11px 12px; }
+    .conv .conv-del { opacity:1; }
+  }
 </style>
 </head>
 <body>
-  <nav class="sidebar hidden" id="history">
-    <div class="sb-eyebrow">
-      <span>Conversations</span>
-      <button class="sb-collapse" id="collapseBtn" aria-label="Collapse sidebar" title="Collapse sidebar">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+  <nav class="sidebar hidden" id="history" aria-label="Your chats">
+    <div class="sb-head">
+      <span class="sb-mark">H</span>
+      <b class="sb-title">Your chats</b>
+      <button class="sb-collapse" id="collapseBtn" type="button" aria-label="Close the sidebar" title="Close the sidebar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><line x1="9" y1="4" x2="9" y2="20"/></svg>
       </button>
     </div>
-    <button class="sb-new" id="newChatSide">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    <button class="sb-new" id="newChatSide" type="button">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       New chat
     </button>
-    <a class="sb-item sb-admin hidden" id="adminLink" href="https://heritage-admin.heritage-app.workers.dev/admin.html" target="_blank" rel="noopener">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-      Admin dashboard
-    </a>
-    <button class="sb-item sb-tool" id="contributeBtn" type="button">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-      Contribute knowledge
-    </button>
-    <button class="sb-item sb-tool" id="reviewBtn" type="button">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
-      Review flagged <span class="sb-badge" id="reviewCount" hidden>0</span>
-    </button>
-    <div class="sb-label">Recents</div>
-    <div class="sb-search"><input type="text" id="convSearch" placeholder="Search conversations…" /></div>
+    <label class="sb-search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+      <span class="sr-only">Search your chats</span>
+      <input type="search" id="convSearch" placeholder="Search your chats" autocomplete="off" />
+    </label>
     <div class="history-list" id="historyList"></div>
+    <div class="sb-tools">
+      <button class="sb-item" id="contributeBtn" type="button">
+        <span class="sb-ic" style="background:var(--sand);color:var(--sand-ink)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>
+        Teach a word
+      </button>
+      <button class="sb-item" id="reviewBtn" type="button">
+        <span class="sb-ic" style="background:var(--sage);color:var(--sage-ink)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+        Review queue <span class="sb-badge" id="reviewCount" hidden>0</span>
+      </button>
+      <a class="sb-item hidden" id="adminLink" href="https://heritage-admin.heritage-app.workers.dev/admin.html" target="_blank" rel="noopener">Admin console</a>
+    </div>
     <div class="sb-foot">
-      <div class="sb-acct"><span class="sb-av" id="sbAv">A</span><span class="sb-email" id="sbEmail"></span></div>
-      <button class="sb-logout" id="logoutBtn" title="Sign out">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <div class="sb-acct">
+        <span class="sb-av" id="sbAv">A</span>
+        <span class="sb-who"><b id="sbName"></b><span class="sb-email" id="sbEmail"></span></span>
+      </div>
+      <button class="sb-logout" id="logoutBtn" type="button" aria-label="Sign out" title="Sign out">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
     </div>
   </nav>
@@ -2569,6 +2630,19 @@ $("newChatSide").onclick = newChat;
 function markActiveConv() {
   document.querySelectorAll(".conv").forEach((el) => el.classList.toggle("active", el.dataset.id === conversationId));
 }
+// Today / Yesterday / Previous 7 days / Earlier, from the raw timestamp.
+function convGroup(ts) {
+  const t = ts ? new Date(String(ts).replace(" ", "T") + (/[zZ]|[+-]\d\d:?\d\d$/.test(ts) ? "" : "Z")) : null;
+  if (!t || isNaN(t)) return "Recent";
+  const day = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diff = Math.round((day(new Date()) - day(t)) / 86400000);
+  return diff <= 0 ? "Today" : diff === 1 ? "Yesterday" : diff < 7 ? "Previous 7 days" : "Earlier";
+}
+// The last message, as one plain line: no markdown, no greeting.
+function convSnippet(m) {
+  return String(m || "").replace(/__META__:.*$/s, "").replace(/[*_`#>|]/g, "").replace(/^\s*H[ɛe]loo naanyo!\s*/i, "")
+    .replace(/\s+/g, " ").trim().slice(0, 90);
+}
 async function loadConversations() {
   const list = $("historyList");
   const searchVal = ($("convSearch")?.value || "").trim().toLowerCase();
@@ -2583,14 +2657,23 @@ async function loadConversations() {
       ? '<div class="history-empty">No matching conversations.</div>'
       : '<div class="history-empty">No conversations yet — start chatting and they\'ll appear here.</div>'; return; }
     list.innerHTML = "";
+    let lastGroup = "";
     for (const c of filtered) {
+      const g = convGroup(c.updated_at);
+      if (g !== lastGroup) {
+        const h = document.createElement("div"); h.className = "sb-group"; h.textContent = g;
+        list.appendChild(h); lastGroup = g;
+      }
       const b = document.createElement("div");
       b.className = "conv" + (c.conversation_id === conversationId ? " active" : "");
       b.dataset.id = c.conversation_id; b.tabIndex = 0;
       const t = document.createElement("div"); t.className = "t"; t.textContent = c.title || "New conversation";
       b.appendChild(t);
-      if (c.last_message) { const m = document.createElement("div"); m.className = "m"; m.textContent = c.last_message; b.appendChild(m); }
-      const dd = document.createElement("div"); dd.className = "d"; dd.textContent = c.last_activity || ""; b.appendChild(dd);
+      const snip = convSnippet(c.last_message);
+      if (snip) { const m = document.createElement("div"); m.className = "m"; m.textContent = snip; b.appendChild(m); }
+      b.title = c.last_activity || "";
+      b.setAttribute("role", "button");
+      b.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openConversation(c.conversation_id); } };
       const del = document.createElement("button"); del.className = "conv-del"; del.title = "Delete conversation"; del.innerHTML = ICON.trash;
       del.onclick = (e) => { e.stopPropagation(); deleteConversation(c.conversation_id); };
       b.appendChild(del);
@@ -2674,8 +2757,10 @@ async function refreshMe() {
 function renderAuth() {
   const admin = !!me && me.role === "admin";
   if (me) {
+    const nm = (me.display_name || (me.email || "").split("@")[0] || "You").trim();
+    $("sbName").textContent = nm.charAt(0).toUpperCase() + nm.slice(1);
     $("sbEmail").textContent = me.email;
-    $("sbAv").textContent = (me.email || "U").charAt(0);
+    $("sbAv").textContent = (nm || "U").charAt(0).toUpperCase();
     $("signInBtn").classList.add("hidden");
     $("adminLink").classList.toggle("hidden", !admin);
     $("menuBtn").classList.remove("hidden");      // sidebar toggle (collapse on desktop, drawer on mobile)
@@ -5124,10 +5209,21 @@ const NOT_PEOPLE = new Set(["God", "LORD", "Lord", "Egypt", "Israel", "Canaan", 
   "Sinai", "Galilee", "Judea", "Rome", "Assyria", "Moab", "Edom", "Bethlehem", "Nazareth", "Samaria", "Lebanon", "Gilead",
   "Jesus", "Christ", "Holy", "Ghost", "Spirit", "Father", "Son", "Behold", "And", "But", "For", "Now", "Then", "Therefore",
   "Thou", "Thy", "Ye", "He", "She", "They", "Hebrew", "Hebrews", "Egyptians", "Israelites", "Selah", "O", "I", "Amen"]);
+// Who is…? only for a real name: not a sentence's or a quote's first word
+// ("Let there be light" gave "Who is Let?"), not a common capitalised word.
 function verseName(en) {
-  const names = (en || "").match(/\b[A-Z][a-z]{2,}\b/g) || [];
-  return names.find((w) => !NOT_PEOPLE.has(w)) || null;
+  const text = en || "";
+  for (const m of text.matchAll(/\b[A-Z][a-z]{2,}\b/g)) {
+    const w = m[0], before = text.slice(0, m.index).trimEnd();
+    if (!before || /[.!?:;"“‘'(]$/.test(before)) continue;
+    if (NOT_PEOPLE.has(w) || COMMON_CAPS.has(w)) continue;
+    return w;
+  }
+  return null;
 }
+const COMMON_CAPS = new Set(["Let", "There", "This", "That", "These", "Those", "When", "Then", "Thus", "Who", "What", "Why", "How",
+  "Where", "Which", "Unto", "Upon", "His", "Her", "Their", "Our", "Your", "Thine", "Mine", "Blessed", "Verily", "Lest", "Yea",
+  "Nay", "Wherefore", "Moreover", "Also", "Even", "Neither", "Nor", "Lord", "Most", "High", "Almighty", "Heaven", "Earth"]);
 // The verse's dictionary words, shown straight away — no model involved.
 function showVerseWords(v, words) {
   const d = reader.data;
