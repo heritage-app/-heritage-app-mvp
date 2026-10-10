@@ -23,6 +23,9 @@ export interface Env {
   // Secrets
   JWT_SECRET: string;
   SUPER_ADMIN_PASSWORD?: string;
+  /** Google sign-in (OAuth client from Google Cloud Console). Both unset = no Google button. */
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
 }
 
 /** Hono context variables set by auth middleware. */

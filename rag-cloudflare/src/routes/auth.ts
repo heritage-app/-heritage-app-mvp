@@ -8,8 +8,13 @@ import { verifyPassword } from "../auth/password";
 import { createAccessToken, buildAuthCookie, clearAuthCookie } from "../auth/jwt";
 import { requireUser, optionalUser, fromAdminConsole, ADMIN_CONSOLE_URL } from "../auth/middleware";
 import { getTokenFromRequest } from "../auth/jwt";
+import google, { googleEnabled } from "./google";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
+
+// Google sign-in / sign-up, and which providers the sign-in page should offer.
+app.route("/google", google);
+app.get("/providers", (c) => c.json({ google: googleEnabled(c.env) }));
 
 function publicUser(u: { id: string; email: string; role: string; display_name: string | null }) {
   return { id: u.id, email: u.email, role: u.role, display_name: u.display_name };

@@ -98,6 +98,16 @@
   .status a { color:inherit; font-weight:800; }
   .fine { margin:0; text-align:center; font:500 12.5px var(--sans); color:var(--faint); }
 
+  /* Google button (white with the four-colour G, per Google's sign-in guidelines) */
+  .gbtn { display:flex; align-items:center; justify-content:center; gap:10px; min-height:52px; border-radius:999px; text-decoration:none;
+    background:#fff; color:#1f1f1f; box-shadow:inset 0 0 0 1.5px #dadce0; font:700 15px var(--sans); }
+  .gbtn:hover { background:#f8f9fa; }
+  .gbtn svg { width:20px; height:20px; flex:none; }
+  [data-theme="dark"] .gbtn { background:#131314; color:#e3e3e3; box-shadow:inset 0 0 0 1.5px #8e918f; }
+  [data-theme="dark"] .gbtn:hover { background:#1f1f20; }
+  .or { display:flex; align-items:center; gap:12px; font:600 12.5px var(--sans); color:var(--faint); }
+  .or::before, .or::after { content:""; flex:1; height:1px; background:var(--line-2); }
+
   @media (max-width:900px) {
     .wrap { grid-template-columns:minmax(0, 1fr); gap:20px; padding:0 16px 32px; min-height:0; }
     .top { padding:16px; }
@@ -120,7 +130,7 @@
   <main class="wrap">
     <section class="pitch">
       <img class="art" src="/img/hero.webp" width="1200" height="800" alt="" decoding="async" />
-      <h1><span>Ojekoo!</span> Keep learning Ga with Nii Obodai.</h1>
+      <h1><span id="greet">Ojekoo!</span> Keep learning Ga with Nii Obodai.</h1>
       <p>Signing in is free. You can also keep using SpeakGa as a guest — nothing is lost either way.</p>
       <ul class="why">
         <li><i style="background:var(--sky);color:var(--sky-ink)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/></svg></i>Your chats are saved, on any device</li>
@@ -138,6 +148,13 @@
         <button type="button" role="tab" id="tabLogin" class="on" aria-selected="true">Sign in</button>
         <button type="button" role="tab" id="tabSignup" aria-selected="false">Create account</button>
       </div>
+
+      <!-- Shown only when the server has Google sign-in configured (/auth/providers). -->
+      <a class="gbtn hidden" id="googleBtn" href="/api/v1/auth/google">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        <span id="googleText">Sign in with Google</span>
+      </a>
+      <div class="or hidden" id="orLine">or with email</div>
 
       <form id="form" autocomplete="on" novalidate>
         <div class="field">
@@ -199,6 +216,46 @@ $("themeToggle").addEventListener("click", toggleTheme);
 
 function setStatus(cls, text) { const s = $("status"); s.className = "status " + cls; s.textContent = text; return s; }
 
+// Ga greeting for the time of day, the same rule as the app's Home screen.
+(function () {
+  const h = new Date().getHours();
+  const g = h < 12 ? "Ojekoo" : h < 17 ? "Oshwiee" : "M'naokoo";
+  const en = { "Ojekoo": "Good morning", "Oshwiee": "Good afternoon", "M'naokoo": "Good evening" }[g];
+  $("greet").textContent = g + "!";
+  $("greet").title = en;
+})();
+
+// Offer Google only when the server has it set up.
+(async function () {
+  try {
+    const r = await fetch(`${API}/auth/providers`, { credentials: "include" });
+    const d = r.ok ? await r.json() : {};
+    if (d.google) { $("googleBtn").classList.remove("hidden"); $("orLine").classList.remove("hidden"); }
+  } catch {}
+})();
+
+// Coming back from Google with a problem: explain it, then tidy the address.
+(function () {
+  const code = new URLSearchParams(location.search).get("error");
+  if (!code) return;
+  const msg = {
+    google_unavailable: "Google sign-in isn't available right now. Use your email instead.",
+    google_cancelled: "Google sign-in was cancelled. Try again, or use your email.",
+    google_state: "That sign-in took too long. Choose Google again to start over.",
+    google_failed: "Google couldn't confirm your account. Try again, or use your email.",
+    admin_console: "Admin accounts sign in to the admin console.",
+  }[code];
+  if (msg) {
+    const s = setStatus("err", msg);
+    if (code === "admin_console") {
+      const a = document.createElement("a");
+      a.href = "https://heritage-admin.heritage-app.workers.dev/auth"; a.textContent = " Open the admin console →";
+      s.appendChild(a);
+    }
+  }
+  try { history.replaceState(null, "", location.pathname); } catch {}
+})();
+
 function setKind(k) {
   kind = k;
   const login = k === "login";
@@ -207,6 +264,7 @@ function setKind(k) {
   $("title").textContent = login ? "Welcome back" : "Create your account";
   $("subtitle").textContent = login ? "Sign in to pick up where you left off." : "Free — it saves your chats and credits what you teach.";
   $("btnText").textContent = login ? "Sign in" : "Create account";
+  $("googleText").textContent = login ? "Sign in with Google" : "Sign up with Google";
   $("password").setAttribute("autocomplete", login ? "current-password" : "new-password");
   $("password").placeholder = login ? "Your password" : "Choose a password";
   $("pwHint").classList.toggle("hidden", login);

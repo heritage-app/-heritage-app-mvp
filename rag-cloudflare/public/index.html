@@ -861,6 +861,9 @@
 
   /* header — round icon buttons, word mark */
   header { background:var(--bg); border-bottom:0; padding:14px 22px; }
+  /* Line the header up with the page content: .x-wrap is 1180px wide with 32px
+     sides, so its content starts (100% - 1180px)/2 + 32px from each edge. */
+  header { padding-inline:max(22px, calc((100% - 1180px) / 2 + 32px)); }
   header .brand .mark { display:none; }
   header .brand h1 { font:800 26px/1 var(--display); letter-spacing:-.6px; }
   /* SpeakGa logo (symbol + wordmark); a light version swaps in for dark mode */
