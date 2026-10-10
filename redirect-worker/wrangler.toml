@@ -1,0 +1,11 @@
+name = "speakga-redirect"
+account_id = "7c43e5e869ffbe4a0e6ab4286cf4e073"
+main = "src/index.ts"
+compatibility_date = "2024-12-18"
+
+# speakga.com and www.speakga.com only forward visitors to speakga.org.
+routes = [
+  { pattern = "speakga.com", custom_domain = true },
+  { pattern = "www.speakga.com", custom_domain = true },
+]
+workers_dev = false
