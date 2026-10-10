@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Heritage · Sign in</title>
+<title>SpeakGa · Admin sign in</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -71,9 +71,9 @@
 </head>
 <body>
   <div class="top">
-    <a class="brand" href="/" title="Heritage">
+    <a class="brand" href="/" title="SpeakGa">
       <span class="mark">H</span>
-      <div><span class="x1">Heritage</span><span class="x2">ADMIN</span></div>
+      <div><span class="x1">SpeakGa</span><span class="x2">ADMIN</span></div>
     </a>
     <button class="theme-toggle-top" id="themeToggle" aria-label="Toggle theme" title="Toggle theme">
       <svg class="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
@@ -110,18 +110,18 @@
           <span id="btnText">Sign in</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
         </button>
-        <a class="ghost" id="guestBtn" href="https://heritage-rag.heritage-app.workers.dev/">Go to the Heritage app</a>
+        <a class="ghost" id="guestBtn" href="https://app.speakga.org/">Go to the SpeakGa app</a>
         <div class="status" id="status"></div>
       </form>
 
       <div class="switch">
         <span id="switchText">No admin account?</span>
-        <a id="switchBtn" href="https://heritage-rag.heritage-app.workers.dev/auth">Sign in to the app instead</a>
+        <a id="switchBtn" href="https://app.speakga.org/auth">Sign in to the app instead</a>
       </div>
     </div>
   </div>
 
-  <div class="foot">Heritage · Your Ga language companion</div>
+  <div class="foot">SpeakGa · Your Ga language companion</div>
 
 <script>
 const API = "/api/v1";
@@ -154,7 +154,7 @@ function updateThemeIcons(theme) {
 initTheme();
 document.getElementById("themeToggle")?.addEventListener("click", toggleTheme);
 
-const APP_URL = "https://heritage-rag.heritage-app.workers.dev";
+const APP_URL = "https://app.speakga.org";
 // A signed-in admin goes straight in. Anyone else is told plainly — sending
 // them to "/" bounced back to the console's own gate, round and round.
 function denied(email) {
@@ -163,7 +163,7 @@ function denied(email) {
   s.innerHTML = "";
   s.append(`${email || "This account"} isn't an admin. `);
   const a = document.createElement("a");
-  a.href = APP_URL + "/"; a.textContent = "Open the Heritage app →";
+  a.href = APP_URL + "/"; a.textContent = "Open the SpeakGa app →";
   s.appendChild(a);
 }
 (async function () {
@@ -186,7 +186,7 @@ function setKind(k) {
   kind = k;
   const login = k === "login";
   $("title").textContent = login ? "Welcome back" : "Start your journey";
-  $("subtitle").textContent = login ? "Access your Heritage repository" : "Join the linguistic preservation engine";
+  $("subtitle").textContent = login ? "Access your SpeakGa repository" : "Join the linguistic preservation engine";
   $("btnText").textContent = login ? "Sign in" : "Create account";
   $("switchText").textContent = login ? "New to the engine?" : "Already have an account?";
   $("switchBtn").textContent = login ? "Create an account" : "Sign in here";

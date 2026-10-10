@@ -25,7 +25,7 @@ app.post("/signup", async (c) => {
   if (body.password.length < 8) return c.json({ detail: "Choose a password of at least 8 characters." }, 400);
   if (!/^\S+@\S+\.\S+$/.test(body.email.trim())) return c.json({ detail: "Enter a valid email address." }, 400);
   // Accounts are made in the app; the console only signs admins in.
-  if (fromAdminConsole(c)) return c.json({ detail: "Accounts are created in the Heritage app." }, 403);
+  if (fromAdminConsole(c)) return c.json({ detail: "Accounts are created in the SpeakGa app." }, 403);
   const existing = await getUserByEmail(c.env, body.email);
   if (existing?.role === "admin") {
     return c.json({ detail: "This email belongs to an admin account. Use a different email for the app." }, 400);
@@ -55,7 +55,7 @@ app.post("/login", async (c) => {
     return c.json({ detail: "Admin accounts sign in to the admin console.", admin_console: `${ADMIN_CONSOLE_URL}/auth` }, 403);
   }
   if (user.role !== "admin" && console_) {
-    return c.json({ detail: "This account isn't an admin.", app: "https://heritage-rag.heritage-app.workers.dev/" }, 403);
+    return c.json({ detail: "This account isn't an admin.", app: "https://app.speakga.org/" }, 403);
   }
 
   const token = await createAccessToken(c.env, user.id, user.role);

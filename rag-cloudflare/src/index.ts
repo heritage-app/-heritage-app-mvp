@@ -117,8 +117,17 @@ const ADMIN_CONSOLE = "https://heritage-admin.heritage-app.workers.dev";
 app.get("/admin", (c) => c.redirect(`${ADMIN_CONSOLE}/admin.html`, 302));
 app.get("/admin.html", (c) => c.redirect(`${ADMIN_CONSOLE}/admin.html`, 302));
 
-// Friendly root redirect to the API info.
-app.get("/", (c) => c.redirect("/api/v1"));
+// The root page depends on the domain (wrangler.toml runs the Worker first for "/"):
+// speakga.org is the landing page, www.speakga.org goes to it, and every other host
+// (app.speakga.org, workers.dev, localhost) gets the app. The query string is kept,
+// since the app reads ?q= from landing-page links.
+app.get("/", (c) => {
+  const url = new URL(c.req.url);
+  if (url.hostname === "www.speakga.org") return c.redirect(`https://speakga.org/${url.search}`, 301);
+  const page = new URL(url);
+  page.pathname = url.hostname === "speakga.org" ? "/landing" : "/";
+  return c.env.ASSETS.fetch(new Request(page, c.req.raw));
+});
 
 app.onError((err, c) => {
   console.error("Unhandled error:", err);

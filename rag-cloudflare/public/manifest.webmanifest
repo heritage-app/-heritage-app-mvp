@@ -1,13 +1,13 @@
 {
-  "name": "Heritage — Ga Language Companion",
-  "short_name": "Heritage",
-  "description": "Ga words, phrases, Bible verses, stories and poems — answered from the archive.",
+  "name": "SpeakGa — Ga Language Companion",
+  "short_name": "SpeakGa",
+  "description": "Learn Ga, read the Bible in Ga and ask Nii Obodai. Answers come from a Ga archive that people have checked.",
   "id": "/",
   "start_url": "/?source=installed",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#f8f9fa",
-  "theme_color": "#f8f9fa",
+  "background_color": "#ffffff",
+  "theme_color": "#FBF7F1",
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },

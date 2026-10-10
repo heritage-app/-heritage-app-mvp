@@ -8,6 +8,8 @@ export interface Env {
   VECTORIZE: VectorizeIndex;
   DB: D1Database;
   DOCS_BUCKET: R2Bucket;
+  /** Static files in ./public (wrangler.toml [assets]). */
+  ASSETS: Fetcher;
   /** Per-user cap on the agent's tool loop (wrangler.toml [[ratelimits]]). Optional: absent in local tests. */
   AGENT_LIMITER?: { limit(opts: { key: string }): Promise<{ success: boolean }> };
 

@@ -1,5 +1,5 @@
 /*
- * Heritage service worker — what makes the app installable and quick to open.
+ * SpeakGa service worker — what makes the app installable and quick to open.
  *
  * - Pages: network first, so every deploy shows up on the next open; the last
  *   copy is kept for when the network is down.
@@ -8,8 +8,8 @@
  *
  * Bump VERSION to drop old caches.
  */
-const VERSION = "heritage-v1";
-const SHELL = ["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png"];
+const VERSION = "speakga-v3"; // v3: navy SpeakGa app icons
+const SHELL = ["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png", "/icons/favicon-32.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
