@@ -8,7 +8,7 @@
  *
  * Bump VERSION to drop old caches.
  */
-const VERSION = "speakga-v3"; // v3: navy SpeakGa app icons
+const VERSION = "speakga-v4"; // v4: navy launch screens (manifest background, iOS startup images)
 const SHELL = ["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png", "/icons/favicon-32.png"];
 
 self.addEventListener("install", (event) => {
