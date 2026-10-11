@@ -38,12 +38,14 @@ const SYSTEM = `You are Nii Obodai, a Ga-language heritage assistant. You answer
 How to work:
 - Bible: a named book/chapter/verse -> lookup_verse. A topic ("a verse about love") -> search_archive(scope="bible"). Structure questions -> list_books / list_chapters / list_verses.
 - Ga words and phrases: vocab_lookup first, then phrase_overlap, then search_archive(scope="heritage").
+- "Use X in a sentence" / "give me an example of X" / "how is X used": vocab_lookup(X), then find_usage(X). Any sentence or phrase a tool returns containing the word IS the answer — quote it. Reply NOT_IN_ARCHIVE only when every tool came back empty.
 - Culture, history, stories: search_archive(scope="heritage").
 - Pass tools the SUBJECT of the question, not the question: for "what do you call a place to sleep in ga", look up "bed".
 - A lookup that returns rows which don't fit is not the end: try the plain English word or a close synonym ("sleeping place" -> "bed", "physician" -> "doctor") before giving up.
 
 How to answer:
 - Put every piece of Ga text in **bold**, copied exactly from a tool result. Your reply is checked: Ga that is not in a tool result is rejected.
+- A word can have several Ga renderings ("bad" -> **Efɔŋ** or **Gbonyo**; "bad man" -> **Nuu gbonyo** or **Nuu efɔŋ**). When the tools return more than one, name them ALL with their English glosses — never silently pick one.
 - Never translate, compose or guess Ga yourself. Never re-type a Bible verse — just say which verse it is; the system prints it.
 - If the tools don't answer the question, reply exactly: NOT_IN_ARCHIVE
 - One or two short sentences. No greetings.`;
@@ -114,6 +116,15 @@ const TOOLS = [
       type: "object",
       properties: { query: { type: "string", description: "The English (or Ga) words to find" } },
       required: ["query"],
+    },
+  },
+  {
+    name: "find_usage",
+    description: "Real sentences and phrases from the archive that USE a word — for 'use X in a sentence', 'give me an example of X', 'how is X used'. Pass the Ga or English word alone.",
+    parameters: {
+      type: "object",
+      properties: { term: { type: "string", description: "The Ga word or English word to find in use" } },
+      required: ["term"],
     },
   },
 ];
@@ -225,26 +236,43 @@ async function execTool(env: Env, tc: ToolCall): Promise<ToolResult> {
         const folded = foldGa(term.toLowerCase()).replace(/['’]/g, "");
         const probe = [...folded.split(/\s+/)].sort((x, y) => y.length - x.length)[0] ?? folded;
         const res = await env.DB.prepare(
-          `SELECT headword, translations, meanings FROM vocabulary
+          `SELECT headword, translations, meanings, examples, variants FROM vocabulary
            WHERE (headword_normalized = ?
                   OR REPLACE(REPLACE(translations, '''', ''), '’', '') LIKE ?
                   OR REPLACE(REPLACE(meanings, '''', ''), '’', '') LIKE ?)
              AND source IS NOT NULL AND TRIM(source) <> ''
              AND verified_at IS NOT NULL AND TRIM(verified_at) <> ''
            ORDER BY LENGTH(translations) ASC, verified_at DESC LIMIT 8`
-        ).bind(folded, `%${probe}%`, `%${probe}%`).all<{ headword: string; translations: string; meanings: string }>();
+        ).bind(folded, `%${probe}%`, `%${probe}%`).all<{ headword: string; translations: string; meanings: string; examples: string; variants: string }>();
         const rows = res.results ?? [];
         if (!rows.length) return EMPTY("NO_MATCH");
         let exact: { ga: string; english: string } | undefined;
+        // The model needs the alternates to present them: several headwords can
+        // render the same English ("bad" -> Efɔŋ, Gbonyo), and entries carry
+        // accepted spellings + curated example sentences the flat text used
+        // to drop.
+        const lines = rows.map((r) => {
+          let t: string[] = [], ex: any[] = [], v: string[] = [];
+          try { t = JSON.parse(r.translations || "[]"); } catch {}
+          try { ex = JSON.parse(r.examples || "[]"); } catch {}
+          try { v = JSON.parse(r.variants || "[]"); } catch {}
+          const hit = t.find((x) => norm(x) === norm(term));
+          if (hit && !exact) exact = { ga: r.headword, english: hit };
+          let line = `**${r.headword}** = ${t.join("; ") || String(r.meanings ?? "")}`;
+          if (v.length) line += ` (also spelled: ${v.join(", ")})`;
+          const exText = ex
+            .map((e) => (typeof e === "string" ? e : `${String(e?.ga ?? "")}${e?.english ? ` — "${e.english}"` : ""}`))
+            .find((s) => s.trim());
+          if (exText) line += ` (example: ${exText})`;
+          return line;
+        });
         const pairs = rows.map((r) => {
           let t: string[] = [];
           try { t = JSON.parse(r.translations || "[]"); } catch {}
-          const hit = t.find((x) => norm(x) === norm(term));
-          if (hit && !exact) exact = { ga: r.headword, english: hit };
           return { ga: r.headword, english: t.join("; ") || String(r.meanings ?? "") };
         });
         return {
-          text: pairs.map((p) => `**${p.ga}** = ${p.english}`).join("\n"),
+          text: lines.join("\n"),
           empty: false,
           pairs,
           exact,
@@ -281,6 +309,81 @@ async function execTool(env: Env, tc: ToolCall): Promise<ToolResult> {
               seen.add(english.toLowerCase());
               hits.push({ english, ga: modernizeGa(ga) });
             }
+          }
+        }
+        if (!hits.length) return EMPTY("NO_MATCH");
+        hits.sort((x, y) => x.ga.length - y.ga.length);
+        const top = hits.slice(0, 5);
+        return {
+          text: top.map((h) => `**${h.ga}** = "${h.english}"`).join("\n"),
+          empty: false,
+          pairs: top,
+        };
+      }
+      case "find_usage": {
+        // Sentences and phrases that USE the word. Two sources, same idea as
+        // the engine's "in a sentence" path: verified vocabulary phrase
+        // entries ("gbonyo" -> "Nuu gbonyo"), then the heritage sentence
+        // pairs — so "use X in a sentence" is answered from the archive
+        // before the model can say there is nothing.
+        const term = String(a.term ?? "").trim();
+        if (!term) return EMPTY("EMPTY");
+        const termNorm = norm(term);
+        const folded = foldGa(term.toLowerCase()).replace(/['’]/g, "").trim();
+        const need = (folded.match(/[\p{L}\p{N}'-]+/gu) ?? []).filter((w) => w.length > 1);
+        const hits: Array<{ ga: string; english: string }> = [];
+        const seen = new Set<string>();
+        const push = (ga: string, english: string) => {
+          const k = ga.trim().toLowerCase();
+          if (k && !seen.has(k)) {
+            seen.add(k);
+            hits.push({ ga: modernizeGa(ga.trim()), english: english.trim() });
+          }
+        };
+        // 1. Verified vocabulary phrases whose headword uses the Ga word, or
+        //    whose translation contains the English word as a whole word.
+        const vres = await env.DB.prepare(
+          `SELECT headword, headword_normalized, translations, meanings FROM vocabulary
+           WHERE (headword_normalized LIKE ?
+                  OR REPLACE(REPLACE(translations, '''', ''), '’', '') LIKE ?
+                  OR REPLACE(REPLACE(meanings, '''', ''), '’', '') LIKE ?)
+             AND source IS NOT NULL AND TRIM(source) <> ''
+             AND verified_at IS NOT NULL AND TRIM(verified_at) <> ''
+           ORDER BY LENGTH(headword) ASC LIMIT 25`
+        ).bind(`%${folded}%`, `%${folded}%`, `%${folded}%`)
+          .all<{ headword: string; headword_normalized: string; translations: string; meanings: string }>();
+        for (const r of vres.results ?? []) {
+          if (r.headword_normalized === folded) continue; // the word itself, not usage
+          const hwWords = new Set((r.headword_normalized ?? "").match(/[\p{L}\p{N}'-]+/gu) ?? []);
+          let tArr: string[] = [], mArr: string[] = [];
+          try { tArr = JSON.parse(r.translations || "[]"); } catch {}
+          try { mArr = JSON.parse(r.meanings || "[]"); } catch {}
+          const gaSide = need.length > 0 && need.every((w) => hwWords.has(w));
+          const enSide = tArr.some((t) => ` ${norm(t)} `.includes(` ${termNorm} `));
+          if (gaSide || enSide) push(r.headword, tArr[0] ?? mArr[0] ?? "");
+        }
+        // 2. Heritage sentence pairs containing the folded word on the Ga
+        //    side, or the English word as a whole word on the English side.
+        const docs = await env.DB.prepare(
+          "SELECT unique_path FROM documents WHERE category = 'heritage' AND unique_path LIKE '%.jsonl'"
+        ).all<{ unique_path: string }>();
+        for (const row of docs.results ?? []) {
+          if (hits.length >= 8) break;
+          const obj = await env.DOCS_BUCKET.get(row.unique_path);
+          if (!obj) continue;
+          for (const line of (await obj.text()).split("\n")) {
+            if (hits.length >= 8) break;
+            const t = line.trim();
+            if (!t.startsWith("{")) continue;
+            let rec: any;
+            try { rec = JSON.parse(t); } catch { continue; }
+            const ga = String(rec.ga ?? "").trim();
+            const english = String(rec.english ?? "").trim();
+            if (!ga || !english) continue;
+            const gw = new Set(foldGa(ga).match(/[\p{L}\p{N}'-]+/gu) ?? []);
+            const gaSide = need.length > 0 && need.every((w) => gw.has(w));
+            const enSide = ` ${norm(english)} `.includes(` ${termNorm} `);
+            if (gaSide || enSide) push(ga, english);
           }
         }
         if (!hits.length) return EMPTY("NO_MATCH");

@@ -98,6 +98,9 @@ export async function generateTitle(
       .replace(/[*_`#]/g, "")
       .replace(/^["'“”]|["'“”]$/g, "")
       .trim();
+    // If the model gives nothing usable, fall back to the first user message
+    // rather than leaving the placeholder title in place forever.
+    if (!title) title = userQuery.trim().replace(/\s+/g, " ").slice(0, 60);
     if (title) await updateTitle(env, conversationId, title);
     return title;
   } catch (e) {
@@ -126,8 +129,14 @@ export async function getConversationContext(
   let title = session?.title ?? null;
   let summary = session?.summary ?? null;
 
+  // Sessions are inserted with the placeholder "New Chat", which is truthy —
+  // so `!title` alone never triggered generation. Treat the placeholder (in
+  // either spelling) as untitled so the first real turn names the chat.
+  const isPlaceholder = (t: string | null) =>
+    !t || /^\s*new (chat|conversation)\s*$/i.test(t);
+
   if (messages.length) {
-    if (!title) title = await generateTitle(env, conversationId, messages, model);
+    if (isPlaceholder(title)) title = await generateTitle(env, conversationId, messages, model);
     if (!summary && messages.length >= 3) {
       summary = await summarizeConversation(env, conversationId, messages, model);
     }

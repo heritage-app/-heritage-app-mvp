@@ -67,6 +67,14 @@ export function numToGa(n: number): string {
     const rem = n % 10;
     return `nyɔŋmai ${UNITS[tens]} kɛ ${UNITS[rem]}`;
   }
+  if (n < 1000) {
+    // Hundreds mirror the tens: "oha" alone for 100, "ohai {unit}" for 200+,
+    // and a remainder joins with "kɛ" ("ohai-enumɔ" = 500 in the GBV96 corpus).
+    const hundreds = Math.floor(n / 100);
+    const rem = n % 100;
+    const base = hundreds === 1 ? "oha" : `ohai ${UNITS[hundreds]}`;
+    return rem === 0 ? base : `${base} kɛ ${numToGa(rem)}`;
+  }
   return String(n);
 }
 
@@ -89,6 +97,45 @@ export function numToEn(n: number): string {
   if (tens[n]) return tens[n];
   if (n < 100) return `${tens[Math.floor(n / 10) * 10]} ${units[n % 10]}`;
   return String(n);
+}
+
+const EN_NUMBER_WORDS: Record<string, number> = {
+  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
+  eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13,
+  fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18,
+  nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60,
+  seventy: 70, eighty: 80, ninety: 90,
+};
+
+/**
+ * Greedily parse a spelled-out English number from the front of a token list
+ * ("thirty three", "two hundred and forty", "a hundred"). Returns the value
+ * and how many leading tokens it consumed, or null when the first token can't
+ * start a number. Values past 999 parse too — callers treat them as
+ * out-of-range rather than truncating to a wrong smaller number.
+ */
+export function parseEnglishNumber(
+  tokens: string[]
+): { value: number; consumed: number } | null {
+  const isNumToken = (w: string | undefined) =>
+    w !== undefined &&
+    (EN_NUMBER_WORDS[w] !== undefined ||
+      w === "hundred" || w === "thousand" || w === "million");
+  let total = 0, current = 0, i = 0, used = false;
+  while (i < tokens.length) {
+    const w = tokens[i];
+    if (w === "and" && used && isNumToken(tokens[i + 1])) { i++; continue; }
+    if (w === "a" && tokens[i + 1] === "hundred") { current += 1; i++; continue; }
+    if (w === "hundred") { current = (current || 1) * 100; used = true; i++; continue; }
+    if (w === "thousand" || w === "million") {
+      total += (current || 1) * (w === "thousand" ? 1_000 : 1_000_000);
+      current = 0; used = true; i++; continue;
+    }
+    const v = EN_NUMBER_WORDS[w];
+    if (v !== undefined) { current += v; used = true; i++; continue; }
+    break;
+  }
+  return used ? { value: total + current, consumed: i } : null;
 }
 
 /** Parse a Ga number string into an integer (supports 1-99). */

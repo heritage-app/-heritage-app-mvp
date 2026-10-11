@@ -457,6 +457,66 @@ async function* askGeneral(
   // "let's"), everything else a single space.
   const norm = (s: string) =>
     foldGa(s.toLowerCase()).replace(/['’]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
+  // The heritage Ga/English records, read straight out of the JSONL archives in
+  // R2 — the same corpus phrase_overlap scans. Used by the "in a sentence"
+  // usage search and by the semantic-empty fallback below.
+  const readHeritageRecords = async (): Promise<Record<string, any>[]> => {
+    try {
+      const docs = await env.DB.prepare(
+        "SELECT unique_path FROM documents WHERE category = 'heritage' AND unique_path LIKE '%.jsonl'"
+      ).all<{ unique_path: string }>();
+      const out: Record<string, any>[] = [];
+      for (const row of docs.results ?? []) {
+        const obj = await env.DOCS_BUCKET.get(row.unique_path);
+        if (!obj) continue;
+        for (const line of (await obj.text()).split("\n")) {
+          const t = line.trim();
+          if (!t.startsWith("{")) continue;
+          try {
+            const rec = JSON.parse(t);
+            // Bible/verse records carry `en`, not `english` — normalise so
+            // every corpus record exposes the same field downstream.
+            if (rec.english == null && rec.en != null) rec.english = rec.en;
+            if (String(rec.ga ?? "").trim() && String(rec.english ?? "").trim()) out.push(rec);
+          } catch { /* skip malformed lines */ }
+        }
+      }
+      return out;
+    } catch (e) {
+      console.warn("heritage record scan failed:", e);
+      return [];
+    }
+  };
+
+  // Is `gloss` another rendering of `needle`, or a different concept that
+  // merely contains the word? "good morning" is not a rendering of "good";
+  // "bad person", "the good" and "severely bad" are renderings of the word.
+  // Negated glosses ("not good", "opposite of bad") name the opposite.
+  const GENERIC_NOUNS = new Set([
+    "person", "people", "man", "men", "woman", "women",
+    "human", "being", "thing", "things", "one", "ones",
+  ]);
+  const isOtherRendering = (gloss: string, needle: string) => {
+    if (/\b(not|no|never|opposite|opposed|contrary)\b/i.test(gloss)) return false;
+    const words = norm(gloss).split(" ").filter(Boolean);
+    if (!` ${words.join(" ")} `.includes(` ${needle} `)) return false;
+    if (words.slice(-needle.split(" ").length).join(" ") === needle) return true;
+    if (words.length > 4) return true;
+    return words.some((w) => GENERIC_NOUNS.has(w));
+  };
+
+  // "Fɔŋ" lists "Efɔŋ" among its accepted spellings — the two rows are one
+  // lexeme, not two renderings. Merge only when one row names the other as a
+  // variant AND one folded form is a suffix of the other, so distinct forms
+  // like Kpakpa/Kpaapa keep their own lines.
+  const sameLexeme = (aGa: string, aSp: string[], bGa: string, bSp: string[]) => {
+    const fa = foldGa(aGa), fb = foldGa(bGa);
+    if (fa === fb) return true;
+    const claims =
+      aSp.map(foldGa).includes(fb) || [...bSp, bGa].map(foldGa).includes(fa);
+    return claims && (fa.endsWith(fb) || fb.endsWith(fa));
+  };
   // The whole phrase with only the question framing removed ("how do you say
   // X in ga" -> X), stopwords KEPT. Matching only the stopword-stripped words
   // answered "right now" with the Ga for "right", "this afternoon" with "good
@@ -476,6 +536,223 @@ async function* askGeneral(
   // "tell me a Ga story" asks for a story, not the Ga word for "story" —
   // the dictionary step must not answer it ("In Ga, 'story' is Adesa").
   const asksToTell = /\b(tell|read|recite|sing|share|give|show)\b[\s\S]*\b(stor(?:y|ies)|tales?|folktales?|legends?|poems?|poetry|songs?)\b/i.test(query);
+  // "X in a sentence" wants an example, not the bare translation. Accepts
+  // "use X in a sentence", "the word X in a sentence", "make a sentence
+  // with X", "give me a sentence using X".
+  const sentenceAsk =
+    query.match(/\b(?:use|put|say)\s+(?:it\s+)?["“']?(.+?)["”']?\s+in\s+a\s+sentence\b/i) ||
+    query.match(/^(?:(?:the\s+)?(?:word|phrase|term)\s+)?["“']?(.+?)["”']?\s+in\s+a\s+sentence\b/i) ||
+    query.match(/\b(?:make|give|show|write|compose|form)\b(?:\s+me)?\s+a\s+sentence\s+(?:with|using|for|containing|that\s+uses?)\s+["“']?(.+?)["”']?\s*[?!.]*$/i);
+  const sentenceWord = (sentenceAsk?.[1] ?? "")
+    .trim()
+    .replace(/^(?:the\s+)?(?:word|phrase|term)\s+/i, "")
+    .replace(/^["“']+|["”']+$/g, "")
+    .trim();
+  // Pronouns ("use it in a sentence") name nothing — let the normal flow try.
+  if (sentenceWord && !/^(it|this|that|them|one)$/i.test(sentenceWord)) {
+    const needleS = norm(sentenceWord);
+    const foldedS = foldGa(needleS);
+    try {
+      // Gather EVERY verified entry the term could mean — a word like "bad"
+      // has several Ga renderings (Efɔŋ, Gbonyo, Basabasa) — plus the phrase
+      // entries that show those words in use ("Nuu efɔŋ", "Gbɔmɔ efɔŋ").
+      const sRes = await env.DB.prepare(
+        `SELECT headword, headword_normalized, translations, meanings, examples, variants FROM vocabulary
+         WHERE (headword_normalized = ? OR headword_normalized LIKE ?
+                OR translations LIKE ? OR meanings LIKE ?)
+           AND source IS NOT NULL AND TRIM(source) <> ''
+           AND verified_at IS NOT NULL AND TRIM(verified_at) <> ''
+         ORDER BY LENGTH(translations) ASC LIMIT 40`
+      ).bind(foldedS, `%${foldedS}%`, `%${needleS}%`, `%${needleS}%`).all<{
+        headword: string; headword_normalized: string; translations: string;
+        meanings: string; examples: string; variants: string;
+      }>();
+      const rows = sRes.results ?? [];
+      const j = (s: string): any[] => {
+        try { const v = JSON.parse(s || "[]"); return Array.isArray(v) ? v : []; } catch { return []; }
+      };
+      const hasNeedle = (s: string) => !!needleS && ` ${norm(s)} `.includes(` ${needleS} `);
+
+      // Three buckets: the word itself (an entry whose translation is exactly
+      // the term, or whose headword is the Ga term), single-word near-matches
+      // (other renderings), and phrase entries that show the word in use.
+      const exacts: Array<{ ga: string; gloss: string; spellings: string[] }> = [];
+      const related: Array<{ ga: string; gloss: string }> = [];
+      const usage: Array<{ ga: string; english: string }> = [];
+      const examp: Array<{ ga: string; english: string }> = [];
+      const seenHw = new Set<string>();
+      for (const r of rows) {
+        const trans: string[] = j(r.translations).map(String);
+        const means: string[] = j(r.meanings).map(String);
+        const hwKey = r.headword.toLowerCase();
+        if (seenHw.has(hwKey)) continue;
+        const exactT = trans.find((t) => norm(t) === needleS);
+        const inside = [...trans, ...means].find(hasNeedle);
+        const single = !/\s/.test((r.headword_normalized ?? "").trim());
+        const hwHasNeedle = ` ${r.headword_normalized ?? ""} `.includes(` ${foldedS} `);
+        if (r.headword_normalized === foldedS || exactT) {
+          seenHw.add(hwKey);
+          exacts.push({
+            ga: r.headword,
+            gloss: exactT ?? (trans.slice(0, 3).join("; ") || means[0] || sentenceWord),
+            spellings: j(r.variants).map(String).filter(Boolean),
+          });
+          for (const e of j(r.examples)) {
+            const g = typeof e === "string" ? e : String(e?.ga ?? e?.example_ga ?? "");
+            const en = typeof e === "string" ? "" : String(e?.english ?? e?.en ?? "");
+            if (g.trim()) examp.push({ ga: g.trim(), english: en.trim() });
+          }
+        } else if (inside || hwHasNeedle) {
+          seenHw.add(hwKey);
+          if (single) {
+            // A single-word headword whose gloss names a different concept
+            // ("Owɔŋ = good morning" for "good") or the opposite ("Ekpakpa =
+            // the opposite of bad" for "bad") is not another rendering.
+            const gloss = inside ?? trans[0] ?? means[0] ?? "";
+            if (inside && isOtherRendering(inside, needleS)) related.push({ ga: r.headword, gloss });
+          } else {
+            usage.push({ ga: r.headword, english: inside ?? trans[0] ?? means[0] ?? "" });
+          }
+        }
+      }
+
+      // Merge orthographic variants of the same lexeme ("Fɔŋ" names "Efɔŋ"
+      // among its spellings) so the answer doesn't list one word twice.
+      for (let i = exacts.length - 1; i > 0; i--) {
+        const c = exacts[i];
+        const target = exacts.slice(0, i).find((e) =>
+          sameLexeme(e.ga, e.spellings, c.ga, c.spellings)
+        );
+        if (target) {
+          target.spellings = [
+            ...new Set([...target.spellings, c.ga, ...c.spellings]),
+          ].filter((s) => foldGa(s) !== foldGa(target.ga));
+          exacts.splice(i, 1);
+        }
+      }
+
+      if (exacts.length) {
+        // Sentences, best first: curated examples, attested phrase entries
+        // (phrases containing the primary headword rank first — "use Efɔŋ in
+        // a sentence" should show Efɔŋ usage), then — only when both are
+        // empty — a scan of the heritage sentence archives themselves. The
+        // "no example" answer comes only after all three miss.
+        const primaryWords = foldGa(exacts[0].ga).match(/[\p{L}\p{N}'-]+/gu) ?? [];
+        const usesPrimary = (ga: string) => {
+          const gw = foldGa(ga).match(/[\p{L}\p{N}'-]+/gu) ?? [];
+          // Inflected forms count: "Misuɔmɔ" is suɔmɔ usage even though the
+          // word never stands alone in it. Only whole tokens that share a
+          // substring — never arbitrary substrings ("in" ⊂ "fine").
+          return primaryWords.every((w) =>
+            gw.some((t) => t === w || (w.length >= 4 && t.length >= 4 && (t.includes(w) || w.includes(t))))
+          );
+        };
+        // A Ga needle never appears inside the translations of the phrases
+        // that use it: "Misumɔ bo" is stored as "i love you" — the gloss,
+        // not the word. Fetch usage phrases by the gloss words too, so a Ga
+        // word asked "in a sentence" finds the entries that show it in use.
+        const glossKeys = [
+          ...new Set(
+            exacts
+              .flatMap((e) => norm(e.gloss).split(" "))
+              .filter((w) => w.length >= 4)
+          ),
+        ].slice(0, 5);
+        if (glossKeys.length) {
+          const clauses = glossKeys.map(() => "(translations LIKE ? OR meanings LIKE ?)").join(" OR ");
+          const uRes = await env.DB.prepare(
+            `SELECT headword, headword_normalized, translations, meanings FROM vocabulary
+             WHERE (${clauses})
+               AND source IS NOT NULL AND TRIM(source) <> ''
+               AND verified_at IS NOT NULL AND TRIM(verified_at) <> ''
+             ORDER BY LENGTH(headword_normalized) ASC LIMIT 40`
+          ).bind(...glossKeys.flatMap((k) => [`%${k}%`, `%${k}%`])).all<{
+            headword: string; headword_normalized: string;
+            translations: string; meanings: string;
+          }>();
+          for (const r of uRes.results ?? []) {
+            const hw = (r.headword_normalized ?? "").trim();
+            if (!hw.includes(" ") || seenHw.has(r.headword.toLowerCase())) continue;
+            const ts = j(r.translations).map(String);
+            const ms = j(r.meanings).map(String);
+            const en =
+              ts.find((t) => norm(t).split(" ").some((w) => glossKeys.includes(w))) ??
+              ms.find((t) => norm(t).split(" ").some((w) => glossKeys.includes(w))) ??
+              ts[0] ?? ms[0] ?? "";
+            usage.push({ ga: r.headword, english: en });
+            seenHw.add(r.headword.toLowerCase());
+          }
+        }
+        // One attested phrase for the asked word, then the other renderings in
+        // use — "Nuu efɔŋ" and "Nuu gbonyo" side by side IS the variation.
+        const byLen = (a: { ga: string }, b: { ga: string }) => a.ga.length - b.ga.length;
+        const prim = usage.filter((u) => usesPrimary(u.ga)).sort(byLen);
+        const rest = usage.filter((u) => !usesPrimary(u.ga)).sort(byLen);
+        const usageTop = rest.length
+          ? [prim[0], ...rest].filter(Boolean).slice(0, 3)
+          : prim.slice(0, 3);
+        let sents = [...examp, ...usageTop];
+        if (!sents.length) {
+          const recs = await readHeritageRecords();
+          const seenS = new Set<string>();
+          const toSent = (rec: Record<string, any>) => ({
+            ga: modernizeGa(String(rec.ga).trim()),
+            english: String(rec.english).trim(),
+          });
+          const push = (rec: Record<string, any>, into: Record<string, any>[]) => {
+            const s = toSent(rec);
+            const key = s.ga.toLowerCase();
+            if (s.ga && !seenS.has(key)) { seenS.add(key); into.push(s); }
+          };
+          const gaHits: Record<string, any>[] = [];
+          const enHits: Record<string, any>[] = [];
+          for (const rec of recs) {
+            if (usesPrimary(String(rec.ga ?? ""))) gaHits.push(rec);
+            else if (glossKeys.length && norm(String(rec.english ?? "")).split(" ").some((w) => glossKeys.includes(w))) enHits.push(rec);
+          }
+          // Bible verses live in their own table (the R2 docs are category
+          // 'bible', outside the scan) — real Ga sentences worth showing.
+          // The folded probe finds old-orthography forms ("suomo̱" → suomɔ).
+          if (!gaHits.length) {
+            try {
+              const bRes = await env.DB.prepare(
+                "SELECT ga, en AS english FROM bible_verses WHERE ga LIKE ? OR ga LIKE ? LIMIT 12"
+              ).bind(`%${needleS}%`, `%${foldedS}%`).all<{ ga: string; english: string }>();
+              for (const r of bRes.results ?? []) {
+                if (usesPrimary(String(r.ga))) gaHits.push(r as Record<string, any>);
+              }
+            } catch { /* verse probe is best-effort */ }
+          }
+          const tmp: { ga: string; english: string }[] = [];
+          for (const r of gaHits) push(r, tmp);
+          for (const r of enHits) push(r, tmp);
+          sents = tmp.sort((a, b) => a.ga.length - b.ga.length);
+        }
+        const parts: string[] = [
+          exacts.length > 1
+            ? `“${cap(sentenceWord)}” in Ga can be ${exacts.map((e) => `**${e.ga}**`).join(" or ")}.`
+            : `**${exacts[0].ga}** — “${exacts[0].gloss}”.`,
+        ];
+        if (exacts[0].spellings.length) parts.push(`*(also spelled: ${exacts[0].spellings.join(", ")})*`);
+        if (related.length) {
+          parts.push(
+            `“${cap(sentenceWord)}” can also be:\n` +
+            related.slice(0, 4).map((r) => `- **${r.ga}** — “${r.gloss}”`).join("\n")
+          );
+        }
+        if (sents.length) {
+          parts.push("Used in the archive:\n" + sents.slice(0, 3).map((s) => `- **${s.ga}**${s.english ? ` — “${s.english}”` : ""}`).join("\n"));
+          yield parts.join("\n\n");
+        } else {
+          // The not-found marker wording is deliberate — it attaches the
+          // contribution card so the user can teach the sentence.
+          yield `${parts.join("\n\n")}\n\nI don't have a sentence using it yet. Do you know one? Share the Ga and English version and I'll add it.`;
+        }
+        return;
+      }
+    } catch (e) { console.error("Sentence example lookup failed", e); }
+    // No entry — fall through to the normal lookup/gap flow.
+  }
   if (!asksToTell && ((queryWords.length > 0 && queryWords.length <= 3) || (phraseWords > 0 && phraseWords <= 5))) {
     const qStr = queryWords.length ? queryWords.join(" ") : phrase;
     const foldedQ = foldGa(qStr);
@@ -489,7 +766,7 @@ async function* askGeneral(
     const likePattern = `%${probe}%`;
     try {
       const vocabSearch = await env.DB.prepare(
-        `SELECT headword, headword_normalized, meanings, translations FROM vocabulary
+        `SELECT headword, headword_normalized, meanings, translations, variants FROM vocabulary
          WHERE (headword_normalized = ?
                 -- Apostrophes stripped DB-side too: the probe has none, so
                 -- "lets" could otherwise never reach a stored "let's eat".
@@ -501,7 +778,7 @@ async function* askGeneral(
          -- entry it corrects even if that one is somehow still verified.
          ORDER BY LENGTH(translations) ASC, verified_at DESC
          LIMIT 40`
-      ).bind(foldedQ, likePattern, likePattern).all<{ headword: string; headword_normalized: string; meanings: string; translations: string }>();
+      ).bind(foldedQ, likePattern, likePattern).all<{ headword: string; headword_normalized: string; meanings: string; translations: string; variants: string }>();
 
       if (vocabSearch.results && vocabSearch.results.length > 0) {
         // Rank rather than take the first row: a Ga headword match, then an
@@ -570,6 +847,79 @@ async function* askGeneral(
               `**${modernizeGa(bestHit.ga)}** — “${bestHit.eng}”\n\nKnow the Ga word? Share it and I'll put it forward for review.`;
             return;
           }
+          if (!bestHit.gaSide) {
+            // Every entry that translates the term EXACTLY is an accepted
+            // rendering — "bad man" is both **Nuu gbonyo** and **Nuu efɔŋ**.
+            // Single-word rows containing the term in a longer translation or
+            // meaning are other renderings ("bad" -> Gbonyo, Basabasa), and
+            // multi-word rows are the word in use. Previously only the first
+            // row survived the ranking; the rest of the archive's knowledge
+            // about the word was thrown away.
+            const exacts: Array<{ ga: string; meaning?: string; spellings: string[] }> = [];
+            const related: Array<{ ga: string; gloss: string }> = [];
+            const inUse = new Map<string, string[]>();
+            const seenV = new Set<string>();
+            for (const row of vocabSearch.results) {
+              let tArr: string[] = [], mArr: string[] = [], vArr: string[] = [];
+              try { tArr = JSON.parse(row.translations || "[]"); } catch {}
+              try { mArr = JSON.parse(row.meanings || "[]"); } catch {}
+              try { vArr = JSON.parse(row.variants || "[]"); } catch {}
+              const hwKey = row.headword.toLowerCase();
+              if (seenV.has(hwKey)) continue;
+              const exactT = tArr.find((t) => norm(t) === needle);
+              const inside = [...tArr, ...mArr].find(hasPhrase);
+              const single = !/\s/.test((row.headword_normalized ?? "").trim());
+              if (exactT) {
+                seenV.add(hwKey);
+                const meaning = mArr.find((m) => norm(m) !== norm(exactT));
+                exacts.push({ ga: row.headword, meaning, spellings: vArr });
+              } else if (inside) {
+                seenV.add(hwKey);
+                if (single) {
+                  // Skip glosses naming a different concept or the opposite.
+                  if (isOtherRendering(inside, needle)) related.push({ ga: row.headword, gloss: inside });
+                } else {
+                  const g = inUse.get(inside) ?? [];
+                  g.push(row.headword);
+                  inUse.set(inside, g);
+                }
+              }
+            }
+            // Merge orthographic variants of the same lexeme ("Fɔŋ" names
+            // "Efɔŋ" among its spellings) so one word isn't listed twice.
+            for (let i = exacts.length - 1; i > 0; i--) {
+              const c = exacts[i];
+              const target = exacts.slice(0, i).find((e) =>
+                sameLexeme(e.ga, e.spellings, c.ga, c.spellings)
+              );
+              if (target) exacts.splice(i, 1);
+            }
+            // Groups that show the variation itself ("bad man" -> Nuu gbonyo
+            // AND Nuu efɔŋ) lead the In-use list.
+            const inUseGroups = [...inUse.entries()].sort((a, b) => b[1].length - a[1].length);
+            const inUseLines = inUseGroups.slice(0, 4).map(
+              ([eng, gas]) => `- “${eng}” → ${gas.slice(0, 3).map((g) => `**${g}**`).join(" or ")}`
+            );
+            const relatedLines = related.slice(0, 4).map((r) => `- **${r.ga}** — “${r.gloss}”`);
+
+            if (exacts.length > 1) {
+              const parts = [
+                `In Ga, “${needle}” can be:`,
+                ...exacts.slice(0, 4).map((e) => `- **${e.ga}**${e.meaning ? ` — “${e.meaning}”` : ""}`),
+              ];
+              if (relatedLines.length) parts.push("", "Other renderings in the archive:", ...relatedLines);
+              if (inUseLines.length) parts.push("", "In use:", ...inUseLines);
+              yield parts.join("\n");
+              return;
+            }
+            if (queryWords.length === 1 && (related.length || inUse.size)) {
+              const parts = [`In Ga, “${bestHit.eng}” is **${bestHit.ga}**.`];
+              if (relatedLines.length) parts.push("", "Other renderings in the archive:", ...relatedLines);
+              if (inUseLines.length) parts.push("", "In use:", ...inUseLines);
+              yield parts.join("\n");
+              return;
+            }
+          }
           yield bestHit.gaSide
             ? `**${bestHit.ga}** is Ga for “${bestHit.eng}”.`
             : `In Ga, “${bestHit.eng}” is **${bestHit.ga}**.`;
@@ -608,6 +958,9 @@ async function* askGeneral(
           if (!t.startsWith("{")) continue;
           try {
             const rec = JSON.parse(t);
+            // Bible/verse records carry `en`, not `english` — normalise so
+            // every corpus record exposes the same field downstream.
+            if (rec.english == null && rec.en != null) rec.english = rec.en;
             if (String(rec.ga ?? "").trim() && String(rec.english ?? "").trim()) out.push(rec);
           } catch { /* skip malformed lines */ }
         }
@@ -725,27 +1078,8 @@ async function* askGeneral(
   // scan the heritage JSONL archives in R2 directly so phrase/vocab lookups
   // still answer through the same word-overlap matcher below.
   if (!expandedNodes.length && !browseIntent) {
-    try {
-      const docs = await env.DB.prepare(
-        "SELECT unique_path FROM documents WHERE category = 'heritage' AND unique_path LIKE '%.jsonl'"
-      ).all<{ unique_path: string }>();
-      for (const row of docs.results ?? []) {
-        const obj = await env.DOCS_BUCKET.get(row.unique_path);
-        if (!obj) continue;
-        for (const line of (await obj.text()).split("\n")) {
-          const t = line.trim();
-          if (!t.startsWith("{")) continue;
-          try {
-            const rec = JSON.parse(t);
-            if (String(rec.ga ?? "").trim() && String(rec.english ?? "").trim()) {
-              expandedNodes.push({ text: "", score: 0, metadata: rec });
-            }
-          } catch { /* skip malformed lines */ }
-        }
-      }
-    } catch (e) {
-      console.warn("archive phrase fallback failed:", e);
-    }
+    const recs = await readHeritageRecords();
+    for (const rec of recs) expandedNodes.push({ text: "", score: 0, metadata: rec });
   }
 
   const nodes = expandedNodes.filter((n) => (n.score ?? 0) >= MIN_RELEVANCE_SCORE);
@@ -845,7 +1179,7 @@ async function* askGeneral(
   // Scans below-threshold candidates too: Ga-word queries embed poorly with the
   // English embedding model, but an exact folded word match is the stronger signal. ---
 
-  const hits: Array<{ mc: number; score: number; eng: string; ga: string; gaSide: boolean }> = [];
+  const hits: Array<{ mc: number; score: number; eng: string; ga: string; gaSide: boolean; image: string }> = [];
   const seen = new Set<string>();
   for (const n of expandedNodes) {
     const eng = String(n.metadata?.english ?? "").trim();
@@ -879,7 +1213,8 @@ async function* askGeneral(
     // matched — otherwise one accidental overlap yields a confident non-answer
     // (e.g. "alphabets in Ga" matching the "a" in "I see a rainbow").
     if (queryWords.length > 0 && matchedCount === queryWords.length) {
-      seen.add(key); hits.push({ mc, score: n.score ?? 0, eng, ga, gaSide: mcGa >= mcEn });
+      seen.add(key);
+      hits.push({ mc, score: n.score ?? 0, eng, ga, gaSide: mcGa >= mcEn, image: String(n.metadata?.image ?? "") });
     }
   }
 
@@ -892,18 +1227,31 @@ async function* askGeneral(
     // ("shade" in "Let us move into the shade"). Answering "In Ga, 'Let us
     // move into the shade' is …" reads as if the word itself were known.
     // Say what we have, and ask for the word itself.
-    const engContent = (foldGa(hits[0].eng.toLowerCase()).match(/[\p{L}\p{N}'-]+/gu) ?? [])
-      .filter((w) => w.length > 1 && !stop.has(w) && !nearStop(w)).length;
-    if (!hits[0].gaSide && queryWords.length <= 2 && engContent > queryWords.length) {
+    const engToks = foldGa(hits[0].eng.toLowerCase()).match(/[\p{L}\p{N}'-]+/gu) ?? [];
+    const engContent = engToks.filter((w) => w.length > 1 && !stop.has(w) && !nearStop(w)).length;
+    // A definitional record leads with the queried concept ("needle — a
+    // samai symbol…", "vigilance and unity…"), unlike a word that merely
+    // appears mid-sentence ("let us move into the shade"). Leading-position
+    // matches are the answer itself, not a hedge.
+    const leadWindow = engToks.slice(0, queryWords.length + 3);
+    const definitional = queryWords.length > 0 && queryWords.every((w) => leadWindow.includes(w));
+    if (!hits[0].gaSide && queryWords.length <= 2 && engContent > queryWords.length && !definitional) {
       const word = cleanEnglish(query);
       await logKnowledgeGap(env, query, "general", "Word only found inside a sentence");
       yield `I don't have a Ga word for “${word}” on its own yet — but it appears in this phrase from the archive:\n\n` +
-        `**${gaShown}** — “${hits[0].eng}”\n\nKnow the Ga word? Share it and I'll put it forward for review.`;
+        `**${gaShown}** — “${hits[0].eng}”` +
+        (hits[0].image ? `\n\n![${gaShown}](${hits[0].image})` : "") +
+        `\n\nKnow the Ga word? Share it and I'll put it forward for review.`;
       return;
     }
-    yield hits[0].gaSide
-      ? `**${gaShown}** is Ga for “${hits[0].eng}”.`
-      : `In Ga, “${hits[0].eng}” is **${gaShown}**.`;
+    yield (
+      (hits[0].gaSide
+        ? `**${gaShown}** is Ga for “${hits[0].eng}”.`
+        : `In Ga, “${hits[0].eng}” is **${gaShown}**.`) +
+      // Records can carry an image (Ga samai symbols, …) — the chat renders
+      // markdown, so the image is emitted inline.
+      (hits[0].image ? `\n\n![${gaShown}](${hits[0].image})` : "")
+    );
     return;
   }
 
@@ -1040,13 +1388,28 @@ export async function* ask(
     if (isOurAsk(prevA) && (isAffirmative(query) || isBareNegative(query))) {
       const about = cleanEnglish(askedAboutFromAsk(prevA) || previousUserQuery(memoryWindow));
       if (isAffirmative(query)) {
-        const reply = about
-          ? `Oyiwaladɔŋ! Type the Ga for “${about}” in the box below and I'll put it forward for review.`
-          : "Oyiwaladɔŋ! Type it in the box below and I'll put it forward for review.";
+        // When the subject is itself a Ga word ("Suɔmɔ in a sentence"), the
+        // contribution wanted is a usage example, not "the Ga for" it.
+        let gaTerm = "";
+        if (about) {
+          try {
+            const hw = await env.DB.prepare(
+              `SELECT headword FROM vocabulary WHERE headword_normalized = ?
+                 AND verified_at IS NOT NULL AND TRIM(verified_at) <> '' LIMIT 1`
+            ).bind(foldGa(about)).first<{ headword: string }>();
+            if (hw) gaTerm = hw.headword;
+          } catch { /* fall through to the generic ask */ }
+        }
+        const reply = gaTerm
+          ? `Oyiwaladɔŋ! Type a sentence using “${gaTerm}” — Ga and English — in the box below and I'll put it forward for review.`
+          : about
+            ? `Oyiwaladɔŋ! Type the Ga for “${about}” in the box below and I'll put it forward for review.`
+            : "Oyiwaladɔŋ! Type it in the box below and I'll put it forward for review.";
         yield reply;
         const flag: TurnFlag = {
           kind: isNotFoundResponse(prevA) ? "not_found" : "wrong",
           english: about,
+          ga: gaTerm || undefined,
           open: "form",
         };
         if (!ephemeral) {
@@ -1172,9 +1535,27 @@ export async function* ask(
   // The archive had nothing: offer the contribution card instead of leaving
   // the invitation as prose the user can't act on. The gap itself is already
   // logged by the engine — this only adds the affordance.
-  const notFoundFlag: TurnFlag | undefined = isNotFoundResponse(full)
+  let notFoundFlag: TurnFlag | undefined = isNotFoundResponse(full)
     ? { kind: "not_found", english: cleanEnglish(query) }
     : undefined;
+
+  // "Suɔmɔ in a sentence" produced a not-found flag whose `english` is the Ga
+  // word itself — the card would ask "Do you know the Ga for 'Suɔmɔ'?", which
+  // is backwards. When the subject is a known Ga headword, carry it in `ga`
+  // and prefill `english` with its gloss so the contribution has a direction.
+  if (notFoundFlag?.english) {
+    try {
+      const hw = await env.DB.prepare(
+        `SELECT headword, translations FROM vocabulary
+         WHERE headword_normalized = ?
+           AND verified_at IS NOT NULL AND TRIM(verified_at) <> '' LIMIT 1`
+      ).bind(foldGa(notFoundFlag.english)).first<{ headword: string; translations: string }>();
+      if (hw) {
+        const gloss = String((() => { try { return JSON.parse(hw.translations || "[]")[0] ?? ""; } catch { return ""; } })());
+        notFoundFlag = { ...notFoundFlag, ga: hw.headword, english: gloss || notFoundFlag.english };
+      }
+    } catch { /* flag stays as-is */ }
+  }
 
   if (!ephemeral) {
     for await (const t of persistTurn(env, conversationId, query, full, userId, notFoundFlag, trace)) yield t;

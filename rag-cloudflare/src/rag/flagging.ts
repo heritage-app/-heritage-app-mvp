@@ -22,6 +22,9 @@ export interface TurnFlag {
   kind: "wrong" | "not_found" | "contribute";
   /** Prefill for the English side of the contribution. */
   english: string;
+  /** Set when the asked-about term is itself Ga (e.g. a missing-sentence ask
+   *  on a headword): the card should collect a usage example, not "the Ga". */
+  ga?: string;
   /** The interaction being corrected, when we know it. */
   interaction_id?: string;
   /** "form" when the user already said yes — skip straight past the ask. */
@@ -184,6 +187,8 @@ export function cleanEnglish(question: string): string {
   for (let i = 0; i < 3 && FRAME.test(out); i++) out = out.replace(FRAME, "");
   out = out
     .replace(/\s+(in|into)\s+ga(\s+language)?$/i, "")
+    .replace(/\s+in\s+a\s+sentence$/i, "")
+    .replace(/^use\s+/i, "")
     .replace(/^["“']|["”']$/g, "")
     .trim();
   return out || question.trim();

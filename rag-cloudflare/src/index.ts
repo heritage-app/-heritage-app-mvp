@@ -114,6 +114,20 @@ api.get("/contributions/:id/attachments/:index", requireUser, (c) =>
     parseInt(c.req.param("index"), 10) || 0
   )
 );
+// Public media — images referenced by archive records (Ga samai symbols etc.).
+// Keys are confined to the media/ prefix in the bucket; anything else 404s.
+api.get("/media/*", async (c) => {
+  const key = new URL(c.req.url).pathname.split("/media/")[1] ?? "";
+  if (!key || key.includes("..")) return c.json({ detail: "Not found" }, 404);
+  const obj = await c.env.DOCS_BUCKET.get(`media/${key}`);
+  if (!obj) return c.json({ detail: "Not found" }, 404);
+  const headers = new Headers();
+  obj.writeHttpMetadata(headers);
+  if (!headers.has("Content-Type")) headers.set("Content-Type", "application/octet-stream");
+  headers.set("Cache-Control", "public, max-age=86400");
+  return new Response(obj.body, { headers });
+});
+
 api.route("/quiz", quiz);
 api.route("/", agent);
 api.route("/", bible);

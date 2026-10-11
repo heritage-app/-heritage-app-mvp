@@ -255,6 +255,9 @@
     background:var(--paper-3); border:1px solid var(--line); padding:10px 12px; }
   .bubble th, .bubble td { border:1px solid var(--line-2); padding:6px 13px; text-align:left; }
   .bubble th { background:var(--paper-3); font-weight:600; }
+  .bubble img { display:block; max-width:min(340px,100%); max-height:340px; object-fit:contain;
+    margin:10px 0; border:1px solid var(--line); border-radius:12px; background:var(--paper); }
+  .bubble a { color:var(--gold); }
 
   /* Bible verse hierarchy (citation block · version labels · source pill) */
   .verse { display:flex; flex-direction:column; }
@@ -1183,7 +1186,10 @@
     .x-greet { font-size:40px; letter-spacing:-1.3px; white-space:nowrap; }
     .x-hero-text { max-width:66%; }
     .x-sub { font-size:19px; }
-    .x-hero-text .x-lead { font-size:13.5px; line-height:1.5; }
+    /* The lead paragraph only: escape the 66% column and run full-width —
+       the artwork's bottom fade already clears that zone, so the text
+       reads like normal body copy instead of a squeezed column. */
+    .x-hero-text .x-lead { font-size:13.5px; line-height:1.55; width:152%; max-width:100vw; }
     .x-art { position:absolute; top:-6px; right:-16px; width:76%; z-index:0; pointer-events:none; }
     .x-hero-img { width:100%; margin:0; -webkit-mask-image:linear-gradient(to right, transparent 0, #000 38%); mask-image:linear-gradient(to right, transparent 0, #000 38%); }
     .x-tile { padding:12px 8px 12px 10px; gap:8px; }
@@ -1583,7 +1589,7 @@
           <button type="button" class="x-btn" data-action="contribute">Teach a word</button>
           <button type="button" class="x-btn ghost" data-action="contribute-doc">Share a document</button>
         </div>
-        <p class="x-credits">Photos on <a href="https://unsplash.com" target="_blank" rel="noopener">Unsplash</a> by Ato Aikins, Barnabas Lartey-Odoi Tetteh and Emmanuel Yeboah Okine (Accra), Aaron Burden and Brett Jordan.</p>
+        <p class="x-credits">© 2026 SpeakGa · Nii Obodai. Ga texts, translations and recordings belong to their speakers and contributors — shared here to teach and preserve the language.</p>
       </div>
     </section>
     <section class="view" id="viewLearn" aria-label="Learn">
@@ -2322,6 +2328,13 @@ function escapeHtml(s) {
 }
 function inlineMd(s) {
   return s
+    // Images before links — ![alt](url) must not be eaten by the link rule.
+    // URL charset excludes quotes and angle brackets so it can't break the
+    // attribute; only http(s) or root-relative sources are honoured.
+    .replace(/!\[([^\]]*)\]\((https?:\/\/[^\s"'<>()]+|\/[^\s"'<>()]*)\)/g,
+      '<img src="$2" alt="$1" loading="lazy" decoding="async" />')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s"'<>()]+|\/[^\s"'<>()]*)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
     .replace(/`([^`]+)`/g, "<code>$1</code>");
@@ -4968,6 +4981,17 @@ $("bibleFind").onsubmit = async (e) => {
 
 /* Start where the link points: a shared conversation opens in Ask. */
 { const h = location.hash; setView(/^#\/c\//.test(h) ? "ask" : h === "#/learn" ? "learn" : h === "#/library" ? "library" : h === "#/ask" ? "ask" : "home"); }
+// Links from the SpeakGa landing page carry a question (?q=…): open the chat
+// and ask it, then drop it from the address so a reload doesn't ask again.
+{
+  let q = null;
+  try { q = (new URLSearchParams(location.search).get("q") || "").trim().slice(0, 300); } catch {}
+  if (q) {
+    try { history.replaceState(null, "", location.pathname + location.hash); } catch {}
+    setView("ask");
+    setTimeout(() => send(q), 0);
+  }
+}
 
 /* ====================================================================
    Mock-fidelity pass: progress (kept on this device), Learn topics,
