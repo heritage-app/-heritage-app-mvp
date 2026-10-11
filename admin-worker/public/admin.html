@@ -307,6 +307,7 @@ input.gaip{font:700 16px var(--display)}
         </div>
         <div class="status" id="upStatus" style="margin-top:10px"></div>
       </div>
+      <div class="note info hidden" id="sixNote" style="align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px" id="sixText"></span><button class="btn sm ink" id="sixBtn">Finish search index</button></div>
       <div class="note warn hidden" id="failedNote" style="align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px" id="failedText"></span><button class="btn sm" id="failedShow">Show them</button><button class="btn sm ink" id="failedClear">Clear failed uploads</button></div>
       <div class="panel"><h2>Indexed documents <small id="docCount"></small><span style="margin-left:auto;display:flex;gap:8px"><input class="in" id="docSearch" placeholder="Search" style="width:180px;height:34px" /></span></h2>
         <div class="tabs" role="tablist" id="docTabs" style="margin-bottom:10px"></div>
@@ -539,6 +540,7 @@ loaders.overview = async () => {
   if (o.contributions.pending) items.push({ c: "info", i: ICON.check, t: `${o.contributions.pending} contribution${o.contributions.pending > 1 ? "s are" : " is"} waiting for review`, s: "Approve it, or reject it with a reason.", a: '<button class="btn sm" data-go="review">Review</button>' });
   if (o.flagged_open) items.push({ c: "bad", i: ICON.flag, t: `${o.flagged_open} thumbs-down rating${o.flagged_open > 1 ? "s" : ""} to check`, s: "See the question and the answer people didn't like.", a: '<button class="btn sm" data-go="flagged">Check</button>' });
   if (o.samai.ready) items.push({ c: "gold", i: ICON.up, t: `${o.samai.ready} more samai symbols ready to import`, s: `ga-samai-okaikoi.jsonl is checked and has images. ${o.samai.review} more need a Ga reader first.`, a: '<button class="btn sm" data-go="archive">Upload</button>' });
+  if (o.search_index_pending) items.push({ c: "info", i: ICON.q, t: `${fmt(o.search_index_pending)} files need their search index finished`, s: "Their content works for direct lookups, but topic search may miss some of it.", a: '<button class="btn sm" data-go="archive">Finish</button>' });
   if (o.failed_uploads) items.push({ c: "mut", i: ICON.tag, t: `${fmt(o.failed_uploads)} failed uploads to clear`, s: "Uploads that stopped before saving anything. Clearing them tidies the document list; no content is lost.", a: '<button class="btn sm" data-go="archive">Review</button>' });
   const tone = { bad: ["var(--bad-soft)", "var(--bad)"], warn: ["var(--warn-soft)", "var(--warn)"], info: ["var(--info-soft)", "var(--info)"], gold: ["var(--gold-soft)", "var(--gold-ink)"], mut: ["var(--sunk)", "var(--ink-2)"] };
   $("ovAttention").innerHTML = items.length ? items.map((x) => `<li><span class="dot" style="background:${tone[x.c][0]};color:${tone[x.c][1]}">${x.i}</span><b class="t">${x.t}</b><span class="act">${x.a}</span><span class="sub">${x.s}</span></li>`).join("")
@@ -741,7 +743,37 @@ document.addEventListener("click", async (e) => {
 
 /* ================= DOCUMENTS ================= */
 const D = { page: 0, size: 25, cat: "", all: null };
-loaders.archive = () => { renderDocTabs(); loadDocs(); showFailed(); };
+loaders.archive = () => { renderDocTabs(); loadDocs(); showFailed(); showSix(); };
+function showSix(msg) {
+  const n = OV?.search_index_pending || 0;
+  $("sixNote").classList.toggle("hidden", !n && !msg);
+  $("sixText").textContent = msg || `${fmt(n)} file${n === 1 ? " is" : "s are"} marked “search index pending”. Their content is saved and verse lookups work, but some may be missing from topic search (“what does the Bible say about love”). Finishing checks each file and re-indexes only what's missing.`;
+}
+$("sixBtn").onclick = async () => {
+  const btn = $("sixBtn"); btn.disabled = true;
+  try {
+    showSix("Checking which files are already complete…");
+    const d = await api("/admin/console/documents/search-index");
+    const todo = d.pending, total = todo.reduce((n, p) => n + (p.records || 0), 0); let done = 0;
+    for (const [i, p] of todo.entries()) {
+      let off = 0;
+      for (;;) {
+        showSix(`${d.cleared ? `${d.cleared} files were already complete. ` : ""}Re-indexing ${i + 1} of ${todo.length}: ${p.name} · ${total ? Math.round(done / total * 100) : 0}% · keep this page open`);
+        const r = await api(`/admin/reindex?path=${encodeURIComponent(p.path)}&rec_offset=${off}&rec_limit=100`, { method: "POST" });
+        const res = r.results?.[0];
+        if (!res || res.error) throw new Error(`${p.name}: ${res?.error || "no result"}`);
+        done += res.vectors || 0;
+        if (res.next_offset == null) break;
+        off = res.next_offset;
+      }
+      await api(`/admin/console/documents/${encodeURIComponent(p.id)}/search-index-done`, { json: {} });
+    }
+    await refreshCounts(); D.all = null; loadDocs();
+    showSix(`Done. ${d.cleared} files were already complete; ${todo.length} re-indexed (${fmt(done)} entries).`);
+    toast("Search index finished.");
+  } catch (e) { showSix(`Stopped: ${e.message}. Press the button again to continue from where it left off.`); }
+  btn.disabled = false;
+};
 function showFailed() {
   const n = OV?.failed_uploads || 0;
   $("failedNote").classList.toggle("hidden", !n);
@@ -953,7 +985,7 @@ loaders.system = async () => {
   });
   try {
     const d = await api("/admin/console/activity");
-    const VERB = { answer: "Answered", send_to_review: "Sent to review", dismiss: "Dismissed", recheck_resolved: "Closed after checking", feedback_handled: "Handled a rating", reopen: "Put back", clear_failed_uploads: "Cleared failed uploads" };
+    const VERB = { answer: "Answered", send_to_review: "Sent to review", dismiss: "Dismissed", recheck_resolved: "Closed after checking", feedback_handled: "Handled a rating", reopen: "Put back", clear_failed_uploads: "Cleared failed uploads", search_index_checked: "Checked the search index", search_index_finished: "Finished the search index for" };
     $("sLog").innerHTML = d.items.length ? d.items.map((a) => `<li><time>${esc(ago(a.at))}</time><span><b>${esc(a.who || "Admin")}</b> · ${esc(VERB[a.action] || a.action)}: ${esc(a.detail || "")}</span></li>`).join("") : '<li><time></time><span class="muted">Nothing yet. Answers, dismissals and handled ratings appear here.</span></li>';
   } catch (e) { $("sLog").innerHTML = `<li><time></time><span>${esc(e.message)}</span></li>`; }
 };

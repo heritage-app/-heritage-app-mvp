@@ -108,6 +108,48 @@ app.post("/documents/clear-failed", async (c) => {
   return c.json({ status: "ok", removed: r.meta.changes });
 });
 
+/**
+ * Files marked "search index pending": their records are saved, but some search
+ * vectors may be missing. A Bible file is complete when its first and last verse are
+ * in the index (vectors go in verse order); those are cleared here without
+ * re-embedding. The rest are listed for the console to re-index (POST /admin/reindex,
+ * paged), then marked done with POST /documents/:id/search-index-done.
+ */
+app.get("/documents/search-index", async (c) => {
+  const adminId = c.get("adminId")!;
+  const docs = await c.env.DB.prepare(
+    `SELECT id, original_filename, unique_path, json_extract(metadata, '$.record_count') records
+     FROM documents WHERE json_extract(metadata, '$.vector_pending') = 1 AND status = 'indexed'`
+  ).all<{ id: string; original_filename: string; unique_path: string; records: number | null }>();
+  const pending: Array<{ id: string; name: string; path: string; records: number | null }> = [];
+  let cleared = 0;
+  for (const d of docs.results || []) {
+    const ends = await c.env.DB.prepare(
+      `SELECT (SELECT id FROM bible_verses WHERE source_name = ?1 ORDER BY chapter_num, verse_num LIMIT 1) a,
+              (SELECT id FROM bible_verses WHERE source_name = ?1 ORDER BY chapter_num DESC, verse_num DESC LIMIT 1) b`
+    ).bind(d.unique_path).first<{ a: string | null; b: string | null }>();
+    const ids = [ends?.a, ends?.b].filter(Boolean) as string[];
+    const found = ids.length ? await c.env.VECTORIZE.getByIds(ids).catch(() => []) : [];
+    if (ids.length === 2 && found.length === 2) {
+      await c.env.DB.prepare("UPDATE documents SET metadata = json_remove(metadata, '$.vector_pending') WHERE id = ?").bind(d.id).run();
+      cleared++;
+    } else {
+      pending.push({ id: d.id, name: d.original_filename, path: d.unique_path, records: d.records });
+    }
+  }
+  if (cleared) await logAction(c.env, adminId, "search_index_checked", "document", "bulk", `${cleared} files were already complete in the search index`);
+  return c.json({ cleared, pending });
+});
+
+app.post("/documents/:id/search-index-done", async (c) => {
+  const adminId = c.get("adminId")!;
+  const d = await c.env.DB.prepare("SELECT original_filename FROM documents WHERE id = ?").bind(c.req.param("id")).first<{ original_filename: string }>();
+  if (!d) return c.json({ detail: "Document not found" }, 404);
+  await c.env.DB.prepare("UPDATE documents SET metadata = json_remove(metadata, '$.vector_pending') WHERE id = ?").bind(c.req.param("id")).run();
+  await logAction(c.env, adminId, "search_index_finished", "document", c.req.param("id"), d.original_filename);
+  return c.json({ status: "ok" });
+});
+
 app.get("/overview", async (c) => {
   const db = c.env.DB;
   await settleStuckUploads(c.env);
@@ -116,7 +158,7 @@ app.get("/overview", async (c) => {
   const since14 = new Date(Date.now() - 13 * 86400000).toISOString().slice(0, 10);
   const since7 = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
 
-  const [q, daily, gaps, flagged, contrib, vocab, bible, docs, users, sessions, feedback, samaiDocs, archive, failed] = await Promise.all([
+  const [q, daily, gaps, flagged, contrib, vocab, bible, docs, users, sessions, feedback, samaiDocs, archive, failed, searchPending] = await Promise.all([
     one<{ total: number; week: number }>(`SELECT COUNT(*) total, SUM(date(created_at) >= ?) week FROM interactions`, since7),
     all<{ day: string; n: number }>(`SELECT date(created_at) day, COUNT(*) n FROM interactions WHERE date(created_at) >= ? GROUP BY 1 ORDER BY 1`, since14),
     one<{ open: number; asks: number; total: number }>(`SELECT SUM(status='pending') open, SUM(CASE WHEN status='pending' THEN frequency ELSE 0 END) asks, COUNT(*) total FROM knowledge_gaps`),
@@ -132,6 +174,7 @@ app.get("/overview", async (c) => {
     all<{ original_filename: string }>(`SELECT DISTINCT original_filename FROM documents WHERE original_filename LIKE 'ga-samai%'`),
     archiveStats(c.env).catch(() => null),
     one<{ n: number }>(`SELECT COUNT(*) n FROM documents WHERE ${FAILED}`),
+    one<{ n: number }>(`SELECT COUNT(*) n FROM documents WHERE json_extract(metadata, '$.vector_pending') = 1 AND status = 'indexed'`),
   ]);
 
   // Distinct symbols each samai dataset adds (datasets/ga-samai*.jsonl; the
@@ -156,6 +199,7 @@ app.get("/overview", async (c) => {
     speech_hours: 0,
     archive,
     failed_uploads: failed?.n ?? 0,
+    search_index_pending: searchPending?.n ?? 0,
   });
 });
 
