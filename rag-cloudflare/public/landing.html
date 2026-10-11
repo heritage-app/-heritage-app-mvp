@@ -457,13 +457,11 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:co
    share" cards become a row you swipe sideways. */
 @media (max-width:860px){
   .pipe{display:none}
-  .story .pcard{padding:16px;border-radius:24px;gap:14px;font-size:14px;cursor:default;box-shadow:0 24px 50px -24px rgba(0,0,0,.6)}
-  .story .panes{min-height:318px}
-  .story .pstatus span{font-size:10px}
-  .story .pane .gaw strong{font-size:26px}
-  .story .rq .pair strong{font-size:22px}
-  .story .pane .fld>span{height:36px;font-size:14px}
-  .story .pane .kinds span{font-size:11.5px;padding:4px 9px}
+  /* The walkthrough card keeps its desktop layout at a fixed design width (440 px) with
+     room for the tallest stage, and fitPhones() scales it as one piece (zoom --k), so
+     nothing reflows, overlaps or gets cut off on a narrow screen. */
+  .story .pcard{width:440px;zoom:var(--k,1);cursor:default;box-shadow:0 24px 50px -24px rgba(0,0,0,.6)}
+  .story .panes{min-height:400px}
   .shares{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;gap:10px;margin-top:28px;
     margin-inline:calc(clamp(16px,5vw,40px) * -1);padding:2px clamp(16px,5vw,40px) 8px;scroll-padding-inline:clamp(16px,5vw,40px)}
   .shares::-webkit-scrollbar{display:none}
@@ -1086,8 +1084,8 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
     <div>
       <p class="fund-label">Where the research stands</p>
       <div class="stats">
-        <div class="stat"><b>31,063</b><span>Bible verses in Ga</span><small>All 66 books, verse by verse with English</small></div>
-        <div class="stat"><b>838</b><span>Checked words and phrases</span><small>Verified before they're searchable</small></div>
+        <div class="stat"><b>62,368</b><span>Bible verses in Ga</span><small>Two full translations, all 66 books, with English</small></div>
+        <div class="stat"><b>847</b><span>Checked words and phrases</span><small>Verified before they're searchable</small></div>
         <div class="stat"><b>8</b><span>Samai symbols</span><small>Documented with their meanings and proverbs</small></div>
         <div class="stat gap"><b>0 hrs</b><span>Recorded Ga speech</span><small>Not started. This needs funding.</small></div>
       </div>
@@ -1480,11 +1478,12 @@ function makeStory(box, steps, stageEl, showStep) {
 /* Scale every phone as one piece to fit its space (see .phone). The hero and story
    phones fit their column's width; the sticky tour phone also fits the window height. */
 function fitPhones() {
-  document.querySelectorAll(".phone").forEach((p) => {
+  document.querySelectorAll(".phone, .story .pcard").forEach((p) => {
     const host = p.closest(".story-stage, .tour-phone, .stage");
     if (!host || !host.clientWidth) return; // hidden at this screen size
-    let k = Math.min(1, (host.clientWidth - 8) / 300);
-    if (p.closest(".story-stage")) k = Math.min(k, .82);                 // leave room for the story text
+    const design = p.classList.contains("pcard") ? 440 : 300;             // layout width before scaling
+    let k = Math.min(1, (host.clientWidth - 4) / design);
+    if (p.classList.contains("phone") && p.closest(".story-stage")) k = Math.min(k, .82); // room for the story text
     if (p.closest(".tour-phone")) k = Math.min(k, (innerHeight - 140) / 620);
     p.style.setProperty("--k", Math.max(.5, k).toFixed(3));
   });
