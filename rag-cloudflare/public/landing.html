@@ -121,7 +121,10 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:co
 @media (max-width:920px){.hero-grid{grid-template-columns:1fr}.hero-copy{text-align:left}}
 
 /* ============ PHONE ============ */
-.phone{--w:min(300px,76vw);width:var(--w);aspect-ratio:300/620;max-width:100%;border-radius:calc(var(--w)*.16);padding:calc(var(--w)*.032);background:linear-gradient(150deg,var(--frame-2),var(--frame) 40%);box-shadow:var(--shadow-lg),inset 0 0 0 1.5px rgba(255,255,255,.08);position:relative;font-size:12.5px;line-height:1.45;color:var(--ink)}
+/* The phone is always laid out at its design size (300 px wide) so every screen looks
+   exactly like desktop; fitPhones() scales the whole thing down with zoom (--k) where
+   space is tighter. Never squeeze --w itself: the screens are sized in pixels. */
+.phone{--w:300px;zoom:var(--k,1);width:var(--w);aspect-ratio:300/620;border-radius:calc(var(--w)*.16);padding:calc(var(--w)*.032);background:linear-gradient(150deg,var(--frame-2),var(--frame) 40%);box-shadow:var(--shadow-lg),inset 0 0 0 1.5px rgba(255,255,255,.08);position:relative;font-size:12.5px;line-height:1.45;color:var(--ink)}
 .phone::after{content:"";position:absolute;right:-3px;top:22%;width:3px;height:12%;border-radius:0 3px 3px 0;background:var(--frame-2)}
 .bezel{position:relative;height:100%;border-radius:calc(var(--w)*.13);overflow:hidden;background:var(--app);isolation:isolate}
 .island{position:absolute;top:9px;left:50%;translate:-50% 0;width:31%;height:24px;border-radius:20px;background:#000;z-index:5}
@@ -401,8 +404,22 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:co
 .shares b{font-family:var(--display);font-size:17px;letter-spacing:-.01em}
 .shares p{font-size:13.5px;color:var(--ink-2);line-height:1.45}
 @media (max-width:1000px){.shares{grid-template-columns:repeat(3,1fr)}}
-@media (max-width:860px){.pipe{grid-template-columns:1fr}.panes{min-height:360px}}
-@media (max-width:560px){.shares{grid-template-columns:1fr 1fr}.pstatus span{font-size:10px}}
+/* Phones: the walkthrough plays as a story (see .story), and the five "what you can
+   share" cards become a row you swipe sideways. */
+@media (max-width:860px){
+  .pipe{display:none}
+  .story .pcard{padding:16px;border-radius:24px;gap:14px;font-size:14px;cursor:default;box-shadow:0 24px 50px -24px rgba(0,0,0,.6)}
+  .story .panes{min-height:318px}
+  .story .pstatus span{font-size:10px}
+  .story .pane .gaw strong{font-size:26px}
+  .story .rq .pair strong{font-size:22px}
+  .story .pane .fld>span{height:36px;font-size:14px}
+  .story .pane .kinds span{font-size:11.5px;padding:4px 9px}
+  .shares{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;gap:10px;margin-top:28px;
+    margin-inline:calc(clamp(16px,5vw,40px) * -1);padding:2px clamp(16px,5vw,40px) 8px;scroll-padding-inline:clamp(16px,5vw,40px)}
+  .shares::-webkit-scrollbar{display:none}
+  .shares li{flex:0 0 min(64%,240px);scroll-snap-align:start}
+}
 
 /* ===== Contribute page (opens over the landing page at #give) ===== */
 .give{position:fixed;inset:0;z-index:60;overflow-y:auto;background:var(--bg);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);animation:givein .4s var(--ease)}
@@ -551,8 +568,36 @@ section.sec{padding-block:clamp(72px,10vw,128px)}
 .step-link{justify-self:start;display:inline-flex;align-items:center;gap:8px;min-height:44px;font-weight:700;font-size:15px;color:var(--gold-ink);text-decoration:none}
 .step-link span{transition:transform .2s var(--ease)}.step-link:hover span{transform:translateX(4px)}
 .tour-phone{position:sticky;top:calc(env(safe-area-inset-top,0px) + 96px);align-self:start;display:grid;justify-items:center}
-.tour-phone .phone{--w:min(300px,calc((100svh - 140px) * .4838))}
-@media (max-width:860px){.tour-grid{grid-template-columns:1fr}.tour-phone{display:none}.step{min-height:0;padding-block:28px}.js .step{opacity:1}}
+/* Phones: the tour becomes a story (like status updates): a dark card with progress
+   bars, the step's phone in a coloured glow, a headline and a button into the app.
+   Tap right for next, left for back, swipe, or press and hold to pause. */
+.story{display:none}
+@media (max-width:860px){
+  .tour-grid{display:none}
+  .story{display:block;position:relative;margin-top:22px;border-radius:32px;overflow:hidden;isolation:isolate;
+    background:#16130F;color:#FBF7F1;padding:14px 16px 20px;user-select:none;-webkit-user-select:none;touch-action:pan-y;-webkit-tap-highlight-color:transparent;cursor:pointer}
+  .story::before{content:"";position:absolute;inset:-20% -20% 30%;z-index:-1;background:radial-gradient(50% 45% at 50% 50%,var(--glow,rgba(242,179,61,.35)),transparent 70%);transition:background .7s ease}
+  .story-bars{display:flex;gap:5px}
+  .story-bars i{flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.22);overflow:hidden}
+  .story-bars i b{display:block;height:100%;background:#fff;transform:scaleX(0);transform-origin:left}
+  .story-bars i.done b{transform:scaleX(1)}
+  .story-bars i.on b{animation:fill var(--dur,6000ms) linear forwards}
+  .story.paused .story-bars i.on b{animation-play-state:paused}
+  .story-head{display:flex;align-items:center;gap:10px;margin-top:12px;font:700 14px var(--sans)}
+  .story-head .ic{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:800 13px var(--display)}
+  .story-head small{font:600 12.5px var(--sans);opacity:.6;margin-left:auto}
+  .story-stage{display:grid;place-items:center;padding:20px 0 16px}
+  .story-copy{display:grid;gap:8px;min-height:132px;align-content:start}
+  .story-copy h3{font-size:27px;color:#fff}
+  .story-copy p{color:rgba(251,247,241,.74);font-size:15.5px;line-height:1.5}
+  .story-copy a{justify-self:start;display:inline-flex;align-items:center;gap:8px;margin-top:6px;min-height:44px;padding:0 18px;border-radius:999px;background:var(--gold);color:#1a1205;font:700 14.5px var(--sans);text-decoration:none}
+  .story-copy.in > *{animation:storyUp .5s var(--ease) both}
+  .story-copy.in > :nth-child(2){animation-delay:.07s}.story-copy.in > :nth-child(3){animation-delay:.14s}
+  @keyframes storyUp{from{opacity:0;transform:translateY(12px)}}
+  .story-hint{position:absolute;right:16px;top:50%;font:700 12px var(--sans);color:#fff;background:rgba(255,255,255,.14);backdrop-filter:blur(6px);padding:7px 12px;border-radius:999px;pointer-events:none;opacity:0;animation:hint 3.2s 1.2s ease both}
+  @keyframes hint{12%,75%{opacity:1}100%{opacity:0}}
+}
+@media (max-width:860px) and (prefers-reduced-motion:reduce){.story-copy.in > *,.story-hint{animation:none!important}.story-hint{display:none}}
 
 /* contribute */
 .contrib{background:var(--paper-2)}
@@ -588,19 +633,49 @@ section.sec{padding-block:clamp(72px,10vw,128px)}
 @media (max-width:1000px){.road{grid-template-columns:1fr 1fr}}
 @media (max-width:520px){.road{grid-template-columns:1fr}}
 
-/* partner */
-.partner{border-radius:36px;background:var(--ink);color:var(--bg);padding:clamp(32px,6vw,72px);display:grid;grid-template-columns:1.2fr .8fr;gap:clamp(28px,5vw,64px);align-items:center;position:relative;overflow:hidden}
-.partner::before{content:"ŋ";position:absolute;right:-2%;bottom:-30%;font-family:var(--display);font-weight:800;font-size:clamp(260px,34vw,460px);line-height:1;color:var(--gold);opacity:.12;pointer-events:none}
-.partner h2{font-size:clamp(32px,4.4vw,52px)}
-.partner .eyebrow{color:var(--gold)}
-.partner p{color:color-mix(in srgb,var(--bg) 78%,transparent);margin-top:14px;max-width:52ch}
-.prio{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px;padding:0;list-style:none}
-.prio li{font-size:13.5px;font-weight:600;padding:7px 13px;border-radius:999px;border:1px solid color-mix(in srgb,var(--bg) 22%,transparent)}
-.contact{position:relative;display:grid;gap:12px;padding:22px;border-radius:24px;background:color-mix(in srgb,var(--bg) 8%,transparent);border:1px solid color-mix(in srgb,var(--bg) 16%,transparent);min-width:0}
-.contact small{color:color-mix(in srgb,var(--bg) 70%,transparent)}
-.addr{font-family:var(--display);font-size:clamp(17px,1.8vw,21px);font-weight:700;user-select:all;overflow-wrap:anywhere}
-.contact .btn{justify-self:start}
-@media (max-width:860px){.partner{grid-template-columns:1fr}}
+/* support the research: where it stands, what support pays for, ways to help, contact */
+.fund{display:grid;gap:clamp(36px,5vw,60px)}
+.fund-head{display:grid;gap:14px;max-width:780px}
+.fund-head h2{font-size:clamp(34px,5vw,58px)}
+.fund-label{margin:0 0 16px;font:800 12px var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.stat{padding:22px;border-radius:24px;background:var(--paper-2);display:grid;gap:6px;align-content:start;min-width:0}
+.stat b{font:800 clamp(30px,3.6vw,46px)/1 var(--display);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.stat span{font-weight:700;font-size:15px;line-height:1.35}
+.stat small{font-size:13px;color:var(--muted);line-height:1.4}
+.stat.gap{background:transparent;box-shadow:inset 0 0 0 2px var(--gold)}
+.stat.gap b{color:var(--gold-ink)}
+.stat.gap small{color:var(--gold-ink);font-weight:700}
+.streams{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.stream{padding:24px;border-radius:24px;box-shadow:inset 0 0 0 1px var(--line);display:flex;flex-direction:column;gap:10px;min-width:0}
+.stream .ic{width:42px;height:42px;border-radius:14px;display:grid;place-items:center}
+.stream .ic svg{width:21px;height:21px}
+.stream h3{font-size:21px}
+.stream p{font-size:15px;color:var(--ink-2)}
+.stream .out{margin-top:auto;padding-top:14px;border-top:1px solid var(--line);font-size:13.5px;font-weight:700;display:flex;gap:8px;flex-wrap:wrap}
+.stream .out em{font-style:normal;font-weight:600;color:var(--muted)}
+.ways{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:32px;list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.ways a{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 16px;align-items:center;min-height:84px;padding:16px 2px;border-bottom:1px solid var(--line);text-decoration:none}
+.ways b{font:800 19px var(--display);letter-spacing:-.01em}
+.ways span{grid-column:1;font-size:14px;color:var(--muted);line-height:1.45}
+.ways i{grid-column:2;grid-row:1/3;font-style:normal;font-weight:700;font-size:14px;color:var(--gold-ink);white-space:nowrap}
+.ways a:hover b{color:var(--gold-ink)}
+.contact-strip{display:flex;flex-wrap:wrap;align-items:center;gap:16px 24px;padding:24px 28px;border-radius:28px;background:var(--ink);color:var(--bg)}
+.contact-strip small{display:block;font-size:13px;opacity:.7;margin-bottom:2px}
+.addr{font-family:var(--display);font-size:clamp(17px,2vw,22px);font-weight:700;user-select:all;overflow-wrap:anywhere}
+.contact-strip .acts{margin-left:auto;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn-ondark{border-color:color-mix(in srgb,var(--bg) 30%,transparent);color:var(--bg);background:transparent}
+.contact-strip #copyMsg{flex-basis:100%;font-size:13px;opacity:.75;min-height:0}
+.contact-strip #copyMsg:empty{display:none}
+@media (max-width:1000px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.streams{grid-template-columns:1fr}}
+@media (max-width:760px){
+  .ways{grid-template-columns:1fr}
+  .ways i{font-size:0}.ways i::after{content:"→";font-size:20px}
+  .contact-strip{padding:22px}
+  .contact-strip .acts{margin-left:0;width:100%}
+  .contact-strip .acts .btn{flex:1;justify-content:center}
+}
+@media (max-width:420px){.stat{padding:16px;border-radius:20px}.stat b{font-size:28px}.stat span{font-size:14px}}
 
 /* final */
 .final{text-align:center;display:grid;justify-items:center;gap:20px}
@@ -627,7 +702,7 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
       <li><a href="#tour">See the app</a></li>
       <li><a href="#give">Contribute</a></li>
       <li><a href="#roadmap">Roadmap</a></li>
-      <li><a href="#partner">Partner</a></li>
+      <li><a href="#partner">Support</a></li>
     </ul>
     <a class="btn btn-ink" href="https://app.speakga.org/">Try SpeakGa</a>
   </div>
@@ -877,6 +952,8 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
       </div>
       <div class="tour-phone" id="tourMount"></div>
     </div>
+    <!-- Phones: the same five steps, told as a story (built from the steps above). -->
+    <div class="story" id="story" role="region" aria-roledescription="story" aria-label="Inside the app. Tap the right side for the next step, the left side to go back."></div>
   </div>
 </section>
 
@@ -923,6 +1000,8 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
         </div>
       </div>
     </div>
+    <!-- Phones: the same four stages, told as a story (built from the walkthrough above). -->
+    <div class="story" id="storyGive" role="region" aria-roledescription="story" aria-label="How a word gets into SpeakGa. Tap the right side for the next stage, the left side to go back."></div>
 
     <ul class="shares">
       <li><span class="si t-sage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><b>Words &amp; phrases</b><p>An English word or phrase and its Ga.</p></li>
@@ -948,20 +1027,64 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
 </section>
 
 <section class="sec" id="partner" style="padding-top:0">
-  <div class="wrap">
-    <div class="partner">
-      <div>
-        <p class="eyebrow">Partners and funding</p>
-        <h2 style="margin-top:12px">Build the future of Ga with us.</h2>
-        <p>SpeakGa is a Codetrain Foundation initiative. We're looking for partners to fund verified datasets, speech research and wider access to learning tools.</p>
-        <ul class="prio"><li>Language data</li><li>Speech research</li><li>Expert review</li><li>Education</li><li>Evaluation</li></ul>
+  <div class="wrap fund">
+    <div class="fund-head">
+      <p class="eyebrow">Support the research</p>
+      <h2>Help give Ga a place in the digital future.</h2>
+      <p class="lede">SpeakGa is a research project by Codetrain Foundation. The app works today, but Ga still has very little digital language data. Funding and data partners decide how fast that changes.</p>
+    </div>
+
+    <div>
+      <p class="fund-label">Where the research stands</p>
+      <div class="stats">
+        <div class="stat"><b>31,063</b><span>Bible verses in Ga</span><small>All 66 books, verse by verse with English</small></div>
+        <div class="stat"><b>838</b><span>Checked words and phrases</span><small>Verified before they're searchable</small></div>
+        <div class="stat"><b>8</b><span>Samai symbols</span><small>Documented with their meanings and proverbs</small></div>
+        <div class="stat gap"><b>0 hrs</b><span>Recorded Ga speech</span><small>Not started. This needs funding.</small></div>
       </div>
-      <div class="contact">
-        <small>Write to us</small>
-        <span class="addr" id="addr">experience@codetrainafrica.com</span>
-        <button class="btn btn-gold" type="button" id="copyBtn">Copy address</button>
-        <small id="copyMsg" role="status" aria-live="polite"></small>
+    </div>
+
+    <div>
+      <p class="fund-label">What your support pays for</p>
+      <div class="streams">
+        <article class="stream">
+          <span class="ic t-sage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+          <h3>Verified language data</h3>
+          <p>Ga speakers and linguists check and expand the archive: everyday vocabulary, proverbs, idioms and grammar.</p>
+          <p class="out"><em>Produces</em>Open, reviewed Ga datasets</p>
+        </article>
+        <article class="stream">
+          <span class="ic t-sand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8"/></svg></span>
+          <h3>Recorded speech</h3>
+          <p>Recording native speakers of different ages and areas: the groundwork for Ga speech recognition and natural-sounding audio.</p>
+          <p class="out"><em>Produces</em>A Ga speech collection</p>
+        </article>
+        <article class="stream">
+          <span class="ic t-sky"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></span>
+          <h3>Accuracy and evaluation</h3>
+          <p>Measuring how well Nii Obodai answers, with expert review, so the AI only claims what it can back up.</p>
+          <p class="out"><em>Produces</em>Published benchmarks</p>
+        </article>
       </div>
+    </div>
+
+    <div>
+      <p class="fund-label">Ways to get involved</p>
+      <ul class="ways">
+        <li><a href="mailto:experience@codetrainafrica.com?subject=SpeakGa%3A%20project%20brief%20request"><b>Fund the research</b><span>Foundations, companies and grant makers</span><i>Request the project brief →</i></a></li>
+        <li><a href="mailto:experience@codetrainafrica.com?subject=SpeakGa%3A%20research%20collaboration"><b>Research with us</b><span>Universities, linguists and AI labs</span><i>Propose a collaboration →</i></a></li>
+        <li><a href="mailto:experience@codetrainafrica.com?subject=SpeakGa%3A%20sharing%20a%20collection"><b>Share data</b><span>Archives, publishers, churches and broadcasters with Ga texts or recordings</span><i>Share a collection →</i></a></li>
+        <li><a href="#give"><b>Lend your Ga</b><span>Speakers who can check words, add what's missing or record their voice</span><i>Contribute a word →</i></a></li>
+      </ul>
+    </div>
+
+    <div class="contact-strip">
+      <div><small>Talk to the team</small><span class="addr" id="addr">experience@codetrainafrica.com</span></div>
+      <div class="acts">
+        <a class="btn btn-gold" href="mailto:experience@codetrainafrica.com?subject=SpeakGa">Email us</a>
+        <button class="btn btn-ondark" type="button" id="copyBtn">Copy address</button>
+      </div>
+      <small id="copyMsg" role="status" aria-live="polite"></small>
     </div>
   </div>
 </section>
@@ -1083,7 +1206,7 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
 <footer>
   <div class="wrap f-row">
     <a class="brand brand-sm" href="#top"><img src="img/brand/speakga-logo.png" width="515" height="144" alt="SpeakGa"></a>
-    <ul class="f-links"><li><a href="https://app.speakga.org/">Open the app</a></li><li><a href="https://app.speakga.org/#/learn">Learn</a></li><li><a href="https://app.speakga.org/#/library">Library</a></li><li><a href="#tour">See the app</a></li><li><a href="#give">Contribute</a></li><li><a href="#roadmap">Roadmap</a></li><li><a href="#partner">Partner</a></li></ul>
+    <ul class="f-links"><li><a href="https://app.speakga.org/">Open the app</a></li><li><a href="https://app.speakga.org/#/learn">Learn</a></li><li><a href="https://app.speakga.org/#/library">Library</a></li><li><a href="#tour">See the app</a></li><li><a href="#give">Contribute</a></li><li><a href="#roadmap">Roadmap</a></li><li><a href="#partner">Support</a></li></ul>
     <span>© 2026 Codetrain Foundation</span>
   </div>
 </footer>
@@ -1189,6 +1312,138 @@ if ("IntersectionObserver" in window) {
   }), { rootMargin: "-45% 0px -45% 0px" });
   steps.forEach(s => io.observe(s));
 }
+/* ---------- Phones: stories ----------
+   A story is a dark card with progress bars, a stage in a coloured glow, a headline,
+   a line and a button. Each step plays for its own duration, then moves on.
+   Tap right = next, left = back, swipe, press and hold = pause. Plays only on
+   phones and only while on screen. Used by the app tour and the community walkthrough.
+   steps: [{ name, ic, icCls, title, line, cta, href, glow, dur }]; showStep(i) fills the stage. */
+function makeStory(box, steps, stageEl, showStep) {
+  const mq = matchMedia("(max-width: 860px)");
+  const n = steps.length;
+  box.innerHTML = `<div class="story-bars">${steps.map(() => "<i><b></b></i>").join("")}</div>
+    <div class="story-head"><span class="ic"></span><span class="nm"></span><small></small></div>
+    <div class="story-stage"></div>
+    <div class="story-copy" aria-live="polite"><h3></h3><p></p><a></a></div>
+    <span class="story-hint" aria-hidden="true">Tap for next →</span>`;
+  box.querySelector(".story-stage").appendChild(stageEl);
+  const bars = [...box.querySelectorAll(".story-bars i")];
+  const copy = box.querySelector(".story-copy");
+  let i = 0, timer = null, startedAt = 0, left = 0, dur = 0, onScreen = false, held = false, started = false;
+  function arm(ms) { clearTimeout(timer); startedAt = Date.now(); left = ms; if (!reduce) timer = setTimeout(() => play(i + 1), ms); }
+  function play(k) {
+    i = (k + n) % n;
+    const st = steps[i];
+    dur = st.dur;
+    bars.forEach((b, j) => { b.classList.toggle("done", j < i); b.classList.remove("on"); });
+    void box.offsetWidth; bars[i].classList.add("on");
+    box.style.setProperty("--dur", dur + "ms");
+    box.style.setProperty("--glow", st.glow);
+    const ic = box.querySelector(".story-head .ic");
+    ic.className = "ic " + (st.icCls || ""); ic.textContent = st.ic;
+    box.querySelector(".story-head .nm").textContent = st.name;
+    box.querySelector(".story-head small").textContent = `${i + 1} of ${n}`;
+    copy.querySelector("h3").textContent = st.title;
+    copy.querySelector("p").textContent = st.line;
+    const a = copy.querySelector("a"); a.href = st.href; a.innerHTML = `${st.cta} <span aria-hidden="true">→</span>`;
+    copy.classList.remove("in"); void copy.offsetWidth; copy.classList.add("in");
+    showStep(i);
+    box.classList.remove("paused");
+    if (onScreen) arm(dur); else { clearTimeout(timer); left = dur; }
+  }
+  function pause() { if (box.classList.contains("paused")) return; clearTimeout(timer); left = Math.max(0, left - (Date.now() - startedAt)); box.classList.add("paused"); }
+  function resume() { if (!box.classList.contains("paused")) return; box.classList.remove("paused"); arm(left || dur); }
+  let downX = 0, downAt = 0, holdT = null;
+  box.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("a")) return;
+    downX = e.clientX; downAt = Date.now(); held = false;
+    holdT = setTimeout(() => { held = true; pause(); }, 260);
+  });
+  box.addEventListener("pointerup", (e) => {
+    if (e.target.closest("a")) return;
+    clearTimeout(holdT);
+    if (held) { held = false; resume(); return; }
+    const dx = e.clientX - downX;
+    if (Math.abs(dx) > 40) { play(dx < 0 ? i + 1 : i - 1); return; }   // swipe
+    if (Date.now() - downAt > 600) return;
+    const r = box.getBoundingClientRect();
+    play(e.clientX - r.left < r.width * .3 ? i - 1 : i + 1);           // tap
+  });
+  box.addEventListener("pointercancel", () => { clearTimeout(holdT); if (held) { held = false; resume(); } });
+  box.addEventListener("keydown", (e) => { if (e.key === "ArrowRight") play(i + 1); if (e.key === "ArrowLeft") play(i - 1); });
+  box.tabIndex = 0;
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver((es) => es.forEach((e) => {
+      onScreen = e.isIntersecting && mq.matches;
+      if (onScreen && !started) { started = true; play(0); }
+      else if (onScreen) resume(); else pause();
+    }), { threshold: .45 }).observe(box);
+  }
+  play(0); // the first frame is complete even before it scrolls into view
+}
+
+/* The app tour as a story: the phone plays each step's screen for as long as its animation runs. */
+(() => {
+  const SHORT = {
+    home: "Every visit opens in Ga, with a word of the day and quick ways into the Bible, stories and games.",
+    ask: "Ask in English. Nii Obodai answers from the Ga archive, and says so when it doesn't know.",
+    learn: "Four quick quiz types. Each right answer fills your daily goal of ten.",
+    library: "The whole Bible in Ga, verse by verse, with the English beside it.",
+    teach: "Add a word you know. People check it before it goes live, and the credit is yours.",
+  };
+  const CTA = { home: "Open SpeakGa", ask: "Ask this in the app", learn: "Start practising", library: "Open the Library", teach: "Contribute a word" };
+  const GLOW = { home: "rgba(131,214,164,.38)", ask: "rgba(242,179,61,.42)", learn: "rgba(242,167,159,.38)", library: "rgba(147,185,242,.38)", teach: "rgba(235,190,98,.40)" };
+  const keys = [...document.querySelectorAll(".step")].map((st) => st.dataset.s);
+  const steps = [...document.querySelectorAll(".step")].map((st) => {
+    const tag = st.querySelector(".tag"), s = st.dataset.s;
+    return { name: tag.textContent, ic: tag.textContent[0], icCls: [...tag.classList].find((c) => c.startsWith("t-")),
+      title: st.querySelector("h3").textContent, line: SHORT[s], cta: CTA[s],
+      href: st.querySelector(".step-link").getAttribute("href"), glow: GLOW[s], dur: DURS[s] || 6000 };
+  });
+  const phone = hero.cloneNode(true);
+  phone.removeAttribute("id"); phone._init = false;
+  makeStory(document.getElementById("story"), steps, phone, (i) => { phone._init = false; show(phone, keys[i]); });
+})();
+
+/* The community walkthrough as a story: the white app card plays each stage. */
+(() => {
+  const card = document.querySelector("#pipe .pcard").cloneNode(true);
+  const panes = [...card.querySelectorAll(".pane")], marks = [...card.querySelectorAll(".pstatus span")];
+  const LINE = [
+    "When the archive has no answer, Nii Obodai says so and asks if you know.",
+    "Add the English and the Ga, with a source if you have one.",
+    "Two people sending the same answer verifies it. Otherwise a reviewer approves it.",
+    "It joins the archive everyone can search, and the credit stays with you.",
+  ];
+  const GLOW = ["rgba(242,179,61,.42)", "rgba(131,214,164,.38)", "rgba(147,185,242,.38)", "rgba(235,190,98,.40)"];
+  const CLS = ["t-sand", "t-sage", "t-sky", "t-blush"];
+  const steps = [...document.querySelectorAll("#pipe .pstages button")].map((b, i) => ({
+    name: b.querySelector("b").textContent, ic: String(i + 1), icCls: CLS[i],
+    title: b.querySelector("b").textContent + ".", line: LINE[i],
+    cta: "Teach a word", href: "#give", glow: GLOW[i], dur: 5200,
+  }));
+  makeStory(document.getElementById("storyGive"), steps, card, (i) => {
+    panes.forEach((p, k) => { p.classList.toggle("on", k === i); p.classList.remove("play"); if (k === i && !reduce) { void p.offsetWidth; p.classList.add("play"); } });
+    marks.forEach((m, k) => m.classList.toggle("done", k <= i));
+  });
+})();
+
+/* Scale every phone as one piece to fit its space (see .phone). The hero and story
+   phones fit their column's width; the sticky tour phone also fits the window height. */
+function fitPhones() {
+  document.querySelectorAll(".phone").forEach((p) => {
+    const host = p.closest(".story-stage, .tour-phone, .stage");
+    if (!host || !host.clientWidth) return; // hidden at this screen size
+    let k = Math.min(1, (host.clientWidth - 8) / 300);
+    if (p.closest(".story-stage")) k = Math.min(k, .82);                 // leave room for the story text
+    if (p.closest(".tour-phone")) k = Math.min(k, (innerHeight - 140) / 620);
+    p.style.setProperty("--k", Math.max(.5, k).toFixed(3));
+  });
+}
+fitPhones();
+addEventListener("resize", fitPhones);
+matchMedia("(max-width: 860px)").addEventListener?.("change", fitPhones);
+
 go(0);
 show(tourPhone, "home");
 
