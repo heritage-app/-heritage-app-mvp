@@ -1,0 +1,8 @@
+
+# Live auth artifacts — never commit
+cookie.txt
+cookies.txt
+*.cookies.txt
+admin-worker/.env
+admin-worker/.wrangler
+tail.log
