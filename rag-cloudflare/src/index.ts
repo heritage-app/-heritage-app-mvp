@@ -14,6 +14,7 @@ import { bootstrapSuperAdmin } from "./bootstrap";
 
 import meta from "./routes/meta";
 import auth from "./routes/auth";
+import seo, { hostKind } from "./routes/seo";
 import user from "./routes/user";
 import chat from "./routes/chat";
 import conversations from "./routes/conversations";
@@ -54,6 +55,11 @@ app.use("*", async (c, next) => {
 });
 
 const api = new Hono<{ Bindings: Env; Variables: Variables }>();
+// API responses are data, not pages: keep them out of search results.
+api.use("*", async (c, next) => {
+  await next();
+  try { c.res.headers.set("X-Robots-Tag", "noindex"); } catch { /* immutable (proxied) response */ }
+});
 api.route("/", meta);
 api.route("/auth", auth);
 api.route("/user", user);
@@ -117,16 +123,24 @@ const ADMIN_CONSOLE = "https://heritage-admin.heritage-app.workers.dev";
 app.get("/admin", (c) => c.redirect(`${ADMIN_CONSOLE}/admin.html`, 302));
 app.get("/admin.html", (c) => c.redirect(`${ADMIN_CONSOLE}/admin.html`, 302));
 
+// robots.txt, sitemap.xml and the /landing redirect, per domain (src/routes/seo.ts).
+app.route("/", seo);
+
 // The root page depends on the domain (wrangler.toml runs the Worker first for "/"):
 // speakga.org is the landing page, www.speakga.org goes to it, and every other host
 // (app.speakga.org, workers.dev, localhost) gets the app. The query string is kept,
-// since the app reads ?q= from landing-page links.
-app.get("/", (c) => {
+// since the app reads ?q= from landing-page links. Copies on non-public hosts
+// (workers.dev) are marked noindex so search only shows the real addresses.
+app.get("/", async (c) => {
   const url = new URL(c.req.url);
   if (url.hostname === "www.speakga.org") return c.redirect(`https://speakga.org/${url.search}`, 301);
   const page = new URL(url);
   page.pathname = url.hostname === "speakga.org" ? "/landing" : "/";
-  return c.env.ASSETS.fetch(new Request(page, c.req.raw));
+  const res = await c.env.ASSETS.fetch(new Request(page, c.req.raw));
+  if (hostKind(c.req.url) !== "other") return res;
+  const marked = new Response(res.body, res);
+  marked.headers.set("X-Robots-Tag", "noindex");
+  return marked;
 });
 
 app.onError((err, c) => {
