@@ -1719,6 +1719,7 @@ $g("gform").addEventListener("submit", async e => {
     const r = await fetch(`${API}/contribute`, init);
     const d = await r.json().catch(() => ({}));
     if (!r.ok) { $g("gFormErr").textContent = d.error || "That didn't go through. Try again."; return; }
+    window.sgTrack && sgTrack("give");
     showResult(body, d);
   } catch {
     $g("gFormErr").textContent = "Couldn't reach SpeakGa. Check your connection and try again.";
@@ -1764,6 +1765,10 @@ document.getElementById("copyBtn").addEventListener("click", () => {
   const fallback = () => { const r = document.createRange(); r.selectNodeContents(document.getElementById("addr")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); msg.textContent = "Selected. Press Ctrl+C or ⌘C to copy."; };
   try { navigator.clipboard.writeText(t).then(() => msg.textContent = "Copied.", fallback); } catch { fallback(); }
 });
+</script>
+<script>
+/* Cookie-free visit counter: page, referring site, device. No names or IP addresses (src/routes/traffic.ts). */
+(function(){function t(e){try{var d=JSON.stringify({e:e,p:location.pathname+(location.hash||""),r:document.referrer});if(!(navigator.sendBeacon&&navigator.sendBeacon("/api/v1/e",d)))fetch("/api/v1/e",{method:"POST",body:d,keepalive:true})}catch(_){}}window.sgTrack=t;t("pageview");document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("a,button");if(!a)return;var h=a.getAttribute("href")||"";if(/^https://app.speakga.org/.test(h))t("start");else if(a.closest("#partner"))t("support")},true);})();
 </script>
 </body>
 </html>

@@ -3478,6 +3478,7 @@ window.addEventListener("beforeinstallprompt", (e) => {
 });
 window.addEventListener("appinstalled", () => {
   installPrompt = null;
+  window.sgTrack && sgTrack("install");
   $("installBtn").classList.add("hidden");
   closeOverlays();
   toast("Installed — SpeakGa is on your home screen");
@@ -5529,6 +5530,10 @@ input.addEventListener("blur", () => setTimeout(() => { if (document.activeEleme
 renderProgress();
 loadTopics();
 
+</script>
+<script>
+/* Cookie-free visit counter: page, referring site, device. No names or IP addresses (src/routes/traffic.ts). */
+(function(){function t(e){try{var d=JSON.stringify({e:e,p:location.pathname+(location.hash||""),r:document.referrer});if(!(navigator.sendBeacon&&navigator.sendBeacon("/api/v1/e",d)))fetch("/api/v1/e",{method:"POST",body:d,keepalive:true})}catch(_){}}window.sgTrack=t;t("pageview");})();
 </script>
 </body>
 </html>

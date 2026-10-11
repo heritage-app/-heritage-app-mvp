@@ -30,6 +30,7 @@ import { handleContribute, handleListContributions } from "./routes/contribute";
 import quiz from "./routes/quiz";
 import agent from "./routes/agent";
 import bible from "./routes/bible";
+import traffic from "./routes/traffic";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -114,6 +115,7 @@ api.get("/contributions/:id/attachments/:index", requireUser, (c) =>
 api.route("/quiz", quiz);
 api.route("/", agent);
 api.route("/", bible);
+api.route("/", traffic);
 
 app.route("/api/v1", api);
 

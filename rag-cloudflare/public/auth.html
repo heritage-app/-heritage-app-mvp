@@ -453,12 +453,17 @@ $("form").onsubmit = async (e) => {
       return;
     }
     setStatus("ok", kind === "login" ? "Signed in. Opening SpeakGa…" : "Account created. Opening SpeakGa…");
+    if (kind === "signup" && window.sgTrack) sgTrack("signup");
     window.location.href = "/";
   } catch {
     setStatus("err", "Couldn't reach SpeakGa. Check your connection and try again.");
     $("submitBtn").disabled = false;
   }
 };
+</script>
+<script>
+/* Cookie-free visit counter: page, referring site, device. No names or IP addresses (src/routes/traffic.ts). */
+(function(){function t(e){try{var d=JSON.stringify({e:e,p:location.pathname+(location.hash||""),r:document.referrer});if(!(navigator.sendBeacon&&navigator.sendBeacon("/api/v1/e",d)))fetch("/api/v1/e",{method:"POST",body:d,keepalive:true})}catch(_){}}window.sgTrack=t;t("pageview");})();
 </script>
 </body>
 </html>
