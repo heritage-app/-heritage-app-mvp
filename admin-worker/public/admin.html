@@ -307,6 +307,7 @@ input.gaip{font:700 16px var(--display)}
         </div>
         <div class="status" id="upStatus" style="margin-top:10px"></div>
       </div>
+      <div class="note warn hidden" id="failedNote" style="align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px" id="failedText"></span><button class="btn sm" id="failedShow">Show them</button><button class="btn sm ink" id="failedClear">Clear failed uploads</button></div>
       <div class="panel"><h2>Indexed documents <small id="docCount"></small><span style="margin-left:auto;display:flex;gap:8px"><input class="in" id="docSearch" placeholder="Search" style="width:180px;height:34px" /></span></h2>
         <div class="tabs" role="tablist" id="docTabs" style="margin-bottom:10px"></div>
         <div class="tbl-wrap"><table><thead><tr><th>Document</th><th>Status</th><th>Category</th><th>Records</th><th>Uploaded</th><th></th></tr></thead><tbody id="docsBody"></tbody></table></div>
@@ -538,8 +539,7 @@ loaders.overview = async () => {
   if (o.contributions.pending) items.push({ c: "info", i: ICON.check, t: `${o.contributions.pending} contribution${o.contributions.pending > 1 ? "s are" : " is"} waiting for review`, s: "Approve it, or reject it with a reason.", a: '<button class="btn sm" data-go="review">Review</button>' });
   if (o.flagged_open) items.push({ c: "bad", i: ICON.flag, t: `${o.flagged_open} thumbs-down rating${o.flagged_open > 1 ? "s" : ""} to check`, s: "See the question and the answer people didn't like.", a: '<button class="btn sm" data-go="flagged">Check</button>' });
   if (o.samai.ready) items.push({ c: "gold", i: ICON.up, t: `${o.samai.ready} more samai symbols ready to import`, s: `ga-samai-okaikoi.jsonl is checked and has images. ${o.samai.review} more need a Ga reader first.`, a: '<button class="btn sm" data-go="archive">Upload</button>' });
-  const none = o.documents.find((d) => d.category === "none");
-  if (none) items.push({ c: "mut", i: ICON.tag, t: `${fmt(none.n)} documents have no category`, s: "Tagging them helps search and the app's Library.", a: '<button class="btn sm" data-go="archive">See them</button>' });
+  if (o.failed_uploads) items.push({ c: "mut", i: ICON.tag, t: `${fmt(o.failed_uploads)} failed uploads to clear`, s: "Uploads that stopped before saving anything. Clearing them tidies the document list; no content is lost.", a: '<button class="btn sm" data-go="archive">Review</button>' });
   const tone = { bad: ["var(--bad-soft)", "var(--bad)"], warn: ["var(--warn-soft)", "var(--warn)"], info: ["var(--info-soft)", "var(--info)"], gold: ["var(--gold-soft)", "var(--gold-ink)"], mut: ["var(--sunk)", "var(--ink-2)"] };
   $("ovAttention").innerHTML = items.length ? items.map((x) => `<li><span class="dot" style="background:${tone[x.c][0]};color:${tone[x.c][1]}">${x.i}</span><b class="t">${x.t}</b><span class="act">${x.a}</span><span class="sub">${x.s}</span></li>`).join("")
     : '<li class="empty" style="display:block">Nothing needs you right now.</li>';
@@ -741,7 +741,21 @@ document.addEventListener("click", async (e) => {
 
 /* ================= DOCUMENTS ================= */
 const D = { page: 0, size: 25, cat: "", all: null };
-loaders.archive = () => { renderDocTabs(); loadDocs(); };
+loaders.archive = () => { renderDocTabs(); loadDocs(); showFailed(); };
+function showFailed() {
+  const n = OV?.failed_uploads || 0;
+  $("failedNote").classList.toggle("hidden", !n);
+  $("failedText").textContent = `${fmt(n)} upload${n === 1 ? "" : "s"} stopped before saving anything (status: error, no category). Clearing removes only these records; the uploaded files stay in storage.`;
+}
+$("failedShow").onclick = () => { const b = [...$("docTabs").children].find((x) => x.dataset.c === "none"); if (b) b.click(); };
+$("failedClear").onclick = async () => {
+  const n = OV?.failed_uploads || 0;
+  if (!(await confirmBox(`Remove ${fmt(n)} failed upload records? Nothing was saved from them, and the files stay in storage.`, "Clear them"))) return;
+  $("failedClear").disabled = true;
+  try { const r = await api("/admin/console/documents/clear-failed", { json: {} }); toast(`Cleared ${fmt(r.removed)} failed uploads.`); D.all = null; await refreshCounts(); renderDocTabs(); loadDocs(); showFailed(); }
+  catch (e) { toast(e.message); }
+  $("failedClear").disabled = false;
+};
 function renderDocTabs() {
   const cats = OV?.documents || [];
   $("docTabs").innerHTML = [`<button role="tab" aria-selected="${!D.cat}" data-c="">All · ${fmt(cats.reduce((n, c) => n + c.n, 0))}</button>`]
@@ -939,7 +953,7 @@ loaders.system = async () => {
   });
   try {
     const d = await api("/admin/console/activity");
-    const VERB = { answer: "Answered", send_to_review: "Sent to review", dismiss: "Dismissed", recheck_resolved: "Closed after checking", feedback_handled: "Handled a rating", reopen: "Put back" };
+    const VERB = { answer: "Answered", send_to_review: "Sent to review", dismiss: "Dismissed", recheck_resolved: "Closed after checking", feedback_handled: "Handled a rating", reopen: "Put back", clear_failed_uploads: "Cleared failed uploads" };
     $("sLog").innerHTML = d.items.length ? d.items.map((a) => `<li><time>${esc(ago(a.at))}</time><span><b>${esc(a.who || "Admin")}</b> · ${esc(VERB[a.action] || a.action)}: ${esc(a.detail || "")}</span></li>`).join("") : '<li><time></time><span class="muted">Nothing yet. Answers, dismissals and handled ratings appear here.</span></li>';
   } catch (e) { $("sLog").innerHTML = `<li><time></time><span>${esc(e.message)}</span></li>`; }
 };

@@ -67,14 +67,56 @@ const GAP_TYPES: Record<string, string> = {
   flagged: "query_type = 'flagged_wrong'",
 };
 
+/**
+ * Uploads index in the background after the response. A big file can outlive that
+ * window, leaving its record at "uploading"/"indexing" forever with no category.
+ * Anything stuck for 30 minutes is settled: Bible files whose verses were saved are
+ * marked indexed (search vectors pending); the rest are marked as failed. Nothing is
+ * deleted here; failed uploads are cleared by an admin (POST /documents/clear-failed).
+ */
+const NO_VERSES = "NOT EXISTS (SELECT 1 FROM bible_verses v WHERE v.source_name = documents.unique_path)";
+export async function settleStuckUploads(env: Env) {
+  const cutoff = new Date(Date.now() - 30 * 60000).toISOString();
+  await env.DB.batch([
+    env.DB.prepare(
+      `UPDATE documents SET category = 'bible', status = 'indexed',
+         metadata = json_set(COALESCE(metadata, '{}'),
+           '$.record_count', (SELECT COUNT(*) FROM bible_verses v WHERE v.source_name = documents.unique_path),
+           '$.vector_pending', json('true'), '$.repaired', 'Verses were saved, but indexing stopped before it finished')
+       WHERE status IN ('uploading', 'indexing', 'error') AND category IS NULL AND created_at < ? AND NOT ${NO_VERSES}`
+    ).bind(cutoff),
+    env.DB.prepare(
+      `UPDATE documents SET status = 'error',
+         metadata = json_set(COALESCE(metadata, '{}'), '$.error', 'Indexing stopped before it finished, and nothing was saved. Upload the file again.')
+       WHERE status IN ('uploading', 'indexing') AND created_at < ? AND ${NO_VERSES}`
+    ).bind(cutoff),
+  ]).catch((e) => console.warn("settleStuckUploads failed (non-critical):", e));
+}
+
+const FAILED = `status = 'error' AND category IS NULL AND ${NO_VERSES}`;
+
+app.post("/documents/clear-failed", async (c) => {
+  const adminId = c.get("adminId")!;
+  await settleStuckUploads(c.env);
+  // Only the record goes: the uploaded file stays in storage, and the backup of what
+  // was removed is in the activity log detail.
+  const rows = await c.env.DB.prepare(`SELECT original_filename FROM documents WHERE ${FAILED}`).all<{ original_filename: string }>();
+  const names = (rows.results || []).map((r) => r.original_filename);
+  if (!names.length) return c.json({ status: "ok", removed: 0 });
+  const r = await c.env.DB.prepare(`DELETE FROM documents WHERE ${FAILED}`).run();
+  await logAction(c.env, adminId, "clear_failed_uploads", "document", "bulk", `Removed ${r.meta.changes} failed upload records: ${names.slice(0, 12).join(", ")}${names.length > 12 ? "…" : ""}`);
+  return c.json({ status: "ok", removed: r.meta.changes });
+});
+
 app.get("/overview", async (c) => {
   const db = c.env.DB;
+  await settleStuckUploads(c.env);
   const one = <T>(sql: string, ...b: unknown[]) => db.prepare(sql).bind(...b).first<T>().catch(() => null);
   const all = <T>(sql: string, ...b: unknown[]) => db.prepare(sql).bind(...b).all<T>().then((r) => r.results || []).catch(() => [] as T[]);
   const since14 = new Date(Date.now() - 13 * 86400000).toISOString().slice(0, 10);
   const since7 = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
 
-  const [q, daily, gaps, flagged, contrib, vocab, bible, docs, users, sessions, feedback, samaiDocs, archive] = await Promise.all([
+  const [q, daily, gaps, flagged, contrib, vocab, bible, docs, users, sessions, feedback, samaiDocs, archive, failed] = await Promise.all([
     one<{ total: number; week: number }>(`SELECT COUNT(*) total, SUM(date(created_at) >= ?) week FROM interactions`, since7),
     all<{ day: string; n: number }>(`SELECT date(created_at) day, COUNT(*) n FROM interactions WHERE date(created_at) >= ? GROUP BY 1 ORDER BY 1`, since14),
     one<{ open: number; asks: number; total: number }>(`SELECT SUM(status='pending') open, SUM(CASE WHEN status='pending' THEN frequency ELSE 0 END) asks, COUNT(*) total FROM knowledge_gaps`),
@@ -89,6 +131,7 @@ app.get("/overview", async (c) => {
     one<{ total: number; down: number }>(`SELECT COUNT(*) total, SUM(rating='not_helpful') down FROM response_feedback`),
     all<{ original_filename: string }>(`SELECT DISTINCT original_filename FROM documents WHERE original_filename LIKE 'ga-samai%'`),
     archiveStats(c.env).catch(() => null),
+    one<{ n: number }>(`SELECT COUNT(*) n FROM documents WHERE ${FAILED}`),
   ]);
 
   // Distinct symbols each samai dataset adds (datasets/ga-samai*.jsonl; the
@@ -112,6 +155,7 @@ app.get("/overview", async (c) => {
     feedback: { total: feedback?.total ?? 0, down: feedback?.down ?? 0 },
     speech_hours: 0,
     archive,
+    failed_uploads: failed?.n ?? 0,
   });
 });
 
