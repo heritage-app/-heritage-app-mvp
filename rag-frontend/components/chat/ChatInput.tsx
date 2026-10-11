@@ -13,6 +13,10 @@ import { cn } from "@/lib/utils";
 import { useRef, useEffect, useState } from "react";
 import { UploadModal } from "@/components/upload/UploadModal";
 import { GaAutocomplete } from "@/components/chat/GaAutocomplete";
+import { GaPhoneticsGuide, gaSoundTooltip } from "@/components/chat/GaPhoneticsGuide";
+import { useGaSuggestions } from "@/hooks/use-ga-suggestions";
+import { transcribeGaKey, wordAtEnd, type GaKeyConversion } from "@/lib/ga/transliterate";
+import { foldGa } from "@/lib/data/ga-vocabulary";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +29,12 @@ interface FilePreview {
   file: File;
   id: string;
 }
+
+// Ga orthography helpers, per the Bureau of Ghana Languages guide:
+// letters missing from standard keyboards (incl. the nasal ã as in "fã"),
+// then the digraphs/trigraphs (gb, kp, ts, sh, ŋm, ŋw, shw, tsw, ...).
+const GA_LETTERS = ["ɛ", "ɔ", "ŋ", "ã", "Ɛ", "Ɔ", "Ŋ"];
+const GA_DIGRAPHS = ["gb", "kp", "ts", "sh", "ny", "kw", "gw", "hw", "jw", "ŋm", "ŋw", "shw", "tsw"];
 
 interface ChatInputProps {
   className?: string;
@@ -47,10 +57,31 @@ export function ChatInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FilePreview[]>([]);
-  const [selectedModel, setSelectedModel] = useState<string>("gemini-3-flash-preview");
+  const [selectedModel, setSelectedModel] = useState<string>("@cf/meta/llama-3.3-70b-instruct-fp8-fast");
   const [inputLanguage, setInputLanguage] = useState<"gaa" | "en">("gaa");
   const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [phoneticsOpen, setPhoneticsOpen] = useState(false);
   const prevConversationIdRef = useRef<string | null>(null);
+  // Last ASCII→Ga transliteration, kept so a Backspace right after it can
+  // restore the literal keystrokes (standard IME undo).
+  const translitUndoRef = useRef<GaKeyConversion | null>(null);
+  const [caretAtEnd, setCaretAtEnd] = useState(true);
+  const [ghostDismissed, setGhostDismissed] = useState(false);
+
+  // Declared before any effect that lists `query` in its deps (TDZ crash otherwise).
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+    reset,
+    watch,
+  } = useForm<z.input<typeof AskRequestSchema>, any, AskRequest>({
+    resolver: zodResolver(AskRequestSchema),
+    mode: "onChange",
+  });
+
+  const query = watch("query");
 
   // Auto-focus input when starting a new conversation
   useEffect(() => {
@@ -74,40 +105,113 @@ export function ChatInput({
     }
   }, [inputLanguage]);
 
-  // Show autocomplete when typing in Ga mode
-  useEffect(() => {
-    if (inputLanguage === "gaa" && query && query.length >= 1) {
-      setShowAutocomplete(true);
-    } else {
-      setShowAutocomplete(false);
-    }
-  }, [query, inputLanguage]);
-
-  const handleSuggestionSelect = (suggestion: string) => {
-    setValue("query", suggestion);
-    setShowAutocomplete(false);
-    textareaRef.current?.focus();
-  };
-
   // Build conversation context for AI suggestions
   const conversationContext = messages
     .slice(-3) // Last 3 messages for context
     .map(m => `${m.role}: ${m.content}`)
     .join('\n');
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    formState: { errors },
-    reset,
-    watch,
-  } = useForm<z.input<typeof AskRequestSchema>, any, AskRequest>({
-    resolver: zodResolver(AskRequestSchema),
-    mode: "onChange",
-  });
+  // Inline ghost completion replaced the always-on popup: the suggestion list
+  // now opens only on demand (ArrowDown), and closes when leaving Ga mode.
+  useEffect(() => {
+    if (inputLanguage !== "gaa") setShowAutocomplete(false);
+  }, [inputLanguage]);
 
-  const query = watch("query");
+  // ASCII→Ga keyboard transliteration (Ga mode only). React's synthetic
+  // onBeforeInput is unreliable for `insertText`, so we bind natively.
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta || inputLanguage !== "gaa") return;
+    const handler = (e: InputEvent) => {
+      if (e.inputType !== "insertText" || !e.data || e.data.length !== 1) return;
+      const conv = transcribeGaKey(ta.value, ta.selectionStart ?? 0, ta.selectionEnd ?? 0, e.data);
+      if (!conv) return;
+      e.preventDefault();
+      const next = ta.value.slice(0, conv.start) + conv.insert + ta.value.slice(conv.end);
+      setValue("query", next, { shouldValidate: true, shouldDirty: true });
+      const caret = conv.start + conv.insert.length;
+      requestAnimationFrame(() => ta.setSelectionRange(caret, caret));
+      translitUndoRef.current = conv;
+    };
+    ta.addEventListener("beforeinput", handler);
+    return () => ta.removeEventListener("beforeinput", handler);
+  }, [inputLanguage, setValue]);
+
+  // Track whether the caret sits at the end of the input — ghost text is
+  // end-of-input only (mid-text completion would need caret mirroring).
+  const syncCaret = () => {
+    const ta = textareaRef.current;
+    setCaretAtEnd(!!ta && ta.selectionStart === ta.value.length && ta.selectionEnd === ta.value.length);
+  };
+
+  // The trailing Ga word drives both the ghost suffix and the on-demand list.
+  const tailWord = (query ?? "").match(/[\p{L}\p{M}]+$/u)?.[0] ?? "";
+  const { suggestions, getSuggestions } = useGaSuggestions();
+
+  useEffect(() => {
+    setGhostDismissed(false);
+    getSuggestions(inputLanguage === "gaa" ? tailWord : "", conversationContext);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tailWord, inputLanguage]);
+
+  const ghostWord = inputLanguage === "gaa" && caretAtEnd && !ghostDismissed ? tailWord : "";
+  const ghostSuggestion = ghostWord.length >= 1
+    ? suggestions.find(
+        (s) => foldGa(s.text).startsWith(foldGa(ghostWord)) && s.text.length > ghostWord.length
+      )
+    : undefined;
+  const ghostSuffix = ghostSuggestion ? ghostSuggestion.text.slice(ghostWord.length) : "";
+
+  const acceptGhost = () => {
+    if (!ghostSuggestion) return;
+    const v = query ?? "";
+    const w = wordAtEnd(v, v.length);
+    if (!w) return;
+    setValue("query", v.slice(0, w.start) + ghostSuggestion.text, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+    requestAnimationFrame(() => {
+      const ta = textareaRef.current;
+      if (ta) {
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+      }
+    });
+  };
+
+  const handleSuggestionSelect = (suggestion: string) => {
+    const v = query ?? "";
+    const w = wordAtEnd(v, v.length);
+    const next = w ? v.slice(0, w.start) + suggestion : suggestion;
+    setValue("query", next, { shouldValidate: true, shouldDirty: true });
+    setShowAutocomplete(false);
+    requestAnimationFrame(() => {
+      const ta = textareaRef.current;
+      if (ta) {
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+      }
+    });
+  };
+
+  // Insert a Ga character (ɛ, ɔ, ŋ) at the caret — standard phone keyboards
+  // don't have these letters, so we offer them as tap targets in Ga mode.
+  const insertGaChar = (ch: string) => {
+    const ta = textareaRef.current;
+    const current = query ?? "";
+    const start = ta?.selectionStart ?? current.length;
+    const end = ta?.selectionEnd ?? current.length;
+    const next = current.slice(0, start) + ch + current.slice(end);
+    setValue("query", next, { shouldValidate: true, shouldDirty: true });
+    requestAnimationFrame(() => {
+      if (ta) {
+        ta.focus();
+        ta.setSelectionRange(start + ch.length, start + ch.length);
+      }
+    });
+  };
+
   const isDisabled = isLoading || isStreaming;
 
   // Register textarea with ref
@@ -215,6 +319,19 @@ export function ChatInput({
                   <CirclePlus className={cn(variant === "hero" ? "h-4.5 w-4.5 sm:h-5 w-5" : "h-3.5 w-3.5 sm:h-4 w-4")} />
                 </Button>
                 <div className="flex-1 relative">
+                  {/* Ghost-text mirror: invisible copy of the textarea content
+                      plus the faint completion suffix, aligned by matching
+                      the textarea's metrics. */}
+                  <div
+                    aria-hidden="true"
+                    className={cn(
+                      "pointer-events-none absolute inset-0 w-full overflow-hidden whitespace-pre-wrap break-words py-1.5 text-transparent font-medium tracking-tight",
+                      variant === "hero" ? "text-[16px] leading-6" : "text-[15px] leading-5"
+                    )}
+                  >
+                    {query ?? ""}
+                    <span className="text-foreground/40">{ghostSuffix}</span>
+                  </div>
                   <textarea
                     {...registerProps}
                     ref={(e) => {
@@ -225,14 +342,17 @@ export function ChatInput({
                     disabled={isDisabled}
                     rows={1}
                     onPaste={handlePaste}
+                    onSelect={syncCaret}
+                    onClick={syncCaret}
+                    onKeyUp={syncCaret}
                     lang={inputLanguage}
                     inputMode="text"
                     autoCapitalize="sentences"
-                    autoComplete="on"
-                    autoCorrect="on"
-                    spellCheck="true"
+                    autoComplete="off"
+                    autoCorrect={inputLanguage === "gaa" ? "off" : "on"}
+                    spellCheck={inputLanguage !== "gaa"}
                     className={cn(
-                      "w-full resize-none bg-transparent py-1.5 transition-all scrollbar-hide",
+                      "relative w-full resize-none bg-transparent py-1.5 transition-all scrollbar-hide",
                       variant === "hero" 
                         ? "text-[16px] leading-6 min-h-[1.5rem]" 
                         : "text-[15px] leading-5 min-h-[1.25rem]",
@@ -241,6 +361,48 @@ export function ChatInput({
                       inputClassName
                     )}
                     onKeyDown={(e) => {
+                      // Backspace right after a transliteration restores the
+                      // literal keystrokes (e.g. "pɔ" back to "p)").
+                      const undo = translitUndoRef.current;
+                      if (e.key === "Backspace") {
+                        translitUndoRef.current = null;
+                        const ta = textareaRef.current;
+                        if (
+                          undo && ta &&
+                          ta.selectionStart === ta.selectionEnd &&
+                          ta.selectionStart === undo.start + undo.insert.length
+                        ) {
+                          e.preventDefault();
+                          const v = ta.value;
+                          setValue("query", v.slice(0, undo.start) + undo.typed + v.slice(undo.start + undo.insert.length), { shouldValidate: true, shouldDirty: true });
+                          const c = undo.start + undo.typed.length;
+                          requestAnimationFrame(() => ta.setSelectionRange(c, c));
+                          return;
+                        }
+                      } else {
+                        translitUndoRef.current = null;
+                      }
+
+                      // The suggestion list owns the keyboard while visible.
+                      if (showAutocomplete) return;
+
+                      if (ghostSuffix) {
+                        if (e.key === "Tab" || (e.key === "ArrowRight" && caretAtEnd)) {
+                          e.preventDefault();
+                          acceptGhost();
+                          return;
+                        }
+                        if (e.key === "Escape") {
+                          e.preventDefault();
+                          setGhostDismissed(true);
+                          return;
+                        }
+                      }
+                      if (e.key === "ArrowDown" && inputLanguage === "gaa" && suggestions.length > 0) {
+                        e.preventDefault();
+                        setShowAutocomplete(true);
+                        return;
+                      }
                       if (e.key === "Enter" && !e.shiftKey) {
                         if (window.innerWidth > 768) {
                           e.preventDefault();
@@ -252,7 +414,7 @@ export function ChatInput({
                     }}
                   />
                   <GaAutocomplete
-                    input={query || ""}
+                    input={tailWord || query || ""}
                     onSelect={handleSuggestionSelect}
                     isVisible={showAutocomplete && inputLanguage === "gaa"}
                     onClose={() => setShowAutocomplete(false)}
@@ -260,6 +422,74 @@ export function ChatInput({
                   />
                 </div>
               </div>
+
+              {/* GA CHARACTER ROW: tap-to-insert letters missing from standard keyboards */}
+              {inputLanguage === "gaa" && (
+                <div className={cn(
+                  "flex items-center gap-1.5 overflow-x-auto scrollbar-hide",
+                  variant === "hero" ? "px-3 sm:px-4 pt-2" : "px-2 sm:px-3 pt-1.5"
+                )}>
+                  {GA_LETTERS.map((ch) => (
+                    <button
+                      key={ch}
+                      type="button"
+                      tabIndex={-1}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => insertGaChar(ch)}
+                      disabled={isDisabled}
+                      title={gaSoundTooltip(ch)}
+                      aria-label={`Insert Ga letter ${ch}`}
+                      className={cn(
+                        "shrink-0 rounded-full border border-primary/20 bg-primary/5 font-semibold text-primary/80",
+                        "hover:bg-primary/15 hover:text-primary active:scale-90 transition-all",
+                        "disabled:opacity-30 disabled:cursor-not-allowed",
+                        variant === "hero" ? "h-7 min-w-[1.75rem] px-2 text-sm" : "h-6 min-w-[1.5rem] px-1.5 text-xs"
+                      )}
+                    >
+                      {ch}
+                    </button>
+                  ))}
+                  <span className="shrink-0 h-4 w-px bg-primary/15 mx-0.5" aria-hidden="true" />
+                  {GA_DIGRAPHS.map((ch) => (
+                    <button
+                      key={ch}
+                      type="button"
+                      tabIndex={-1}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => insertGaChar(ch)}
+                      disabled={isDisabled}
+                      title={gaSoundTooltip(ch)}
+                      aria-label={`Insert Ga digraph ${ch}`}
+                      className={cn(
+                        "shrink-0 rounded-full border border-primary/10 bg-background/40 font-medium text-foreground/50",
+                        "hover:bg-primary/10 hover:text-primary/80 active:scale-90 transition-all",
+                        "disabled:opacity-30 disabled:cursor-not-allowed",
+                        variant === "hero" ? "h-7 px-2 text-xs" : "h-6 px-1.5 text-[0.65rem]"
+                      )}
+                    >
+                      {ch}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setPhoneticsOpen(true)}
+                    aria-label="How are Ga sounds pronounced?"
+                    title="How are Ga sounds pronounced?"
+                    className={cn(
+                      "shrink-0 rounded-full border border-primary/10 font-mono font-bold text-foreground/40",
+                      "hover:bg-primary/10 hover:text-primary/80 active:scale-90 transition-all",
+                      variant === "hero" ? "h-7 min-w-[1.75rem] px-2 text-xs" : "h-6 min-w-[1.5rem] px-1.5 text-[0.65rem]"
+                    )}
+                  >
+                    ?
+                  </button>
+                  <span className="ml-1 shrink-0 text-[0.55rem] font-mono font-bold tracking-widest text-foreground/30 hidden sm:inline" title="Ga typing shortcuts">
+                    3=ɛ )=ɔ n~=ŋ a~=ã
+                  </span>
+                </div>
+              )}
 
               {/* BOTTOM ROW: Command Bar */}
               <div className={cn(
@@ -322,63 +552,53 @@ export function ChatInput({
                         size="sm" 
                         className="h-7 gap-1.5 rounded-full px-2.5 text-[0.6rem] font-bold uppercase tracking-widest text-foreground/40 hover:bg-white/5 hover:text-foreground/60 transition-all"
                       >
-                        {selectedModel.includes("gemini") ? (
-                          <Sparkles className="h-3 w-3 text-primary/60" />
-                        ) : selectedModel.includes("nemotron") ? (
-                          <Eye className="h-3 w-3 text-emerald-400/60" />
+                        {selectedModel.includes("70b") ? (
+                          <Brain className="h-3 w-3 text-primary/60" />
+                        ) : selectedModel.includes("mistral") ? (
+                          <Sparkles className="h-3 w-3 text-emerald-400/60" />
                         ) : (
-                          <Brain className="h-3 w-3 text-blue-400/60" />
+                          <Sparkles className="h-3 w-3 text-blue-400/60" />
                         )}
                         <span className="hidden sm:inline">
-                          {selectedModel.includes("gemini") 
-                            ? "Linguistic Engine" 
-                            : selectedModel.includes("nemotron") 
-                              ? "Vision Engine" 
-                              : "Logic Engine"}
+                          {selectedModel.includes("70b")
+                            ? "Llama 3.3 70B"
+                            : selectedModel.includes("mistral")
+                              ? "Mistral 7B"
+                              : "Llama 3.1 8B"}
                         </span>
                         <ChevronDown className="h-2.5 w-2.5 opacity-50 shrink-0" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-56 rounded-2xl border-primary/20 bg-background/80 backdrop-blur-2xl p-1.5">
-                      <DropdownMenuItem 
-                        onClick={() => setSelectedModel("gemini-3-flash-preview")}
+                      <DropdownMenuItem
+                        onClick={() => setSelectedModel("@cf/meta/llama-3.3-70b-instruct-fp8-fast")}
                         className="flex flex-col items-start gap-1 rounded-xl p-2.5 focus:bg-primary/10"
                       >
                         <div className="flex items-center gap-2 font-bold uppercase tracking-tighter text-[0.65rem]">
-                          <Sparkles className="h-3 w-3 text-primary" />
-                          Linguistic Engine (Gemini 3 Flash)
+                          <Brain className="h-3 w-3 text-primary" />
+                          Llama 3.3 70B
                         </div>
-                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Ultra-efficient 3rd gen. processing (Preview).</div>
+                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Best quality — default engine.</div>
                       </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => setSelectedModel("gemini-3.1-pro-preview")}
+                      <DropdownMenuItem
+                        onClick={() => setSelectedModel("@cf/meta/llama-3.1-8b-instruct")}
                         className="flex flex-col items-start gap-1 rounded-xl p-2.5 focus:bg-primary/10"
                       >
                         <div className="flex items-center gap-2 font-bold uppercase tracking-tighter text-[0.65rem]">
-                          <Sparkles className="h-3 w-3 text-amber-400" />
-                          Linguistic Engine (Gemini 3.1 Pro)
+                          <Sparkles className="h-3 w-3 text-blue-400" />
+                          Llama 3.1 8B
                         </div>
-                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Deep archival grounding with 3.1 Pro logic.</div>
+                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Faster, lighter responses.</div>
                       </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => setSelectedModel("gemini-3.1-flash-lite-preview")}
-                        className="flex flex-col items-start gap-1 rounded-xl p-2.5 focus:bg-primary/10"
+                      <DropdownMenuItem
+                        onClick={() => setSelectedModel("@cf/mistral/mistral-7b-instruct-v0.1")}
+                        className="flex flex-col items-start gap-1 rounded-xl p-2.5 focus:bg-emerald-500/10"
                       >
                         <div className="flex items-center gap-2 font-bold uppercase tracking-tighter text-[0.65rem]">
                           <Sparkles className="h-3 w-3 text-emerald-400" />
-                          Linguistic Engine (Gemini 3.1 Lite)
+                          Mistral 7B
                         </div>
-                        <div className="text-[10px] lowercase text-foreground/40 font-medium">High-speed linguistic analysis (Preview).</div>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => setSelectedModel("meta-llama/llama-3-8b-instruct")}
-                        className="flex flex-col items-start gap-1 rounded-xl p-2.5 focus:bg-blue-500/10"
-                      >
-                        <div className="flex items-center gap-2 font-bold uppercase tracking-tighter text-[0.65rem]">
-                          <Brain className="h-3 w-3 text-blue-400" />
-                          Logic Engine (Llama 3)
-                        </div>
-                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Enhanced logical reasoning & cross-referencing.</div>
+                        <div className="text-[10px] lowercase text-foreground/40 font-medium">Alternative small model.</div>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -481,6 +701,7 @@ export function ChatInput({
         onOpenChange={setUploadModalOpen}
         onFileSelect={handleFileSelect}
       />
+      <GaPhoneticsGuide open={phoneticsOpen} onOpenChange={setPhoneticsOpen} />
     </>
   );
 }

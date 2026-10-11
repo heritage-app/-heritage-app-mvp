@@ -6,7 +6,7 @@
  * Written framework-neutral against Vitest's `describe/it/expect`.
  */
 import { describe, it, expect } from "vitest";
-import { transcribeGaKey, wordAtEnd, restoreEnglishNN } from "../transliterate";
+import { transcribeGaKey, wordAtEnd, restoreEnglishNN, normalizeGaCase } from "../transliterate";
 
 /** Simulate typing `str` into `value`, applying transcribeGaKey per char. */
 function type(value: string, str: string): string {
@@ -149,5 +149,23 @@ describe("restoreEnglishNN", () => {
     expect(restoreEnglishNN("Oyiwaladɔŋ")).toBe("Oyiwaladɔŋ");
     expect(restoreEnglishNN("jogbaŋŋ")).toBe("jogbaŋŋ");
     expect(restoreEnglishNN("Maŋ")).toBe("Maŋ");
+  });
+});
+
+describe("normalizeGaCase", () => {
+  it("lowercases interior capitals (caps-lock / sticky-shift residue)", () => {
+    expect(normalizeGaCase("NYɔŋmɔ")).toBe("Nyɔŋmɔ");
+    expect(normalizeGaCase("NyɔŊmɔ")).toBe("Nyɔŋmɔ");
+    expect(normalizeGaCase("ƐYƐ")).toBe("Ɛyɛ");
+    expect(normalizeGaCase("miiye NIŊ")).toBe("miiye Niŋ");
+    expect(normalizeGaCase("WƆ JOGBAŊŊ")).toBe("Wɔ Jogbaŋŋ");
+  });
+
+  it("leaves correct text and ASCII acronyms alone", () => {
+    expect(normalizeGaCase("Nyɔŋmɔ")).toBe("Nyɔŋmɔ");
+    expect(normalizeGaCase("wɔ jogbaŋŋ")).toBe("wɔ jogbaŋŋ");
+    expect(normalizeGaCase("Ama Serwaa")).toBe("Ama Serwaa");
+    expect(normalizeGaCase("USA")).toBe("USA");
+    expect(normalizeGaCase("OJEKOO")).toBe("OJEKOO");
   });
 });

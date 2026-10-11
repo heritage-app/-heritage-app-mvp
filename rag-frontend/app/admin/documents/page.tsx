@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { FileText, Trash2, ExternalLink, Search, RefreshCw, UploadCloud, Loader2 } from "lucide-react";
+import { FileText, Trash2, ExternalLink, Search, RefreshCw, UploadCloud, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -26,6 +26,13 @@ export default function AdminDocumentManager() {
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Preview state
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewJsonl, setPreviewJsonl] = useState("");
+  const [previewFileName, setPreviewFileName] = useState("");
+  const [previewNote, setPreviewNote] = useState("");
+  const [committing, setCommitting] = useState(false);
 
   const fetchDocuments = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -78,18 +85,45 @@ export default function AdminDocumentManager() {
     formData.append("file", file);
 
     try {
-      await apiClient.post("/admin/upload", formData, {
+      const response = await apiClient.post("/admin/upload/preview", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       
-      toast.success(`${file.name} processing started.`);
-      fetchDocuments();
+      setPreviewJsonl(response.data.jsonl || "");
+      setPreviewFileName(response.data.file_name || file.name);
+      setPreviewNote(response.data.note || "");
+      setPreviewModalOpen(true);
+      
+      toast.success("Preview generated. Please review before committing.");
     } catch (error: any) {
-      console.error("Upload failed:", error);
+      console.error("Preview failed:", error);
       toast.error(error.message || "Failed to process document");
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleCommit = async () => {
+    if (!previewJsonl.trim()) {
+      toast.error("JSONL content is empty");
+      return;
+    }
+
+    setCommitting(true);
+    try {
+      await apiClient.post("/admin/heritage/commit", {
+        jsonl: previewJsonl,
+        original_filename: previewFileName,
+      });
+      toast.success("Document committed to heritage index successfully!");
+      setPreviewModalOpen(false);
+      fetchDocuments();
+    } catch (error: any) {
+      console.error("Commit failed:", error);
+      toast.error(error.message || "Failed to commit document");
+    } finally {
+      setCommitting(false);
     }
   };
 
@@ -287,6 +321,64 @@ export default function AdminDocumentManager() {
         onConfirm={confirmDelete}
         loading={deleting}
       />
+
+      {/* Preview & Edit Modal */}
+      <AnimatePresence>
+        {previewModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#1c1c1c] border border-white/10 rounded-3xl p-6 w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-white">Review Extracted Data</h2>
+                  <p className="text-sm text-white/40 mt-1">
+                    {previewFileName} &mdash; {previewNote}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => !committing && setPreviewModalOpen(false)}
+                  className="text-white/40 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-hidden flex flex-col bg-black/50 rounded-xl border border-white/5 p-2 mb-4">
+                <textarea 
+                  value={previewJsonl}
+                  onChange={(e) => setPreviewJsonl(e.target.value)}
+                  className="flex-1 w-full bg-transparent text-white/80 font-mono text-sm resize-none outline-none p-2 scrollbar-hide min-h-[400px]"
+                  placeholder='{"english": "...", "ga": "..."}'
+                  spellCheck={false}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-auto">
+                <Button 
+                  onClick={() => setPreviewModalOpen(false)}
+                  disabled={committing}
+                  variant="ghost" 
+                  className="text-white/60 hover:text-white hover:bg-white/5 rounded-xl"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleCommit}
+                  disabled={committing}
+                  className="bg-primary text-black font-bold px-6 rounded-xl hover:bg-primary/90 flex items-center gap-2"
+                >
+                  {committing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {committing ? "Committing..." : "Commit & Index"}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

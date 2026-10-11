@@ -5,7 +5,7 @@ import { getAnonymousId } from "@/lib/utils/anonymous-id";
 // We'll rely on supabase-js client if needed, or better, just allow the interceptor
 // to call a helper that gets the session from the client-side supabase instance.
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://heritage-backend.ekowlabs.space/api/v1";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://heritage-rag.softclicksolutionsgh.workers.dev/api/v1";
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,

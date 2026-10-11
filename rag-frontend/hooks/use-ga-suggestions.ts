@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { getGaSuggestions, type GaSuggestion } from "@/lib/data/ga-vocabulary";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://heritage-backend.ekowlabs.space/api/v1";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://heritage-rag.softclicksolutionsgh.workers.dev/api/v1";
 
 interface BackendSuggestion {
   text: string;

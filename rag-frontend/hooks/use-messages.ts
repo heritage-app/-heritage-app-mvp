@@ -17,8 +17,6 @@ export function useMessages(conversationId: string | null) {
       // Synchronize with store for UI consistency
       if (data && data.messages) {
         chatStore.setConversationId(conversationId);
-        chatStore.addMessage = (msg) => {}; // No-op during initial sync
-        // Using set directly via store state if possible, or just let components read query
       }
       return data;
     },

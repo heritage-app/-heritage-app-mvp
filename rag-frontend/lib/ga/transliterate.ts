@@ -195,6 +195,24 @@ export function restoreEnglishNN(text: string): string {
   });
 }
 
+/**
+ * Interior capitals are never correct in Ga — they come from sticky Shift /
+ * caps-lock residue ("NYɔŋmɔ", "NyɔŊmɔ"), especially on mobile keyboards that
+ * re-engage caps after the symbols panel. At a word boundary, lowercase every
+ * capital after the first letter. ALL-CAPS pure-ASCII words (acronyms) are
+ * left alone; an all-caps word containing a Ga letter is caps residue.
+ *
+ * Mirrored in rag-cloudflare/public/index.html.
+ */
+export function normalizeGaCase(text: string): string {
+  return text.replace(/[\p{L}\p{M}]{2,}/gu, (w) => {
+    const rest = w.slice(1);
+    if (!/\p{Lu}/u.test(rest)) return w;
+    if (!/\p{Ll}/u.test(rest) && /^[A-Za-z]+$/.test(w)) return w;
+    return w[0] + rest.replace(/\p{Lu}/gu, (c) => c.toLowerCase());
+  });
+}
+
 export interface GaWordAtEnd {
   word: string;
   /** Index where the word starts in the full value. */

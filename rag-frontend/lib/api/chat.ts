@@ -1,7 +1,7 @@
 import { AskRequestSchema } from "@/lib/schemas/requests";
 import type { Message, AskRequest } from "@/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://heritage-backend.ekowlabs.space/api/v1";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://heritage-rag.softclicksolutionsgh.workers.dev/api/v1";
 
 export interface StreamingOptions {
   onChunk?: (chunk: string) => void;
@@ -134,28 +134,46 @@ async function handleStreamingResponse(
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
     let accumulatedContent = "";
+    let metaBuffer = "";
+    let interactionId: string | undefined;
 
     if (!reader) {
       throw new Error("No response body reader available");
     }
 
+    // The server appends "\n__META__:{...}" at end-of-stream — strip it so the
+    // raw JSON never renders inside the assistant bubble.
+    const META_RE = /\n__META__:(\{[^\n]*\})\n?/g;
+    const META_ONE = /\n__META__:(\{[^\n]*\})\n?/;
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      const chunk = decoder.decode(value, { stream: true });
-      accumulatedContent += chunk;
+      metaBuffer += decoder.decode(value, { stream: true });
 
-      // Call onChunk callback
-      options.onChunk?.(chunk);
+      // Emit everything except a trailing (possibly partial) __META__ trailer.
+      const metaStart = metaBuffer.indexOf("\n__META__:");
+      const emit = metaStart === -1 ? metaBuffer : metaBuffer.slice(0, metaStart);
+      if (emit) {
+        accumulatedContent += emit;
+        options.onChunk?.(emit);
+      }
+      metaBuffer = metaStart === -1 ? "" : metaBuffer.slice(metaStart);
+
+      // If the full trailer arrived, extract the interaction id.
+      const m = META_ONE.exec(metaBuffer);
+      if (m) {
+        try { interactionId = JSON.parse(m[1]).interactionId; } catch {}
+      }
     }
 
     // Create message object from accumulated content
     const message: Message = {
-      id: `temp-${Date.now()}`,
+      id: interactionId || `temp-${Date.now()}`,
       conversation_id: conversationId,
       role: "assistant",
-      content: accumulatedContent,
+      content: accumulatedContent.replace(META_RE, ""),
       created_at: new Date().toISOString(),
     };
 
