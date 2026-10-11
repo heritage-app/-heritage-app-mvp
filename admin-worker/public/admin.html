@@ -3,971 +3,942 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="robots" content="noindex, nofollow" />
 <title>SpeakGa · Admin</title>
+<link rel="icon" href="https://app.speakga.org/icons/favicon-32.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <style>
-  /* Heritage warm tokens — the same layer as the app (heritage-rag public/index.html). */
-  :root {
-    --canvas:#FBF7F1; --paper:#ffffff; --paper-2:#F5EEE3; --paper-3:#EFE6D8;
-    --ink:#16130F; --ink-2:rgba(22,19,15,.74); --muted:rgba(22,19,15,.58); --faint:rgba(22,19,15,.42);
-    --line:#EFE6D8; --line-2:#E2D6C3;
-    --accent:#F2B33D; --accent-ink:#7A5200; --accent-soft:#FBF3E2; --accent-line:#F2D79A;
-    --sand:#FBEFD6; --sand-ink:#8A5A00; --sage:#E3F1E4; --sage-ink:#1F7A4A; --sage-deep:#2E9A5E;
-    --sky:#E1ECFA; --sky-ink:#1E5AA8; --blush:#FBE4E3; --blush-ink:#A3312A; --blush-deep:#C0473D;
-    /* names the console's code and markup still use */
-    --acc:var(--ink); --acc-soft:var(--accent-soft); --acc-line:var(--accent-line);
-    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-    --sans:"Plus Jakarta Sans",ui-sans-serif,-apple-system,"Segoe UI",sans-serif;
-    --display:"Bricolage Grotesque","Plus Jakarta Sans",ui-sans-serif,sans-serif;
-  }
-  [data-theme="dark"] {
-    --canvas:#141414; --paper:#1c1c1c; --paper-2:#232323; --paper-3:#2a2a2c;
-    --ink:#f5f5f5; --ink-2:rgba(255,255,255,.74); --muted:rgba(255,255,255,.55); --faint:rgba(255,255,255,.36);
-    --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.18);
-    --accent-ink:#F2B33D; --accent-soft:#2A2418; --accent-line:#5A4720;
-    --sand:#2C2416; --sand-ink:#F0C779; --sage:#1C2A21; --sage-ink:#8FD4A9;
-    --sky:#1B2433; --sky-ink:#9CC0F0; --blush:#2F1E1D; --blush-ink:#F2A79F;
-  }
-  * { box-sizing:border-box; }
-  html,body { height:100%; }
-  body { margin:0; font:500 15px/1.55 var(--sans); color:var(--ink); background:var(--canvas); -webkit-font-smoothing:antialiased; display:flex; }
-  ::selection { background:var(--accent); color:#16130F; }
-  a { color:inherit; text-decoration:none; }
-  .hidden { display:none !important; }
+/* SpeakGa admin console. Warm tokens shared with the app (heritage-rag public/index.html). */
+:root{
+  --bg:#FBF7F1; --panel:#FFFFFF; --sunk:#F3ECE1; --line:#E9DFD0;
+  --ink:#16130F; --ink-2:rgba(22,19,15,.74); --muted:rgba(22,19,15,.6); --faint:rgba(22,19,15,.42);
+  --gold:#F2B33D; --gold-ink:#7A5200; --gold-soft:#FBEFD6;
+  --ok:#1F7A4A; --ok-soft:#E3F1E4; --warn:#9A5B00; --warn-soft:#FDEFD3; --bad:#A3312A; --bad-soft:#FBE4E3; --info:#1E5AA8; --info-soft:#E1ECFA;
+  --display:"Bricolage Grotesque","Plus Jakarta Sans",ui-sans-serif,system-ui,sans-serif;
+  --sans:"Plus Jakarta Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+:root[data-theme="dark"]{
+  --bg:#121212; --panel:#1B1B1B; --sunk:#232323; --line:rgba(255,255,255,.1);
+  --ink:#F5F2EC; --ink-2:rgba(245,242,236,.78); --muted:rgba(245,242,236,.6); --faint:rgba(245,242,236,.42);
+  --gold-ink:#F2C766; --gold-soft:#2C2416;
+  --ok:#7FD3A0; --ok-soft:#1C2A21; --warn:#F2C766; --warn-soft:#2C2416; --bad:#F2A79F; --bad-soft:#2F1E1D; --info:#9CC0F0; --info-soft:#1B2433; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:500 14.5px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--display);letter-spacing:-.02em;margin:0;text-wrap:balance}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px;border-radius:8px}
+.num{font-variant-numeric:tabular-nums}
+.hidden{display:none!important}
+.muted{color:var(--muted)}
 
-  /* Side menu */
-  .nav { width:264px; flex:none; background:var(--canvas); border-right:1px solid var(--line);
-    display:flex; flex-direction:column; height:100vh; position:sticky; top:0; z-index:40; padding:18px 14px 14px; gap:6px; }
-  .nav .brand { display:flex; align-items:center; gap:10px; padding:2px 6px 16px; }
-  .nav .mark { width:34px; height:34px; border-radius:11px; background:var(--ink); color:var(--canvas); display:grid; place-items:center; font:800 16px var(--display); }
-  .nav .brand .x2 { font:800 21px var(--display); letter-spacing:-.4px; }
-  .nav .brand .x1 { padding:4px 9px; border-radius:999px; background:var(--sky); color:var(--sky-ink); font:800 10px var(--sans); letter-spacing:.06em; }
-  .nav .label { display:none; }
-  .nav .items { flex:1; display:flex; flex-direction:column; gap:2px; overflow-y:auto; }
-  .nav .item { display:flex; align-items:center; gap:12px; min-height:46px; padding:0 14px; border-radius:14px;
-    font:600 14.5px var(--sans); color:var(--ink-2); cursor:pointer; border:0; background:transparent; width:100%; text-align:left; transition:.12s; }
-  .nav .item:hover { background:var(--paper-2); color:var(--ink); }
-  .nav .item.active { background:var(--ink); color:var(--canvas); font-weight:700; }
-  .nav .item svg { width:18px; height:18px; flex:none; }
-  .nav .item .badge { margin-left:auto; min-width:24px; height:22px; padding:0 8px; border-radius:999px; background:var(--accent); color:#16130F;
-    font:800 11.5px var(--sans); display:grid; place-items:center; }
-  .nav .foot { display:flex; flex-direction:column; gap:8px; padding-top:10px; border-top:1px solid var(--line); }
-  .nav .foot a { display:flex; align-items:center; justify-content:center; gap:8px; min-height:46px; border-radius:999px;
-    background:var(--paper-2); color:var(--ink); font:700 13.5px var(--sans); }
-  .nav .foot a:hover { background:var(--paper-3); }
-  .nav .foot button { min-height:44px; border:0; border-radius:999px; background:transparent; color:var(--blush-ink); font:700 13.5px var(--sans); cursor:pointer; }
-  .nav .foot button:hover { background:var(--blush); }
+/* shell */
+.shell{display:grid;grid-template-columns:244px minmax(0,1fr);min-height:100dvh;max-width:100vw}
+.rail{position:sticky;top:0;height:100dvh;overflow:auto;padding:18px 14px;border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;gap:16px}
+.logo{display:flex;align-items:center;gap:8px;padding:2px 6px}
+.logo b{font:800 21px var(--display);letter-spacing:-.03em}.logo b em{font-style:normal;color:var(--gold-ink)}
+.logo small{font:800 10px var(--sans);letter-spacing:.14em;color:var(--muted);margin-left:auto}
+.grp{display:grid;gap:2px}
+.grp>span{font:800 10.5px var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--faint);padding:6px 8px}
+.nav{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;border:0;background:none;text-align:left;cursor:pointer;color:var(--ink-2);font-weight:600;width:100%}
+.nav:hover{background:var(--sunk);color:var(--ink)}
+.nav[aria-current="page"]{background:var(--ink);color:var(--bg)}
+.nav svg{width:17px;height:17px;flex:none}
+.nav .ct{margin-left:auto;font:700 11px var(--sans);padding:1px 7px;border-radius:999px;background:var(--sunk);color:var(--ink-2)}
+.nav .ct:empty{display:none}
+.nav[aria-current="page"] .ct{background:rgba(255,255,255,.18);color:var(--bg)}
+.nav .ct.hot{background:var(--bad);color:#fff}
+.me{margin-top:auto;display:grid;gap:8px}
+.me .who{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:var(--sunk);font-size:13px;min-width:0}
+.me .who i{width:30px;height:30px;border-radius:50%;background:var(--gold);color:#1a1205;display:grid;place-items:center;font:800 13px var(--display);font-style:normal;flex:none;text-transform:uppercase}
+.me .who div{min-width:0}.me .who b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.me .out{border:0;background:none;color:var(--bad);font-weight:700;font-size:13px;padding:8px;border-radius:10px;cursor:pointer}
+.me .out:hover{background:var(--bad-soft)}
+.main{min-width:0;grid-template-columns:minmax(0,1fr);padding:22px clamp(16px,3vw,36px) 64px;display:grid;gap:22px;align-content:start}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.top .sp{margin-left:auto;display:flex;gap:8px;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 14px;border-radius:10px;border:0;cursor:pointer;font-weight:700;font-size:13.5px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);color:var(--ink);text-decoration:none;white-space:nowrap}
+.btn:hover{box-shadow:inset 0 0 0 1px var(--faint)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.ink{background:var(--ink);color:var(--bg);box-shadow:none}
+.btn.gold{background:var(--gold);color:#1a1205;box-shadow:none}
+.btn.ok{background:var(--ok);color:#fff;box-shadow:none}
+:root[data-theme="dark"] .btn.ok{color:#0d1a12}
+.btn.bad{color:var(--bad)}
+.btn.sm{height:32px;padding:0 11px;font-size:12.5px;border-radius:9px}
+.hd{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 16px}
+.hd h1{font-size:clamp(26px,3vw,34px)}
+.hd p{color:var(--muted);flex:1 0 100%;max-width:none}
+.hd .sp{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.panel{background:var(--panel);border-radius:18px;box-shadow:inset 0 0 0 1px var(--line);padding:18px;min-width:0}
+.panel>h2{font-size:17px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-bottom:12px}
+.panel>h2 small{font:600 12.5px var(--sans);color:var(--muted);letter-spacing:0}
+.panel>h2 .link{margin-left:auto;font:700 12.5px var(--sans);color:var(--gold-ink);background:none;border:0;cursor:pointer;letter-spacing:0;padding:0}
+.grid2{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media (max-width:1100px){.grid2,.grid3{grid-template-columns:1fr}}
+.pill{display:inline-flex;align-items:center;gap:5px;font:700 11.5px var(--sans);padding:3px 9px;border-radius:999px;white-space:nowrap;background:var(--sunk);color:var(--ink-2)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}.pill.warn{background:var(--warn-soft);color:var(--warn)}.pill.bad{background:var(--bad-soft);color:var(--bad)}.pill.info{background:var(--info-soft);color:var(--info)}
+.view{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;min-width:0}
+.empty{color:var(--muted);padding:26px 8px;text-align:center}
+.loading{color:var(--faint);padding:18px 4px}
 
-  .backdrop { display:none; position:fixed; inset:0; background:rgba(22,19,15,.45); z-index:35; }
-  .backdrop.show { display:block; }
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+@media (max-width:1300px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:560px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{padding:16px;border-radius:16px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);display:grid;gap:4px;align-content:start;min-width:0;border:0;text-align:left;font:inherit;color:inherit}
+button.kpi{cursor:pointer}button.kpi:hover{box-shadow:inset 0 0 0 1px var(--faint)}
+.kpi small{font:700 12px var(--sans);color:var(--muted)}
+.kpi b{font:800 30px/1.05 var(--display);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.kpi span{font-size:12px;color:var(--muted)}
+.kpi.alert{box-shadow:inset 0 0 0 1.5px var(--bad)}.kpi.alert b{color:var(--bad)}
 
-  /* Main */
-  .main { flex:1; min-width:0; height:100vh; overflow-y:auto; }
-  .topbar { position:sticky; top:0; z-index:20; min-height:68px; display:flex; align-items:center; gap:12px;
-    padding:0 32px; background:color-mix(in srgb, var(--canvas) 90%, transparent); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); }
-  .hamb { display:none; width:44px; height:44px; border:0; border-radius:50%; background:var(--paper-2); color:var(--ink); place-items:center; cursor:pointer; }
-  .hamb svg { width:18px; height:18px; display:block; }
-  .sun-icon, .moon-icon { display:block; }
-  .sun-icon.hidden, .moon-icon.hidden { display:none; }
-  .topbar h1 { margin:0; font:800 19px var(--display); letter-spacing:-.3px; color:var(--ink); }
-  .topbar .sp { flex:1; }
-  .op { display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border-radius:999px; background:var(--sage); color:var(--sage-ink); font:700 12.5px var(--sans); }
-  .op b { width:8px; height:8px; border-radius:50%; background:var(--sage-deep); }
-  .iconbtn { width:44px; height:44px; border:0; border-radius:50%; background:var(--paper-2); color:var(--ink); display:inline-grid; place-items:center; cursor:pointer; }
-  .iconbtn:hover { background:var(--paper-3); }
-  .who { display:inline-flex; align-items:center; gap:10px; padding:4px 4px 4px 14px; border-radius:999px; background:var(--paper); border:1px solid var(--line);
-    font:600 13px var(--sans); color:var(--ink-2); max-width:42vw; }
-  .who span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .who .av { width:34px; height:34px; border-radius:50%; background:var(--accent); color:#16130F; display:grid; place-items:center; font:800 14px var(--display); flex:none; text-transform:uppercase; }
+/* lists */
+.att{list-style:none;margin:0;padding:0;display:grid}
+.att>li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:13px 2px;border-top:1px solid var(--line)}
+.att>li:first-child{border-top:0}
+.att .dot{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;grid-row:span 2;align-self:start}
+.att .dot svg{width:16px;height:16px}
+.att .lead{grid-row:span 2;align-self:start;margin-top:2px}
+.att b.t{font-size:14.5px;overflow-wrap:anywhere}
+.att .sub{grid-column:2;font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.att .act{grid-row:1/3;grid-column:3;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.att .extra{grid-column:1/-1}
+@media (max-width:640px){.att>li{grid-template-columns:auto minmax(0,1fr)}.att .act{grid-row:3;grid-column:2;justify-content:flex-start;margin-top:6px}}
+.hasit{display:inline-flex;gap:6px;align-items:center;color:var(--ok);font-weight:700}
 
-  .content { max-width:1120px; margin:0 auto; padding:32px 32px 64px; }
-  .section { display:none; }
-  .section.active { display:block; animation:fade .22s ease; }
-  @keyframes fade { from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+/* chart */
+.chart svg{width:100%;height:auto;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 
-  .head { margin-bottom:22px; }
-  .head .eyebrow { font:800 12px var(--sans); letter-spacing:.12em; text-transform:uppercase; color:var(--accent-ink); margin-bottom:6px; }
-  .head h2 { margin:0 0 6px; font:800 36px/1.05 var(--display); letter-spacing:-.8px; }
-  .head p { margin:0; color:var(--muted); font-size:15px; }
+/* bars */
+.stack{display:grid;gap:12px}
+.bar-row{display:grid;grid-template-columns:150px minmax(0,1fr) 84px;gap:12px;align-items:center;font-size:13px}
+.bar-row .track{height:10px;border-radius:6px;background:var(--sunk);overflow:hidden;display:flex}
+.bar-row .track i{display:block;height:100%}
+.bar-row b{text-align:right;font-variant-numeric:tabular-nums}
+@media (max-width:560px){.bar-row{grid-template-columns:110px minmax(0,1fr) 64px}}
+.mini{display:grid;gap:9px;font-size:13px}
+.mini div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center}
+.mini div span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mini div b{font-variant-numeric:tabular-nums}
+.mini .m{height:4px;border-radius:3px;background:var(--sunk);grid-column:1/-1;overflow:hidden}.mini .m i{display:block;height:100%;background:var(--gold)}
+.funnel{display:grid;gap:8px}
+.fn{display:grid;grid-template-columns:170px minmax(0,1fr) 64px;gap:12px;align-items:center;font-size:13px}
+.fn .track{height:24px;border-radius:8px;background:var(--sunk);overflow:hidden}
+.fn .track i{display:block;height:100%;background:var(--gold);border-radius:8px;min-width:2px}
+.fn b{text-align:right;font-variant-numeric:tabular-nums}
+@media (max-width:560px){.fn{grid-template-columns:112px minmax(0,1fr) 48px}}
 
-  /* Stat cards */
-  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:22px; }
-  .card { background:var(--paper); border:1px solid var(--line); border-radius:22px; padding:18px 20px; }
-  .card .top { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
-  .card .ic { width:40px; height:40px; border-radius:13px; background:var(--sand); color:var(--sand-ink); display:grid; place-items:center; }
-  .cards .card:nth-child(4n+2) .ic { background:var(--sky); color:var(--sky-ink); }
-  .cards .card:nth-child(4n+3) .ic { background:var(--sage); color:var(--sage-ink); }
-  .cards .card:nth-child(4n+4) .ic { background:var(--blush); color:var(--blush-ink); }
-  .card .ic svg { width:19px; height:19px; }
-  .card .v { font:800 36px/1 var(--display); letter-spacing:-1px; font-variant-numeric:tabular-nums; }
-  .card .l { font:600 13.5px var(--sans); color:var(--muted); margin-top:8px; }
-  .card .sub { font:500 12.5px var(--sans); color:var(--faint); margin-top:3px; }
-  .card.warn { background:var(--accent-soft); border-color:var(--accent-line); }
+/* tables */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
+th{font:800 11px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--faint);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--sunk)}
+td.ga{font:700 15px var(--display)}
 
-  /* Panels and tables */
-  .panel { background:var(--paper); border:1px solid var(--line); border-radius:24px; margin-bottom:18px; overflow:hidden; }
-  .panel-h { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:16px 20px; border-bottom:1px solid var(--line); }
-  .panel-h h3 { margin:0; font:800 17px var(--display); letter-spacing:-.2px; }
-  .panel-b { padding:20px; }
-  .tablewrap { overflow-x:auto; }
-  table { width:100%; border-collapse:collapse; font-size:14px; min-width:520px; }
-  thead th { text-align:left; font:700 12.5px var(--sans); color:var(--muted); padding:12px 20px; background:var(--paper-2); white-space:nowrap; }
-  td { padding:14px 20px; border-bottom:1px solid var(--line); vertical-align:middle; }
-  tr:last-child td { border-bottom:0; }
-  tbody tr:hover td { background:var(--canvas); }
+/* forms */
+.answer{margin-top:10px;padding:14px;border-radius:14px;background:var(--sunk);display:grid;gap:10px}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:640px){.f2{grid-template-columns:1fr}}
+label.f{display:grid;gap:5px;font:700 12px var(--sans);color:var(--ink-2);min-width:0}
+input.in,select.in,textarea.in{height:40px;border-radius:10px;border:0;box-shadow:inset 0 0 0 1px var(--line);background:var(--panel);padding:0 12px;font:600 14px var(--sans);color:var(--ink);min-width:0;width:100%}
+textarea.in{height:auto;padding:12px;font:13px/1.6 var(--mono);resize:vertical}
+input.in:focus,select.in:focus,textarea.in:focus{outline:0;box-shadow:inset 0 0 0 2px var(--ink)}
+input.gaip{font:700 16px var(--display)}
+.letters{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted)}
+.letters button{width:32px;height:30px;border-radius:8px;border:0;box-shadow:inset 0 0 0 1px var(--line);background:var(--panel);cursor:pointer;font:700 15px var(--sans)}
+.note{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;font-size:13px;font-weight:600;background:var(--ok-soft);color:var(--ok)}
+.note.warn{background:var(--warn-soft);color:var(--warn)}.note.bad{background:var(--bad-soft);color:var(--bad)}.note.info{background:var(--info-soft);color:var(--info)}
+.row-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.reply{white-space:pre-wrap;font-size:13px;line-height:1.55;padding:12px;border-radius:12px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);max-height:240px;overflow:auto}
+.status{font-weight:600;font-size:13px;color:var(--muted);min-height:18px}
 
-  /* Pills */
-  .pill { display:inline-flex; align-items:center; gap:6px; padding:4px 11px; border-radius:999px; background:var(--paper-2); color:var(--ink-2);
-    font:700 12px var(--sans); text-transform:none; letter-spacing:0; }
-  .pill.ok, .pill.indexed, .pill.approved { background:var(--sage); color:var(--sage-ink); }
-  .pill.error, .pill.rejected { background:var(--blush); color:var(--blush-ink); }
-  .pill.indexing, .pill.uploaded, .pill.uploading, .pill.vpend { background:var(--sky); color:var(--sky-ink); }
-  .pill.conflict { background:var(--sand); color:var(--sand-ink); }
-  .tchip { display:inline-block; padding:4px 11px; border-radius:999px; background:var(--sand); color:var(--sand-ink); font:800 11px var(--sans); letter-spacing:.04em; text-transform:uppercase; }
+/* tabs */
+.tabs{display:flex;gap:4px;padding:4px;border-radius:12px;background:var(--sunk);overflow-x:auto;scrollbar-width:none;max-width:100%;width:max-content}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{border:0;background:none;padding:7px 12px;border-radius:9px;font-weight:700;font-size:13px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
 
-  select, input[type="text"], input[type="number"], textarea { border:0; border-radius:14px; background:var(--canvas); box-shadow:inset 0 0 0 1px var(--line-2);
-    color:var(--ink); min-height:42px; padding:0 14px; font:500 14px var(--sans); outline:0; }
-  select { padding-right:34px; cursor:pointer; appearance:none;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2316130F' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat:no-repeat; background-position:right 13px center; }
-  select:focus, input:focus, textarea:focus { box-shadow:inset 0 0 0 2px var(--ink); }
+/* cards */
+.card{padding:16px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--line);background:var(--panel);display:flex;flex-direction:column;gap:8px;min-width:0}
+.card h3{font-size:16.5px}
+.card p{color:var(--ink-2);font-size:13.5px}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:760px){.compare{grid-template-columns:1fr}}
+.side{padding:14px;border-radius:14px;box-shadow:inset 0 0 0 1px var(--line);display:grid;gap:6px;align-content:start;min-width:0}
+.side small{font:800 10.5px var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.side b.big{font:800 22px var(--display);letter-spacing:-.02em;overflow-wrap:anywhere}
+.health{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.hc{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;box-shadow:inset 0 0 0 1px var(--line);background:var(--panel);font-size:13px}
+.hc i{width:10px;height:10px;border-radius:50%;background:var(--faint);flex:none}
+.hc i.ok{background:var(--ok);box-shadow:0 0 0 4px var(--ok-soft)}.hc i.w{background:var(--gold);box-shadow:0 0 0 4px var(--gold-soft)}.hc i.bad{background:var(--bad);box-shadow:0 0 0 4px var(--bad-soft)}
+.hc b{display:block;font-size:13.5px}.hc span{color:var(--muted);font-size:12px}
+.log{list-style:none;margin:0;padding:0;font-size:13px}
+.log li{display:grid;grid-template-columns:96px 1fr;gap:12px;padding:9px 0;border-top:1px solid var(--line)}
+.log li:first-child{border-top:0}
+.log time{font:500 12px var(--mono);color:var(--muted)}
+.dropzone{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:26px 16px;border-radius:16px;border:2px dashed var(--line);background:var(--bg);cursor:pointer;text-align:center;color:var(--muted);min-height:150px}
+.dropzone:hover,.dropzone.drag{border-color:var(--gold);color:var(--ink)}
+.dropzone.has-file{border-style:solid;border-color:var(--gold);color:var(--ink)}
+.dropzone b{font-size:14px}
+.uploader{display:grid;grid-template-columns:1fr 240px;gap:16px}
+@media (max-width:760px){.uploader{grid-template-columns:1fr}}
+.pager{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:12px;font-size:13px;color:var(--muted)}
+.pager .pinfo{flex:1}
+.toast{position:fixed;left:50%;bottom:22px;translate:-50% 0;z-index:60;padding:11px 16px;border-radius:12px;background:var(--ink);color:var(--bg);font-weight:700;font-size:13.5px;opacity:0;transform:translateY(10px);transition:.25s;pointer-events:none;max-width:92vw}
+.toast.on{opacity:1;transform:none}
+.confirm{position:fixed;inset:0;z-index:70;background:rgba(22,19,15,.45);display:grid;place-items:center;padding:16px}
+.confirm>div{background:var(--panel);border-radius:18px;padding:20px;max-width:420px;width:100%;display:grid;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.gate{min-height:100dvh;display:grid;place-items:center;color:var(--muted);font-weight:600}
 
-  .btn { min-height:44px; border:0; border-radius:999px; background:var(--ink); color:var(--canvas); padding:0 20px; font:700 14px var(--sans); cursor:pointer; transition:.13s; }
-  .btn:hover { opacity:.9; } .btn:disabled { opacity:.45; cursor:not-allowed; }
-  .btn.ghost { background:var(--paper-2); color:var(--ink); }
-  .btn.ghost:hover { background:var(--paper-3); opacity:1; }
-  .btn.sm { min-height:38px; padding:0 15px; font:700 13px var(--sans); }
-  .btn.ok { background:var(--sage-deep); color:#fff; }
-  .btn.danger { background:var(--paper-2); color:var(--blush-ink); }
-  .btn.danger:hover { background:var(--blush); }
-  .icon-del { width:36px; height:36px; border:0; border-radius:50%; background:var(--paper-2); color:var(--muted); display:grid; place-items:center; cursor:pointer; }
-  .icon-del:hover { background:var(--blush); color:var(--blush-ink); }
-  .icon-del svg { width:15px; height:15px; }
-  .refresh { min-height:38px; border:0; border-radius:999px; background:var(--paper-2); color:var(--ink); font:700 13px var(--sans); padding:0 14px; cursor:pointer; }
-  .refresh:hover { background:var(--paper-3); }
-  .empty { color:var(--muted); font:500 14px var(--sans); padding:32px; text-align:center; }
-
-  /* Upload */
-  .uploader { display:grid; grid-template-columns:1fr 240px; gap:18px; }
-  .dropzone { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9px; padding:28px 16px; border-radius:20px;
-    border:2px dashed var(--line-2); background:var(--canvas); cursor:pointer; text-align:center; color:var(--muted); transition:.15s; min-height:160px; }
-  .dropzone:hover, .dropzone.drag { border-color:var(--accent); color:var(--ink); background:var(--accent-soft); }
-  .dropzone.has-file { border-style:solid; border-color:var(--accent-line); color:var(--ink); background:var(--accent-soft); }
-  .dropzone svg { color:var(--faint); } .dropzone:hover svg, .dropzone.has-file svg { color:var(--accent-ink); }
-  .dropzone .m1 { font:700 14.5px var(--sans); } .dropzone.has-file .m1 { font:600 13px var(--sans); word-break:break-all; }
-  .dropzone .m2 { font:500 12.5px var(--sans); color:var(--faint); }
-  .up-side { display:flex; flex-direction:column; gap:8px; }
-  .up-side label { font:700 13px var(--sans); color:var(--ink-2); }
-  .up-side select { width:100%; }
-  .status { font:600 13.5px var(--sans); margin-top:14px; min-height:16px; color:var(--muted); }
-  .actions-row { display:flex; gap:10px; flex-wrap:wrap; }
-  textarea#ocrJsonl { width:100%; min-height:300px; resize:vertical; padding:14px; border-radius:16px; font:13px/1.65 var(--mono); }
-
-  /* Pagination */
-  .pager { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:12px 20px; border-top:1px solid var(--line); font:600 13px var(--sans); color:var(--muted); }
-  .pager .pinfo { flex:1; }
-  .pager select { min-height:36px; font-size:13px; }
-  .pager button { min-height:36px; border:0; border-radius:999px; background:var(--paper-2); color:var(--ink); font:700 13px var(--sans); padding:0 14px; cursor:pointer; }
-  .pager button:hover:not(:disabled) { background:var(--paper-3); }
-  .pager button:disabled { opacity:.4; cursor:default; }
-
-  /* Activity */
-  .act-row { display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:1px solid var(--line); }
-  .act-row:last-child { border-bottom:0; }
-  .act-row[data-sec] { cursor:pointer; } .act-row[data-sec]:hover { background:var(--canvas); }
-  .act-row .g { width:36px; height:36px; flex:none; border-radius:12px; background:var(--sand); color:var(--sand-ink); display:grid; place-items:center; font:700 15px var(--sans); }
-  .act-row .txt { flex:1; font:500 14px var(--sans); color:var(--ink-2); }
-  .act-row .time { font:600 12.5px var(--sans); color:var(--faint); white-space:nowrap; }
-
-  /* Confirm bar */
-  .confirm { display:none; position:fixed; left:50%; bottom:24px; transform:translateX(-50%); z-index:60;
-    background:var(--ink); color:var(--canvas); padding:10px 10px 10px 20px; border-radius:999px; font:600 14px var(--sans);
-    align-items:center; gap:10px; max-width:92vw; box-shadow:0 16px 40px rgba(22,19,15,.25); }
-  .confirm.show { display:flex; }
-  .confirm button { min-height:40px; border:0; border-radius:999px; background:rgba(255,255,255,.14); color:inherit; font:700 13px var(--sans); padding:0 16px; cursor:pointer; }
-  .confirm button.yes { background:var(--accent); color:#16130F; }
-
-  .gate { margin:auto; align-self:center; text-align:center; color:var(--muted); font:600 15px var(--sans); width:100%; }
-
-  @media (max-width:980px){
-    .nav { position:fixed; left:0; top:0; bottom:0; width:288px; max-width:86vw; border-radius:0 26px 26px 0; transform:translateX(-100%); transition:transform .2s ease; box-shadow:0 0 60px rgba(22,19,15,.3); }
-    .nav.open { transform:translateX(0); }
-    .hamb { display:inline-grid; }
-    .content { padding:20px 16px 48px; }
-    .uploader { grid-template-columns:1fr; }
-    .head h2 { font-size:28px; }
-    .topbar { padding:0 16px; min-height:64px; }
-    .op { display:none; }
-    .who span:first-child { display:none; }
-    .who { padding:3px; border:0; background:transparent; }
-    .cards { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
-    .card { padding:14px; border-radius:18px; }
-    .card .v { font-size:28px; }
-    table { font-size:13.5px; }
-    td, thead th { padding:12px 14px; }
-  }
+/* mobile: rail becomes a scrolling top bar */
+@media (max-width:860px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .top{justify-content:flex-end}
+  .rail{position:sticky;top:0;z-index:10;height:auto;flex-direction:row;align-items:center;gap:6px;overflow-x:auto;padding:10px 12px;border-right:0;border-bottom:1px solid var(--line);scrollbar-width:none}
+  .rail::-webkit-scrollbar{display:none}
+  .logo small,.grp>span,.me{display:none}
+  .grp{display:flex;gap:4px}
+  .nav{white-space:nowrap;padding:7px 10px;width:auto}
+  .main{padding-top:16px}
+}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
 </style>
 </head>
 <body>
-<aside class="nav hidden" id="nav">
-  <div class="brand">
-    <span class="mark">H</span>
-    <div class="x2">SpeakGa</div><div class="x1">ADMIN</div>
-  </div>
-  <div class="label">Menu</div>
-  <div class="items">
-    <button class="item active" data-sec="overview">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
-      Overview
-    </button>
-    <button class="item" data-sec="documents">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-      Archive
-    </button>
-    <button class="item" data-sec="ocr">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
-      OCR import
-    </button>
-    <button class="item" data-sec="users">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Users
-    </button>
-    <button class="item" data-sec="learning">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-      Learning
-    </button>
-    <button class="item" data-sec="contributions">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-      Contributions
-      <span class="badge hidden" id="contribBadge">0</span>
-    </button>
-  </div>
-  <div class="foot">
-    <a href="https://app.speakga.org/" target="_blank" rel="noopener">Open the SpeakGa app ↗</a>
-    <button id="logoutBtn">Sign out</button>
-  </div>
-</aside>
-
-<div class="backdrop" id="backdrop"></div>
-
-<div class="main hidden" id="main">
-  <div class="topbar">
-    <button class="hamb" id="hamb" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
-    <h1 id="topTitle">Overview</h1>
-    <div class="sp"></div>
-    <span class="op"><b></b>All systems working</span>
-    <button class="iconbtn" id="themeToggle" aria-label="Toggle theme" title="Toggle theme">
-      <svg class="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-      <svg class="moon-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-    </button>
-    <span class="who"><span id="whoEmail">—</span><span class="av" id="whoAv">A</span></span>
-  </div>
-  <div class="content">
-    <!-- Overview -->
-    <section class="section active" id="sec-overview">
-      <div class="head"><div class="eyebrow">Dashboard</div><h2 id="welcome">Welcome back</h2><p>Manage your SpeakGa archive, users, and review system activity.</p></div>
-      <div class="cards" id="statCards"></div>
-      <div class="panel">
-        <div class="panel-h"><h3>Quick actions</h3></div>
-        <div class="panel-b">
-          <div class="actions-row">
-            <button class="btn" style="padding:12px 20px;" data-goto="documents">Upload a document</button>
-            <button class="btn ghost" style="padding:12px 20px;" data-goto="users">Manage users</button>
-          </div>
-        </div>
-      </div>
-      <div class="panel">
-        <div class="panel-h"><h3>Recent activity</h3><button class="refresh" id="refreshActivity">Refresh</button></div>
-        <div class="panel-b" id="activityFeed" style="padding:0;">
-          <div class="empty" id="activityEmpty">Loading…</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Documents -->
-    <section class="section" id="sec-documents">
-      <div class="head"><div class="eyebrow">Archive</div><h2>Archive</h2><p>Upload and index documents — Bible, stories, and heritage content.</p></div>
-      <div class="panel">
-        <div class="panel-h"><h3>Add document</h3></div>
-        <div class="panel-b">
-          <div class="uploader">
-            <label class="dropzone" id="dropzone">
-              <input type="file" id="upFile" accept=".txt,.md,.json,.jsonl,.pdf,image/*" hidden />
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <span class="m1" id="dropText">Drop a file or click to browse</span>
-              <span class="m2">txt · md · json · jsonl · pdf · png · jpg · webp</span>
-            </label>
-            <div class="up-side">
-              <label>Category</label>
-              <select id="upCategory">
-                <option value="">Auto-detect</option>
-                <option value="bible">Bible</option>
-                <option value="heritage">Heritage</option>
-                <option value="stories">Stories</option>
-              </select>
-              <button class="btn" id="uploadBtn" style="margin-top:auto;">Upload &amp; index</button>
-            </div>
-          </div>
-          <div class="status" id="upStatus"></div>
-        </div>
-      </div>
-      <div class="panel">
-        <div class="panel-h">
-          <h3>Indexed documents</h3>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <input type="text" id="docSearch" placeholder="Search…" style="width:150px;font:500 12px var(--sans);" />
-            <button class="refresh" id="refreshDocs">Refresh</button>
-          </div>
-        </div>
-        <div class="tablewrap">
-          <table><thead><tr><th>Document</th><th>Status</th><th>Category</th><th>Rows</th><th>Uploaded</th><th></th></tr></thead><tbody id="docsBody"></tbody></table>
-        </div>
-        <div class="empty" id="docsEmpty" style="display:none">No documents indexed yet.</div>
-        <div class="pager" id="docsPager" style="display:none"></div>
-      </div>
-      <div class="panel" id="docDetailPanel" style="display:none">
-        <div class="panel-h"><h3>Document detail</h3><button class="btn ghost" id="closeDocDetail" style="padding:5px 12px;font-size:11px;">Close</button></div>
-        <div class="panel-b" id="docDetailBody"></div>
-      </div>
-    </section>
-
-    <!-- Users -->
-    <section class="section" id="sec-users">
-      <div class="head"><div class="eyebrow">Accounts</div><h2>Users</h2><p>Registered accounts and their roles.</p></div>
-      <div class="panel">
-        <div class="panel-h"><h3>Users</h3><button class="refresh" id="refreshUsers">Refresh</button></div>
-        <div class="tablewrap">
-          <table><thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Joined</th></tr></thead><tbody id="usersBody"></tbody></table>
-        </div>
-        <div class="empty" id="usersEmpty" style="display:none">No users.</div>
-        <div class="pager" id="usersPager" style="display:none"></div>
-      </div>
-    </section>
-
-    <!-- Learning Analytics -->
-    <section class="section" id="sec-learning">
-      <div class="head"><div class="eyebrow">Learning</div><h2>Learning</h2><p>Track feedback, contributions, knowledge gaps, and learning cycles.</p></div>
-      <div class="cards" id="learningCards"></div>
-      <div class="panel">
-        <div class="panel-h"><h3>Recent conflicts</h3><button class="refresh" id="refreshLearning">Refresh</button></div>
-        <div class="tablewrap">
-          <table><thead><tr><th>Query</th><th>Answers</th><th>Status</th></tr></thead><tbody id="conflictsBody"></tbody></table>
-        </div>
-        <div class="empty" id="conflictsEmpty" style="display:none">No conflicts detected.</div>
-        <div class="pager" id="conflictsPager" style="display:none"></div>
-      </div>
-      <div class="panel">
-        <div class="panel-h"><h3>Weekly learning cycles</h3></div>
-        <div class="tablewrap">
-          <table><thead><tr><th>Week</th><th>Feedback</th><th>Contributions</th><th>Gaps resolved</th><th>Score</th></tr></thead><tbody id="cyclesBody"></tbody></table>
-        </div>
-        <div class="empty" id="cyclesEmpty" style="display:none">No learning cycles yet.</div>
-        <div class="pager" id="cyclesPager" style="display:none"></div>
-      </div>
-    </section>
-
-    <!-- Contributions Review -->
-    <section class="section" id="sec-contributions">
-      <div class="head"><div class="eyebrow">Review</div><h2>Contributions</h2><p>What people taught or corrected. Approving adds it to the verified dictionary.</p></div>
-      <div class="panel">
-        <div class="panel-h">
-          <h3>Review queue</h3>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <select id="contribFilter">
-              <option value="pending_review">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
-            <button class="refresh" id="refreshContrib">Refresh</button>
-          </div>
-        </div>
-        <div class="tablewrap">
-          <table><thead><tr><th>Query (English)</th><th>Answer (Ga)</th><th>Type</th><th>Category</th><th>Agreement</th><th>Submitted</th><th></th></tr></thead><tbody id="contribBody"></tbody></table>
-        </div>
-        <div class="empty" id="contribEmpty" style="display:none">No contributions to review.</div>
-        <div class="pager" id="contribPager" style="display:none"></div>
-      </div>
-    </section>
-
-    <!-- OCR Import -->
-    <section class="section" id="sec-ocr">
-      <div class="head"><div class="eyebrow">Import</div><h2>OCR &amp; Convert</h2><p>Read a scanned page or document, convert it to English↔Ga pairs, review, then index.</p></div>
-      <div class="panel">
-        <div class="panel-h"><h3>1 · Upload &amp; extract</h3></div>
-        <div class="panel-b">
-          <div class="uploader">
-            <label class="dropzone" id="ocrDrop">
-              <input type="file" id="ocrFile" accept="image/*,.pdf,.txt,.md" hidden />
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
-              <span class="m1" id="ocrText">Drop a page image or PDF</span>
-              <span class="m2">png · jpg · webp (scanned) · pdf · txt</span>
-            </label>
-            <div class="up-side">
-              <label>Engine</label>
-              <select id="ocrEngine"><option value="auto">Auto (vision for images · text for PDFs)</option><option value="vision">Vision OCR (all files)</option><option value="text">Text extract (PDF/text only)</option></select>
-              <button class="btn" id="ocrBtn" style="margin-top:auto;">Extract pairs</button>
-            </div>
-          </div>
-          <div class="status" id="ocrStatus"></div>
-        </div>
-      </div>
-      <div class="panel" id="ocrReview" style="display:none">
-        <div class="panel-h"><h3>2 · Review &amp; edit JSONL <span id="ocrCount" style="color:var(--muted);font:600 10px var(--mono);"></span></h3><button class="btn" id="ocrCommit" style="padding:8px 16px;">Index pairs</button></div>
-        <div class="panel-b">
-          <textarea id="ocrJsonl" spellcheck="false" placeholder='{"english":"Good morning","ga":"Ojekoo"}'></textarea>
-          <div class="status" id="ocrCommitStatus"></div>
-        </div>
-      </div>
-    </section>
-  </div>
-</div>
-
 <div class="gate" id="gate">Checking your admin session…</div>
 
-<div class="confirm" id="confirmBar">
-  <span id="confirmText">Are you sure?</span>
-  <button class="yes" id="confirmYes">Confirm</button>
-  <button id="confirmNo">Cancel</button>
+<div class="shell hidden" id="shell">
+  <nav class="rail" aria-label="Admin sections">
+    <div class="logo"><b>Speak<em>Ga</em></b><small>ADMIN</small></div>
+    <div class="grp"><span>Today</span>
+      <button class="nav" data-v="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Overview</button>
+    </div>
+    <div class="grp"><span>Inbox</span>
+      <button class="nav" data-v="questions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01"/></svg>Unanswered<span class="ct hot num" id="ctQuestions"></span></button>
+      <button class="nav" data-v="flagged"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4a1 1 0 0 1 1-1h12l-2 4 2 4H5"/></svg>Flagged answers<span class="ct num" id="ctFlagged"></span></button>
+      <button class="nav" data-v="review"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Review queue<span class="ct num" id="ctReview"></span></button>
+    </div>
+    <div class="grp"><span>Archive</span>
+      <button class="nav" data-v="archive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg>Documents</button>
+      <button class="nav" data-v="import"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></svg>Scan import</button>
+    </div>
+    <div class="grp"><span>Insights</span>
+      <button class="nav" data-v="traffic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>Site traffic</button>
+      <button class="nav" data-v="usage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>Learning</button>
+    </div>
+    <div class="grp"><span>People</span>
+      <button class="nav" data-v="users"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 3.5a4 4 0 0 1 0 7.5M22 21a7 7 0 0 0-4-6.3"/></svg>Users</button>
+    </div>
+    <div class="grp"><span>System</span>
+      <button class="nav" data-v="system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Health &amp; activity</button>
+    </div>
+    <div class="me"><div class="who"><i id="whoAv">A</i><div><b id="whoName">Admin</b><span class="muted" style="font-size:12px" id="whoEmail"></span></div></div><button class="out" id="logoutBtn">Sign out</button></div>
+  </nav>
+
+  <main class="main">
+    <div class="top">
+      <div class="sp">
+        <a class="btn" href="https://app.speakga.org/" target="_blank" rel="noopener">Open the app ↗</a>
+        <button class="btn" id="themeBtn" type="button" aria-label="Switch between light and dark">◐</button>
+      </div>
+    </div>
+
+    <!-- ============ OVERVIEW ============ -->
+    <section class="view" data-view="overview">
+      <div class="hd"><h1 id="hello">Welcome back.</h1><p>What needs you today, and how the archive is growing. Live figures.</p></div>
+      <div class="kpis" id="ovKpis"><div class="loading">Loading…</div></div>
+      <div class="grid2">
+        <div class="panel"><h2>Needs your attention <small>most people affected first</small></h2><ul class="att" id="ovAttention"><li class="loading">Loading…</li></ul></div>
+        <div class="panel chart"><h2>Questions saved <small>last 14 days</small><button class="link" data-go="usage">Learning →</button></h2><svg viewBox="0 0 420 210" role="img" id="ovChart" aria-label="Questions per day for the last 14 days"></svg><div class="legend" id="ovChartNote"></div></div>
+      </div>
+      <div class="grid2">
+        <div class="panel"><h2>What's in the archive <small>live counts</small><button class="link" data-go="archive">Documents →</button></h2><div class="stack" id="ovArchive"></div><div class="legend" id="ovArchiveNote"></div></div>
+        <div class="panel"><h2>Research progress</h2><div class="stack" id="ovResearch"></div></div>
+      </div>
+    </section>
+
+    <!-- ============ UNANSWERED ============ -->
+    <section class="view hidden" data-view="questions">
+      <div class="hd"><h1>Unanswered questions</h1><span class="pill bad num" id="qTotal"></span><p>What people asked that SpeakGa couldn't answer, ranked by how often it's asked. Answering one adds it to the archive, so it's answered next time. Questions logged before a fix may already work: use <b>Check again</b> to find out.</p></div>
+      <div class="tabs" role="tablist" id="qTabs">
+        <button role="tab" aria-selected="true" data-q='{"sort":"most"}'>Most asked</button>
+        <button role="tab" aria-selected="false" data-q='{"sort":"newest"}'>Newest</button>
+        <button role="tab" aria-selected="false" data-q='{"type":"words"}'>Words</button>
+        <button role="tab" aria-selected="false" data-q='{"type":"bible"}'>Bible</button>
+        <button role="tab" aria-selected="false" data-q='{"status":"user_contributed"}'>Sent to review</button>
+        <button role="tab" aria-selected="false" data-q='{"status":"resolved","sort":"newest"}'>Answered</button>
+        <button role="tab" aria-selected="false" data-q='{"status":"dismissed","sort":"newest"}'>Dismissed</button>
+      </div>
+      <div class="panel" style="padding:4px 18px"><ul class="att" id="qList"></ul><div class="pager" id="qPager"></div></div>
+    </section>
+
+    <!-- ============ FLAGGED ============ -->
+    <section class="view hidden" data-view="flagged">
+      <div class="hd"><h1>Flagged answers</h1><p>Answers people said were wrong (“that's not right” in chat) or rated thumbs-down. Check what the archive holds, then fix it or mark it handled.</p></div>
+      <div class="panel"><h2>Marked wrong in chat</h2><ul class="att" id="fWrong"></ul></div>
+      <div class="panel"><h2>Thumbs-down ratings <span class="tabs" role="tablist" id="fTabs" style="margin-left:auto"><button role="tab" aria-selected="true" data-s="open">To check</button><button role="tab" aria-selected="false" data-s="handled">Handled</button></span></h2><ul class="att" id="fDown"></ul></div>
+    </section>
+
+    <!-- ============ REVIEW ============ -->
+    <section class="view hidden" data-view="review">
+      <div class="hd"><h1>Review queue</h1><div class="sp"><div class="tabs" role="tablist" id="rTabs"><button role="tab" aria-selected="true" data-s="pending_review">Waiting</button><button role="tab" aria-selected="false" data-s="approved">Approved</button><button role="tab" aria-selected="false" data-s="rejected">Rejected</button></div></div><p>What people taught or corrected. Approving adds it to the verified archive straight away.</p></div>
+      <div id="rList" class="view"></div>
+      <div class="pager" id="rPager"></div>
+    </section>
+
+    <!-- ============ DOCUMENTS ============ -->
+    <section class="view hidden" data-view="archive">
+      <div class="hd"><h1>Documents</h1><p>Datasets and documents that SpeakGa answers from. Uploading indexes a file so it can be searched.</p></div>
+      <div class="panel"><h2>Add a document</h2>
+        <div class="uploader">
+          <label class="dropzone" id="dz"><input type="file" id="upFile" accept=".txt,.md,.json,.jsonl,.pdf,image/*" hidden /><b id="dzText">Drop a file or click to browse</b><span style="font-size:12.5px">txt · md · json · jsonl · pdf · png · jpg · webp</span></label>
+          <div style="display:grid;gap:10px;align-content:start"><label class="f">Category<select class="in" id="upCategory"><option value="">Detect it</option><option value="bible">Bible</option><option value="heritage">Heritage</option><option value="stories">Stories</option></select></label><button class="btn ink" id="uploadBtn">Upload and index</button></div>
+        </div>
+        <div class="status" id="upStatus" style="margin-top:10px"></div>
+      </div>
+      <div class="panel"><h2>Indexed documents <small id="docCount"></small><span style="margin-left:auto;display:flex;gap:8px"><input class="in" id="docSearch" placeholder="Search" style="width:180px;height:34px" /></span></h2>
+        <div class="tabs" role="tablist" id="docTabs" style="margin-bottom:10px"></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Document</th><th>Status</th><th>Category</th><th>Records</th><th>Uploaded</th><th></th></tr></thead><tbody id="docsBody"></tbody></table></div>
+        <div class="empty hidden" id="docsEmpty">No documents match.</div>
+        <div class="pager" id="docsPager"></div>
+      </div>
+      <div class="panel hidden" id="docDetail"></div>
+    </section>
+
+    <!-- ============ SCAN IMPORT ============ -->
+    <section class="view hidden" data-view="import">
+      <div class="hd"><h1>Scan import</h1><p>Read a scanned page or a document, turn it into English and Ga pairs, check them, then index.</p></div>
+      <div class="panel"><h2>1 · Upload and extract</h2>
+        <div class="uploader">
+          <label class="dropzone" id="ocrDz"><input type="file" id="ocrFile" accept="image/*,.pdf,.txt,.md" hidden /><b id="ocrText">Drop a page image or PDF</b><span style="font-size:12.5px">png · jpg · webp · pdf · txt</span></label>
+          <div style="display:grid;gap:10px;align-content:start"><label class="f">Reader<select class="in" id="ocrEngine"><option value="auto">Automatic</option><option value="vision">Vision (all files)</option><option value="text">Text only (PDF, text)</option></select></label><button class="btn ink" id="ocrBtn">Extract pairs</button></div>
+        </div>
+        <div class="status" id="ocrStatus" style="margin-top:10px"></div>
+      </div>
+      <div class="panel hidden" id="ocrReview"><h2>2 · Check and edit <small id="ocrCount"></small><button class="btn ink sm" id="ocrCommit" style="margin-left:auto">Index pairs</button></h2>
+        <textarea class="in" id="ocrJsonl" rows="14" spellcheck="false" placeholder='{"english":"Good morning","ga":"Ojekoo"}'></textarea>
+        <div class="status" id="ocrCommitStatus" style="margin-top:8px"></div>
+      </div>
+    </section>
+
+    <!-- ============ TRAFFIC ============ -->
+    <section class="view hidden" data-view="traffic">
+      <div class="hd"><h1>Site traffic</h1><div class="sp"><div class="tabs" role="tablist" id="tTabs"><button role="tab" aria-selected="true" data-d="7">7 days</button><button role="tab" aria-selected="false" data-d="30">30 days</button><button role="tab" aria-selected="false" data-d="90">90 days</button></div></div><p>Visitors to speakga.org and app.speakga.org. Counting started on 11 October 2026. No cookies, no names, no IP addresses: a visitor is counted once a day.</p></div>
+      <div class="kpis" id="tKpis" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"></div>
+      <div class="grid2">
+        <div class="panel"><h2>From visit to contribution</h2><div class="funnel" id="tFunnel"></div><p class="muted" style="font-size:12.5px;margin-top:10px">Visitors counted per day. The later steps come from saved questions, new accounts and contributions in the same period.</p></div>
+        <div class="panel chart"><h2>Visitors per day</h2><svg viewBox="0 0 420 210" role="img" id="tChart" aria-label="Visitors per day"></svg></div>
+      </div>
+      <div class="grid3">
+        <div class="panel"><h2>Top pages</h2><div class="mini" id="tPages"></div></div>
+        <div class="panel"><h2>Where they come from</h2><div class="mini" id="tRefs"></div></div>
+        <div class="panel"><h2>Countries</h2><div class="mini" id="tGeo"></div></div>
+      </div>
+      <div class="panel"><h2>Devices</h2><div class="stack" id="tDevices"></div></div>
+    </section>
+
+    <!-- ============ LEARNING ============ -->
+    <section class="view hidden" data-view="usage">
+      <div class="hd"><h1>Learning</h1><p>Ratings, contributions, open questions and weekly progress.</p></div>
+      <div class="kpis" id="lKpis" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))"></div>
+      <div class="panel"><h2>Conflicting answers <small>different people sent different Ga for the same thing</small></h2><div class="tbl-wrap"><table><thead><tr><th>Question</th><th>Answers</th><th>Status</th></tr></thead><tbody id="conflictsBody"></tbody></table></div><div class="empty hidden" id="conflictsEmpty">No conflicts.</div></div>
+      <div class="panel"><h2>Weekly progress</h2><div class="tbl-wrap"><table><thead><tr><th>Week</th><th>Helpful ratings</th><th>Contributions approved</th><th>Questions answered</th><th>Score</th></tr></thead><tbody id="cyclesBody"></tbody></table></div><div class="empty hidden" id="cyclesEmpty">No weeks recorded yet.</div></div>
+    </section>
+
+    <!-- ============ USERS ============ -->
+    <section class="view hidden" data-view="users">
+      <div class="hd"><h1>Users</h1><p>Accounts and roles. Admins use this console; everyone else uses the app.</p></div>
+      <div class="panel"><div class="tbl-wrap"><table><thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Joined</th></tr></thead><tbody id="usersBody"></tbody></table></div><div class="empty hidden" id="usersEmpty">No users.</div><div class="pager" id="usersPager"></div></div>
+    </section>
+
+    <!-- ============ SYSTEM ============ -->
+    <section class="view hidden" data-view="system">
+      <div class="hd"><h1>Health &amp; activity</h1><p>Whether everything is responding, and what admins have changed.</p></div>
+      <div class="health" id="sHealth"></div>
+      <div class="grid2">
+        <div class="panel"><h2>Activity log <small>who changed what</small></h2><ul class="log" id="sLog"></ul></div>
+        <div class="panel"><h2>Domains</h2><div class="tbl-wrap"><table style="min-width:380px"><tbody>
+          <tr><td>speakga.org</td><td>Landing page</td><td><span class="pill ok">Live</span></td></tr>
+          <tr><td>app.speakga.org</td><td>The app</td><td><span class="pill ok">Live</span></td></tr>
+          <tr><td>www.speakga.org, speakga.com</td><td>Redirect to speakga.org</td><td><span class="pill ok">Live</span></td></tr>
+          <tr><td>heritage-rag…workers.dev</td><td>Old address, hidden from search</td><td><span class="pill">Kept</span></td></tr>
+        </tbody></table></div></div>
+      </div>
+    </section>
+  </main>
 </div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 const API = "/api/v1";
 const $ = (id) => document.getElementById(id);
-const TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
-const ICONS = {
-  users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>',
-  chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
-  guest: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
-  doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+const fmt = (n) => Number(n || 0).toLocaleString("en-GB");
+const GA_LETTERS = ["ɛ", "ɔ", "ŋ", "Ɛ", "Ɔ", "Ŋ"];
+const ICON = {
+  flag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4a1 1 0 0 1 1-1h12l-2 4 2 4H5"/></svg>',
+  q: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5h.01"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+  up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>',
+  tag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>',
+  chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>',
 };
 
-// Theme switching
-function initTheme() {
-  const savedTheme = localStorage.getItem("theme");
-  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  const theme = savedTheme || (prefersDark ? "dark" : "light");
-  document.documentElement.setAttribute("data-theme", theme);
-  updateThemeIcons(theme);
+async function api(path, opts = {}) {
+  const init = { credentials: "include", ...opts };
+  if (opts.json !== undefined) { init.method = init.method || "POST"; init.headers = { "Content-Type": "application/json" }; init.body = JSON.stringify(opts.json); delete init.json; }
+  const r = await fetch(API + path, init);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.detail || `Request failed (${r.status})`);
+  return d;
 }
-function toggleTheme() {
-  const current = document.documentElement.getAttribute("data-theme") || "light";
-  const next = current === "light" ? "dark" : "light";
-  document.documentElement.setAttribute("data-theme", next);
-  localStorage.setItem("theme", next);
-  updateThemeIcons(next);
+let tt;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(tt); tt = setTimeout(() => t.classList.remove("on"), 2800); }
+function confirmBox(text, yes = "Confirm") {
+  return new Promise((res) => {
+    const w = document.createElement("div"); w.className = "confirm";
+    w.innerHTML = `<div role="dialog" aria-modal="true"><p style="font-weight:600">${esc(text)}</p><div class="row-actions" style="justify-content:flex-end"><button class="btn" data-a="0">Cancel</button><button class="btn ink" data-a="1">${esc(yes)}</button></div></div>`;
+    w.onclick = (e) => { const b = e.target.closest("[data-a]"); if (b || e.target === w) { w.remove(); res(b?.dataset.a === "1"); } };
+    document.body.appendChild(w); w.querySelector('[data-a="1"]').focus();
+  });
 }
-function updateThemeIcons(theme) {
-  const sun = document.querySelector(".sun-icon");
-  const moon = document.querySelector(".moon-icon");
-  if (sun && moon) {
-    sun.classList.toggle("hidden", theme === "dark");
-    moon.classList.toggle("hidden", theme === "light");
-  }
+function ago(iso) {
+  if (!iso) return "";
+  const d = new Date(iso); if (isNaN(d)) return String(iso);
+  const s = (Date.now() - d) / 1000;
+  if (s < 3600) return `${Math.max(1, Math.round(s / 60))} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  if (s < 86400 * 7) return `${Math.round(s / 86400)} days ago`;
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
-initTheme();
-document.getElementById("themeToggle")?.addEventListener("click", toggleTheme);
+function setTabs(el, btn) { $$("button", el).forEach((b) => b.setAttribute("aria-selected", String(b === btn))); }
+function lettersFor(id) { return `<div class="letters"><span>Ga letters</span>${GA_LETTERS.map((c) => `<button type="button" data-ins="${id}">${c}</button>`).join("")}</div>`; }
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-ins]"); if (!b) return;
+  const i = $(b.dataset.ins); const s = i.selectionStart ?? i.value.length, en = i.selectionEnd ?? i.value.length;
+  i.value = i.value.slice(0, s) + b.textContent + i.value.slice(en); i.focus(); i.setSelectionRange(s + 1, s + 1);
+});
 
-// --- Pagination helper: server-side pages, size select, prev/next ---
-function renderPager(el, state, onGo) {
-  if (!el) return;
-  const { page, size, total } = state;
-  if (!total) { el.style.display = "none"; return; }
-  el.style.display = "";
-  const pages = Math.max(1, Math.ceil(total / size));
-  const from = page * size + 1, to = Math.min(total, (page + 1) * size);
-  el.innerHTML = "";
-  const info = document.createElement("span"); info.className = "pinfo";
-  info.textContent = `${from}–${to} of ${total}`;
-  const sizeSel = document.createElement("select");
-  for (const s of [10, 25, 50]) { const o = document.createElement("option"); o.value = s; o.textContent = `${s}/pg`; if (s === size) o.selected = true; sizeSel.appendChild(o); }
-  sizeSel.onchange = () => { state.size = parseInt(sizeSel.value, 10); state.page = 0; onGo(); };
-  const prev = document.createElement("button"); prev.textContent = "‹ Prev"; prev.disabled = page <= 0;
-  prev.onclick = () => { state.page--; onGo(); };
-  const next = document.createElement("button"); next.textContent = "Next ›"; next.disabled = page >= pages - 1;
-  next.onclick = () => { state.page++; onGo(); };
-  el.append(info, sizeSel, prev, next);
-}
+/* theme */
+(function () {
+  let t = null; try { t = localStorage.getItem("theme"); } catch {}
+  document.documentElement.setAttribute("data-theme", t === "dark" ? "dark" : "light");
+  $("themeBtn").onclick = () => {
+    const n = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", n); try { localStorage.setItem("theme", n); } catch {}
+  };
+})();
 
-// --- Confirm bar (destructive/commit actions) ---
-let confirmCb = null;
-function askConfirm(text, cb) {
-  $("confirmText").textContent = text;
-  $("confirmBar").classList.add("show");
-  confirmCb = cb;
+/* bar chart */
+function bars(svgId, labels, vals, { H = 210, hi = -1, sub = [] } = {}) {
+  const svg = $(svgId); if (!svg) return;
+  const W = 420, L = 30, R = 8, T = 14, B = sub.length ? 30 : 24, n = Math.max(vals.length, 1);
+  const max = Math.max(4, ...vals); const top = Math.ceil(max / 4) * 4;
+  const step = (W - L - R) / n, bw = Math.min(step * .62, 40), y = (v) => T + (H - T - B) * (1 - v / top);
+  let s = "";
+  [0, top / 2, top].forEach((g) => { s += `<line x1="${L}" x2="${W - R}" y1="${y(g)}" y2="${y(g)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(g) + 4}" text-anchor="end" font-size="10" fill="var(--muted)" font-family="Plus Jakarta Sans,sans-serif">${g}</text>`; });
+  vals.forEach((v, i) => {
+    const x = L + (i + .5) * step, h = (H - T - B) * v / top;
+    s += `<rect x="${x - bw / 2}" y="${y(v)}" width="${bw}" height="${Math.max(v ? 2 : 0, h)}" rx="3" fill="${i === hi ? "var(--gold)" : "color-mix(in srgb, var(--gold) 70%, transparent)"}"><title>${esc(labels[i])}: ${v}</title></rect>`;
+    if (v) s += `<text x="${x}" y="${y(v) - 5}" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--ink)" font-family="Plus Jakarta Sans,sans-serif">${v}</text>`;
+    s += `<text x="${x}" y="${H - (sub.length ? 16 : 8)}" text-anchor="middle" font-size="9.5" fill="var(--muted)" font-family="Plus Jakarta Sans,sans-serif">${esc(labels[i])}</text>`;
+    if (sub[i]) s += `<text x="${x}" y="${H - 3}" text-anchor="middle" font-size="9" fill="var(--faint)" font-family="Plus Jakarta Sans,sans-serif">${esc(sub[i])}</text>`;
+  });
+  svg.innerHTML = s;
 }
-$("confirmYes").onclick = () => { $("confirmBar").classList.remove("show"); const cb = confirmCb; confirmCb = null; cb && cb(); };
-$("confirmNo").onclick = () => { $("confirmBar").classList.remove("show"); confirmCb = null; };
+function lastDays(n) {
+  const out = []; const d = new Date(); d.setUTCHours(0, 0, 0, 0);
+  for (let i = n - 1; i >= 0; i--) out.push(new Date(d.getTime() - i * 86400000).toISOString().slice(0, 10));
+  return out;
+}
+const dayLabel = (iso) => String(+iso.slice(8, 10));
+const monthAt = (days) => days.map((d, i) => (i === 0 || d.slice(8, 10) === "01") ? new Date(d + "T00:00:00Z").toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" }) : "");
 
-// --- Gate: admins only ---
+/* navigation */
+const loaders = {};
+let current = "";
+function go(v) {
+  if (!document.querySelector(`.view[data-view="${v}"]`)) v = "overview";
+  current = v;
+  $$(".view[data-view]").forEach((s) => s.classList.toggle("hidden", s.dataset.view !== v));
+  $$(".nav").forEach((b) => b.dataset.v === v ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
+  try { history.replaceState(null, "", "#" + v); } catch {}
+  scrollTo({ top: 0 });
+  loaders[v]?.();
+}
+$$(".nav").forEach((b) => b.addEventListener("click", () => go(b.dataset.v)));
+document.addEventListener("click", (e) => { const t = e.target.closest("[data-go]"); if (t) go(t.dataset.go); });
+
+/* gate */
 (async function guard() {
   let me = null;
   try { const r = await fetch(`${API}/auth/me`, { credentials: "include" }); if (r.ok) me = await r.json(); } catch {}
-  if (!me) { window.location.href = "/auth"; return; }
-  // Not "/" — that is this console again, and the gate looped forever.
-  if (me.role !== "admin") { window.location.href = "/auth?denied=1"; return; }
-  $("gate").remove();
-  $("nav").classList.remove("hidden");
-  $("main").classList.remove("hidden");
-  $("whoEmail").textContent = me.email;
-  $("whoAv").textContent = (me.email || "A").charAt(0);
-  $("welcome").textContent = `Welcome back, ${me.first_name || me.email.split("@")[0]}`;
-  loadStats(); loadDocs(); loadActivity();
+  if (!me) { location.href = "/auth"; return; }
+  if (me.role !== "admin") { location.href = "/auth?denied=1"; return; }
+  $("gate").remove(); $("shell").classList.remove("hidden");
+  const first = me.first_name || (me.email || "").split("@")[0];
+  $("whoName").textContent = first || "Admin"; $("whoEmail").textContent = me.email || ""; $("whoAv").textContent = (first || "A").charAt(0);
+  const h = new Date().getHours();
+  $("hello").textContent = `${h < 12 ? "Ojekoo" : h < 17 ? "Oshwiee" : "M'naokoo"}, ${first}.`;
+  go((location.hash || "").slice(1) || "overview");
+  refreshCounts();
 })();
+$("logoutBtn").onclick = async () => {
+  try { await fetch(`${API}/auth/logout`, { method: "POST", credentials: "include" }); } catch {}
+  location.href = "/auth";
+};
 
-// --- Drawer (mobile) ---
-function closeNav() { $("nav").classList.remove("open"); $("backdrop").classList.remove("show"); }
-$("hamb").onclick = () => { const o = $("nav").classList.toggle("open"); $("backdrop").classList.toggle("show", o); };
-$("backdrop").onclick = closeNav;
-
-// --- Nav ---
-function go(sec) {
-  document.querySelectorAll(".item").forEach((b) => b.classList.toggle("active", b.dataset.sec === sec));
-  document.querySelectorAll(".section").forEach((s) => s.classList.toggle("active", s.id === `sec-${sec}`));
-  $("topTitle").textContent = { overview: "Overview", documents: "Archive", users: "Users", ocr: "OCR import", learning: "Learning", contributions: "Contributions" }[sec];
-  if (sec === "documents") loadDocs();
-  if (sec === "users") loadUsers();
-  if (sec === "learning") loadLearning();
-  if (sec === "contributions") loadContributions();
-  if (sec === "overview") loadActivity();
-  closeNav();
-}
-document.querySelectorAll(".item").forEach((b) => (b.onclick = () => go(b.dataset.sec)));
-document.querySelectorAll("[data-goto]").forEach((b) => (b.onclick = () => go(b.dataset.goto)));
-
-// --- Stats ---
-async function loadStats() {
+/* nav counts */
+let OV = null;
+async function refreshCounts() {
   try {
-    const r = await fetch(`${API}/admin/stats`, { credentials: "include" });
-    if (!r.ok) return;
-    const s = await r.json();
-    const cards = [
-      { l: "Registered users", v: s.registered_users, ic: ICONS.users },
-      { l: "Member chats", v: s.user_conversations, ic: ICONS.chat },
-      { l: "Guest chats", v: s.guest_conversations, ic: ICONS.guest },
-      { l: "Documents", v: s.total_documents, ic: ICONS.doc },
-    ];
-    $("statCards").innerHTML = cards
-      .map((c) => `<div class="card"><div class="top"><div class="ic">${c.ic}</div></div><div class="v">${c.v}</div><div class="l">${c.l}</div></div>`)
-      .join("");
+    OV = await api("/admin/console/overview");
+    $("ctQuestions").textContent = OV.gaps.open || "";
+    $("ctFlagged").textContent = OV.flagged_open || "";
+    $("ctReview").textContent = OV.contributions.pending || "";
   } catch {}
+  return OV;
 }
 
-// --- Activity Feed ---
-async function loadActivity() {
-  const feed = $("activityFeed"), empty = $("activityEmpty");
+/* ================= OVERVIEW ================= */
+loaders.overview = async () => {
+  let o, top = [];
+  try { [o, top] = await Promise.all([refreshCounts(), api("/admin/console/gaps?sort=most&limit=3").then((d) => d.gaps).catch(() => [])]); } catch {}
+  if (!o) { $("ovKpis").innerHTML = '<div class="empty">Couldn\'t load the figures. Refresh to try again.</div>'; return; }
+  const bibleTotal = o.bible.reduce((n, b) => n + b.n, 0);
+  $("ovKpis").innerHTML = [
+    { k: "Questions this week", v: o.questions.week, s: `${fmt(o.questions.total)} saved in total`, go: "usage" },
+    { k: "Unanswered", v: o.gaps.open, s: `asked ${fmt(o.gaps.asks)} times`, go: "questions", alert: o.gaps.open > 0 },
+    { k: "Waiting for review", v: o.contributions.pending, s: `${fmt(o.contributions.total)} contributions so far`, go: "review" },
+    { k: "Verified words", v: o.vocabulary.verified, s: `${fmt(o.vocabulary.total - o.vocabulary.verified)} not verified`, go: "archive" },
+    { k: "Bible verses", v: bibleTotal, s: o.bible.map((b) => b.source).join(" and "), go: "archive" },
+    { k: "Accounts", v: o.users.total, s: `${fmt(o.conversations.total)} conversations`, go: "users" },
+  ].map((x) => `<button class="kpi${x.alert ? " alert" : ""}" data-go="${x.go}"><small>${esc(x.k)}</small><b>${fmt(x.v)}</b><span>${esc(x.s)}</span></button>`).join("");
+
   const items = [];
-  try {
-    // Gather recent docs, feedback, and contributions in parallel
-    const [docsRes, fbRes, contribRes] = await Promise.all([
-      fetch(`${API}/admin/documents?limit=5`, { credentials: "include" }).catch(() => null),
-      fetch(`${API}/feedback/stats`, { credentials: "include" }).catch(() => null),
-      fetch(`${API}/admin/contributions?status=pending_review`, { credentials: "include" }).catch(() => null),
-    ]);
-    if (docsRes?.ok) {
-      const d = await docsRes.json();
-      for (const doc of (d.documents || []).slice(0, 3)) {
-        items.push({ icon: "↥", text: `<strong>${doc.original_filename}</strong> — ${doc.status}`, time: doc.uploaded_at, sec: "documents" });
-      }
-    }
-    if (fbRes?.ok) {
-      const fb = await fbRes.json();
-      if (fb.total > 0) {
-        items.push({ icon: "◍", text: `${fb.total} feedback responses — ${((fb.ratio || 0) * 100).toFixed(0)}% helpful`, time: "all time" });
-      }
-    }
-    if (contribRes?.ok) {
-      const c = await contribRes.json();
-      const n = c.contributions?.length || 0;
-      const badge = $("contribBadge");
-      if (badge) { badge.textContent = n; badge.classList.toggle("hidden", !n); }
-      if (n) {
-        items.push({ icon: "✎", text: `${n} contributions pending review`, time: "now", sec: "contributions" });
-      }
-    }
-  } catch {}
-  if (!items.length) { feed.innerHTML = ""; empty.style.display = "block"; feed.appendChild(empty); return; }
-  empty.style.display = "none"; feed.innerHTML = "";
-  for (const it of items) {
-    const row = document.createElement("div");
-    row.className = "act-row";
-    if (it.sec) { row.dataset.sec = it.sec; row.onclick = () => go(it.sec); }
-    row.innerHTML = `<span class="g">${it.icon}</span><span class="txt">${it.text}</span><span class="time">${it.time}</span>`;
-    feed.appendChild(row);
+  for (const g of top) {
+    const has = g.archive_has ? ` The archive has <b>${esc(g.archive_has.ga)}</b> (${esc(g.archive_has.meaning)}). Check again: it may already work.` : "";
+    items.push({ c: g.kind === "flagged" ? "bad" : "warn", i: g.kind === "flagged" ? ICON.flag : ICON.q,
+      t: g.kind === "flagged" ? `“${esc(g.query)}” was flagged as wrong ${g.asked} times` : `“${esc(g.query)}” asked ${g.asked} ${g.asked === 1 ? "time" : "times"}, no answer`,
+      s: (g.kind === "flagged" && g.answer_shown ? `Answer shown then: ${esc(g.answer_shown)}.` : "") + has || "Add the answer, or check whether it works now.",
+      a: `<button class="btn sm ${items.length ? "" : "ink"}" data-go="${g.kind === "flagged" ? "flagged" : "questions"}">${g.kind === "flagged" ? "Look at it" : "Answer it"}</button>` });
   }
-}
-$("refreshActivity").onclick = loadActivity;
+  if (o.contributions.pending) items.push({ c: "info", i: ICON.check, t: `${o.contributions.pending} contribution${o.contributions.pending > 1 ? "s are" : " is"} waiting for review`, s: "Approve it, or reject it with a reason.", a: '<button class="btn sm" data-go="review">Review</button>' });
+  if (o.flagged_open) items.push({ c: "bad", i: ICON.flag, t: `${o.flagged_open} thumbs-down rating${o.flagged_open > 1 ? "s" : ""} to check`, s: "See the question and the answer people didn't like.", a: '<button class="btn sm" data-go="flagged">Check</button>' });
+  if (o.samai.ready) items.push({ c: "gold", i: ICON.up, t: `${o.samai.ready} more samai symbols ready to import`, s: `ga-samai-okaikoi.jsonl is checked and has images. ${o.samai.review} more need a Ga reader first.`, a: '<button class="btn sm" data-go="archive">Upload</button>' });
+  const none = o.documents.find((d) => d.category === "none");
+  if (none) items.push({ c: "mut", i: ICON.tag, t: `${fmt(none.n)} documents have no category`, s: "Tagging them helps search and the app's Library.", a: '<button class="btn sm" data-go="archive">See them</button>' });
+  const tone = { bad: ["var(--bad-soft)", "var(--bad)"], warn: ["var(--warn-soft)", "var(--warn)"], info: ["var(--info-soft)", "var(--info)"], gold: ["var(--gold-soft)", "var(--gold-ink)"], mut: ["var(--sunk)", "var(--ink-2)"] };
+  $("ovAttention").innerHTML = items.length ? items.map((x) => `<li><span class="dot" style="background:${tone[x.c][0]};color:${tone[x.c][1]}">${x.i}</span><b class="t">${x.t}</b><span class="act">${x.a}</span><span class="sub">${x.s}</span></li>`).join("")
+    : '<li class="empty" style="display:block">Nothing needs you right now.</li>';
 
-// --- Documents (server-side pages; search fetches all once then slices locally) ---
-const docsState = { page: 0, size: 25, total: 0, all: null };
+  const days = lastDays(14), map = Object.fromEntries(o.questions.daily.map((d) => [d.day, d.n]));
+  const vals = days.map((d) => map[d] || 0), peak = vals.indexOf(Math.max(...vals));
+  bars("ovChart", days.map(dayLabel), vals, { hi: peak, sub: monthAt(days) });
+  const sum = vals.reduce((a, b) => a + b, 0);
+  $("ovChartNote").innerHTML = `<span><i style="background:var(--gold)"></i>Questions per day from accounts</span><span>${sum ? `Busiest: ${vals[peak]} on ${new Date(days[peak] + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}` : "No questions saved in the last 14 days"}</span>`;
+
+  const docs = Object.fromEntries(o.documents.map((d) => [d.category, d.n])), docTotal = o.documents.reduce((n, d) => n + d.n, 0);
+  const maxB = Math.max(...o.bible.map((b) => b.n), 1);
+  const pct = (n, of) => `${Math.max(n ? 1 : 0, Math.round(n / of * 100))}%`;
+  $("ovArchive").innerHTML = [
+    ...o.bible.map((b) => `<div class="bar-row"><span>Bible · ${esc(b.source)}</span><span class="track"><i style="width:${pct(b.n, maxB)};background:var(--info)"></i></span><b>${fmt(b.n)}</b></div>`),
+    `<div class="bar-row"><span>Verified words</span><span class="track"><i style="width:${pct(o.vocabulary.verified, 2000)};background:var(--ok)"></i></span><b>${fmt(o.vocabulary.verified)}</b></div>`,
+    `<div class="bar-row"><span>Documents</span><span class="track">${o.documents.map((d) => `<i style="width:${pct(d.n, docTotal)};background:${d.category === "bible" ? "var(--gold)" : d.category === "none" ? "var(--faint)" : "var(--ok)"}"></i>`).join("")}</span><b>${fmt(docTotal)}</b></div>`,
+    `<div class="bar-row"><span>Samai symbols</span><span class="track"><i style="width:${pct(o.samai.live, o.samai.live + o.samai.ready + o.samai.review)};background:var(--ok)"></i><i style="width:${pct(o.samai.ready, o.samai.live + o.samai.ready + o.samai.review)};background:var(--gold)"></i></span><b>${o.samai.live} live</b></div>`,
+    `<div class="bar-row"><span>Recorded speech</span><span class="track"></span><b style="color:var(--bad)">${o.speech_hours} hrs</b></div>`,
+  ].join("");
+  $("ovArchiveNote").innerHTML = `<span>Documents: ${o.documents.map((d) => `${d.category === "none" ? "no category" : esc(d.category)} ${fmt(d.n)}`).join(" · ")}</span><span>Samai: ${o.samai.live} live, ${o.samai.ready} ready to import, ${o.samai.review} need a Ga reader</span>`;
+  $("ovResearch").innerHTML = [
+    ["Verified language data", "ok", "Under way", `${fmt(o.vocabulary.verified)} checked words and phrases, ${fmt(bibleTotal)} Bible verses. Grows with every approved contribution.`],
+    ["Recorded speech", "bad", "Not started", "Needs funding and a recording plan. 0 hours so far."],
+    ["Accuracy and evaluation", "warn", "Early", `${fmt(o.feedback.total)} ratings (${fmt(o.feedback.down)} thumbs-down) and ${fmt(o.gaps.total)} logged questions. A fixed test set would turn these into a benchmark.`],
+  ].map(([t, c, p, s]) => `<div><div style="display:flex;gap:10px;align-items:center;justify-content:space-between"><b>${t}</b><span class="pill ${c}">${p}</span></div><p class="muted" style="font-size:12.5px;margin-top:2px">${s}</p></div>`).join("");
+};
+
+/* ================= UNANSWERED ================= */
+const Q = { params: { sort: "most" }, offset: 0, rows: [] };
+const KIND = { word: ["Word or phrase", ""], bible: ["Bible", "info"], flagged: ["Flagged wrong", "bad"] };
+$("qTabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setTabs($("qTabs"), b); Q.params = JSON.parse(b.dataset.q); Q.offset = 0; Q.rows = []; loadGaps(); });
+loaders.questions = () => { Q.offset = 0; Q.rows = []; loadGaps(); };
+async function loadGaps() {
+  const p = new URLSearchParams({ ...Q.params, limit: 25, offset: Q.offset });
+  if (!Q.rows.length) $("qList").innerHTML = '<li class="loading">Loading…</li>';
+  try {
+    const d = await api(`/admin/console/gaps?${p}`);
+    Q.rows = Q.rows.concat(d.gaps);
+    const st = Q.params.status || "pending";
+    $("qTotal").textContent = st === "pending" ? `${fmt(d.total)} open · asked ${fmt(d.asks)} times` : `${fmt(d.total)}`;
+    $("qList").innerHTML = Q.rows.length ? Q.rows.map(gapRow).join("") : `<li class="empty" style="display:block">${st === "pending" ? "Nothing unanswered here." : "Nothing here yet."}</li>`;
+    $("qPager").innerHTML = Q.rows.length < d.total ? `<span class="pinfo">${Q.rows.length} of ${fmt(d.total)}</span><button class="btn sm" id="qMore">Show more</button>` : (Q.rows.length ? `<span class="pinfo">${Q.rows.length} of ${fmt(d.total)}</span>` : "");
+    $("qMore") && ($("qMore").onclick = () => { Q.offset += 25; loadGaps(); });
+  } catch (e) { $("qList").innerHTML = `<li class="empty" style="display:block">${esc(e.message)}</li>`; }
+}
+function gapRow(g) {
+  const st = Q.params.status || "pending";
+  const k = KIND[g.kind] || KIND.word;
+  const has = g.archive_has ? `<span class="hasit">${ICON.check.replace("<svg", '<svg width="14" height="14"')}Archive has ${esc(g.archive_has.ga)}${g.archive_has.meaning ? ` (${esc(g.archive_has.meaning)})` : ""}</span>` : "";
+  const acts = st === "pending"
+    ? `<button class="btn sm ink" data-gap-answer="${esc(g.id)}">Answer</button><button class="btn sm" data-gap-check="${esc(g.id)}">Check again</button><button class="btn sm" data-gap-dismiss="${esc(g.id)}">Dismiss</button>`
+    : st === "dismissed" || st === "user_contributed" ? `<button class="btn sm" data-gap-reopen="${esc(g.id)}">Put back</button>` : "";
+  return `<li id="gap-${esc(g.id)}">
+    <span class="pill ${g.kind === "flagged" ? "bad" : g.asked > 2 ? "warn" : ""} num lead">${g.asked}×</span>
+    <b class="t">“${esc(g.query)}”</b>
+    <span class="act">${acts}</span>
+    <span class="sub"><span class="pill ${k[1]}">${k[0]}</span>${g.answer ? `<span>Answer: <b>${esc(g.answer)}</b></span>` : ""}${g.answer_shown ? `<span>Shown: ${esc(g.answer_shown)}</span>` : ""}${has}<span>last asked ${esc(ago(g.last_asked))}</span></span>
+    <div class="extra" id="gx-${esc(g.id)}"></div>
+  </li>`;
+}
+const gapById = (id) => Q.rows.find((g) => g.id === id) || F.wrong.find((g) => g.id === id);
+document.addEventListener("click", async (e) => {
+  const a = e.target.closest("[data-gap-answer]"), c = e.target.closest("[data-gap-check]"), d = e.target.closest("[data-gap-dismiss]"), r = e.target.closest("[data-gap-reopen]");
+  if (a) openAnswer(a.dataset.gapAnswer);
+  if (c) checkAgain(c.dataset.gapCheck, c);
+  if (d) {
+    const id = d.dataset.gapDismiss, g = gapById(id);
+    if (!(await confirmBox(`Dismiss “${g?.query}”? It leaves the inbox. You can put it back from the Dismissed tab.`, "Dismiss"))) return;
+    try { await api(`/admin/console/gaps/${encodeURIComponent(id)}/dismiss`, { json: {} }); removeGap(id, "Dismissed."); } catch (err) { toast(err.message); }
+  }
+  if (r) { try { await api(`/admin/console/gaps/${encodeURIComponent(r.dataset.gapReopen)}/reopen`, { json: {} }); removeGap(r.dataset.gapReopen, "Back in the inbox."); } catch (err) { toast(err.message); } }
+});
+function removeGap(id, msg) {
+  Q.rows = Q.rows.filter((g) => g.id !== id); F.wrong = F.wrong.filter((g) => g.id !== id);
+  document.querySelectorAll(`[id="gap-${CSS.escape(id)}"]`).forEach((el) => el.remove());
+  toast(msg); refreshCounts();
+}
+const CATS = ["general", "phrase", "greeting", "number", "time", "family", "food", "body", "household", "animals", "people", "weather", "bible", "samai"];
+function openAnswer(id) {
+  const g = gapById(id), box = document.getElementById(`gx-${id}`); if (!g || !box) return;
+  if (box.dataset.open === "answer") { box.innerHTML = ""; box.dataset.open = ""; return; }
+  box.dataset.open = "answer";
+  const sid = id.replace(/[^a-z0-9]/gi, "");
+  box.innerHTML = `<form class="answer" data-answer-form="${esc(id)}">
+    <div class="f2"><label class="f">English<input class="in" name="english" value="${esc(g.subject || g.query)}" required></label><label class="f">Ga<input class="in gaip" name="ga" id="ga-${sid}" value="${esc(g.archive_has?.ga || "")}" placeholder="Type the Ga" required></label></div>
+    ${lettersFor("ga-" + sid)}
+    <div class="f2"><label class="f">Category<select class="in" name="category">${CATS.map((c) => `<option${c === (g.kind === "bible" ? "bible" : "general") ? " selected" : ""}>${c}</option>`).join("")}</select></label>
+    <label class="f">Then<select class="in" name="then"><option value="verified">Add it as verified now</option><option value="review">Send it to the review queue</option></select></label></div>
+    <label class="f">Where it comes from<input class="in" name="source" placeholder="e.g. I'm a Ga speaker, Language Guide p. 12"></label>
+    <div class="row-actions"><button class="btn ok sm" type="submit">Save answer</button><button class="btn sm" type="button" data-gap-answer="${esc(id)}">Cancel</button><span class="status" data-st></span></div>
+  </form>`;
+  box.querySelector('[name="ga"]').focus();
+}
+document.addEventListener("submit", async (e) => {
+  const f = e.target.closest("[data-answer-form]"); if (!f) return;
+  e.preventDefault();
+  const id = f.dataset.answerForm, fd = Object.fromEntries(new FormData(f)), st = f.querySelector("[data-st]");
+  st.textContent = "Saving…"; f.querySelector('[type="submit"]').disabled = true;
+  try {
+    const r = await api(`/admin/console/gaps/${encodeURIComponent(id)}/answer`, { json: fd });
+    removeGap(id, r.verified ? `Saved. “${fd.english}” is now ${fd.ga}.` : "Sent to the review queue.");
+  } catch (err) { st.textContent = err.message; f.querySelector('[type="submit"]').disabled = false; }
+});
+async function checkAgain(id, btn) {
+  const box = document.getElementById(`gx-${id}`); if (!box) return;
+  box.dataset.open = "check";
+  btn.disabled = true; box.innerHTML = '<div class="answer"><span class="status">Asking SpeakGa again with today\'s archive…</span></div>';
+  try {
+    const r = await api(`/admin/console/gaps/${encodeURIComponent(id)}/recheck`, { json: {} });
+    box.innerHTML = `<div class="answer">
+      <div class="note ${r.answered ? "" : "warn"}">${r.answered ? "It answers now. If this is right, close the question." : "Still no answer. Add one with Answer."}</div>
+      <div class="reply">${esc(r.response || "(empty reply)")}</div>
+      <div class="row-actions">${r.answered ? `<button class="btn ok sm" data-gap-resolve="${esc(id)}">It's right, close it</button>` : ""}<button class="btn sm ${r.answered ? "" : "ink"}" data-gap-answer="${esc(id)}">${r.answered ? "It's wrong, answer it" : "Answer"}</button></div>
+    </div>`;
+  } catch (err) { box.innerHTML = `<div class="answer"><div class="note bad">${esc(err.message)}</div></div>`; }
+  btn.disabled = false;
+}
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-gap-resolve]"); if (!b) return;
+  b.disabled = true;
+  try { await api(`/admin/console/gaps/${encodeURIComponent(b.dataset.gapResolve)}/resolve`, { json: {} }); removeGap(b.dataset.gapResolve, "Closed. It answers correctly now."); }
+  catch (err) { toast(err.message); b.disabled = false; }
+});
+
+/* ================= FLAGGED ================= */
+const F = { wrong: [], status: "open" };
+$("fTabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setTabs($("fTabs"), b); F.status = b.dataset.s; loadDown(); });
+loaders.flagged = () => { loadWrong(); loadDown(); };
+async function loadWrong() {
+  $("fWrong").innerHTML = '<li class="loading">Loading…</li>';
+  try {
+    const d = await api("/admin/console/gaps?type=flagged&limit=50");
+    F.wrong = d.gaps;
+    $("fWrong").innerHTML = d.gaps.length ? d.gaps.map((g) => `<li id="gap-${esc(g.id)}">
+      <span class="pill bad num lead">${g.asked}×</span>
+      <b class="t">“${esc(g.query)}”</b>
+      <span class="act"><button class="btn sm ink" data-gap-check="${esc(g.id)}">Check again</button><button class="btn sm" data-gap-answer="${esc(g.id)}">Correct it</button><button class="btn sm" data-gap-dismiss="${esc(g.id)}">Dismiss</button></span>
+      <span class="sub">${g.answer_shown ? `<span>Answer shown: <b>${esc(g.answer_shown)}</b></span>` : ""}${g.archive_has ? `<span class="hasit">Archive has ${esc(g.archive_has.ga)}${g.archive_has.meaning ? ` (${esc(g.archive_has.meaning)})` : ""}</span>` : ""}<span>first flagged ${esc(ago(g.first_asked))}, last ${esc(ago(g.last_asked))}</span></span>
+      <div class="extra" id="gx-${esc(g.id)}"></div></li>`).join("") : '<li class="empty" style="display:block">No answers marked wrong.</li>';
+  } catch (e) { $("fWrong").innerHTML = `<li class="empty" style="display:block">${esc(e.message)}</li>`; }
+}
+async function loadDown() {
+  $("fDown").innerHTML = '<li class="loading">Loading…</li>';
+  try {
+    const d = await api(`/admin/console/flagged?status=${F.status}`);
+    $("fDown").innerHTML = d.items.length ? d.items.map((f) => `<li id="fd-${esc(f.id)}">
+      <span class="dot lead" style="background:var(--bad-soft);color:var(--bad)">${ICON.flag}</span>
+      <b class="t">“${esc(f.query)}”</b>
+      <span class="act">${F.status === "open" ? `<select class="in" style="height:32px;width:auto;font-size:12.5px" data-fd-outcome="${esc(f.id)}"><option>The answer was fine</option><option>Fixed in the archive</option><option>Added to the inbox</option><option>Not something we can fix</option></select><button class="btn sm ink" data-fd-done="${esc(f.id)}">Mark handled</button>` : ""}</span>
+      <span class="sub"><span>${esc(ago(f.created_at))}</span>${f.comment ? `<span>Comment: “${esc(f.comment)}”</span>` : ""}${f.archive_has ? `<span class="hasit">Archive has ${esc(f.archive_has.ga)}${f.archive_has.meaning ? ` (${esc(f.archive_has.meaning)})` : ""}</span>` : ""}</span>
+      <details class="extra"><summary class="muted" style="cursor:pointer;font-size:12.5px;font-weight:700">The answer they rated</summary><div class="reply" style="margin-top:8px">${esc(f.response || "(not stored)")}</div></details></li>`).join("")
+      : `<li class="empty" style="display:block">${F.status === "open" ? "No thumbs-down ratings to check." : "Nothing handled yet."}</li>`;
+  } catch (e) { $("fDown").innerHTML = `<li class="empty" style="display:block">${esc(e.message)}</li>`; }
+}
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-fd-done]"); if (!b) return;
+  const id = b.dataset.fdDone, outcome = document.querySelector(`[data-fd-outcome="${CSS.escape(id)}"]`)?.value;
+  b.disabled = true;
+  try { await api(`/admin/console/flagged/${encodeURIComponent(id)}/handled`, { json: { outcome } }); document.getElementById(`fd-${id}`)?.remove(); toast("Marked handled."); refreshCounts(); }
+  catch (err) { toast(err.message); b.disabled = false; }
+});
+
+/* ================= REVIEW ================= */
+const R = { status: "pending_review", page: 0, size: 20 };
+$("rTabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setTabs($("rTabs"), b); R.status = b.dataset.s; R.page = 0; loadReview(); });
+loaders.review = () => loadReview();
+async function loadReview() {
+  $("rList").innerHTML = '<div class="loading">Loading…</div>';
+  try {
+    const d = await api(`/admin/contributions?status=${R.status}&limit=${R.size}&offset=${R.page * R.size}`);
+    if (!d.contributions.length && R.page > 0) { R.page--; return loadReview(); }
+    $("rList").innerHTML = d.contributions.length ? d.contributions.map((c) => {
+      const who = [c.contributor_name, c.contributor_email, c.contributor_location].filter(Boolean).join(" · ");
+      return `<div class="panel" id="rc-${esc(c.id)}">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px"><span class="pill">${esc((c.type || "translation").replace(/_/g, " "))}</span><span class="pill">${esc(c.category)}</span>${c.has_conflict ? '<span class="pill warn">Conflicting answers exist</span>' : ""}${c.agreement_score > 0 ? `<span class="pill ok">+${c.agreement_score} agree</span>` : ""}<span class="muted" style="margin-left:auto;font-size:12.5px">${esc(c.created_at)}${who ? ` · by ${esc(who)}` : ""}</span></div>
+        <div class="compare"><div class="side"><small>English</small><b class="big">${esc(c.query)}</b></div><div class="side"><small>Ga</small><b class="big">${esc(c.answer || "—")}</b>${c.notes ? `<p class="muted" style="font-size:13px">${esc(c.notes)}</p>` : ""}</div></div>
+        ${R.status === "pending_review" ? `<div class="row-actions" style="margin-top:12px"><button class="btn ok" data-rv="approve" data-id="${esc(c.id)}">Approve</button><button class="btn bad" data-rv="reject" data-id="${esc(c.id)}">Reject</button><span class="status" data-st></span></div>` : `<div style="margin-top:10px"><span class="pill ${R.status === "approved" ? "ok" : "bad"}">${R.status === "approved" ? "Approved" : "Rejected"}</span></div>`}
+      </div>`;
+    }).join("") : `<div class="panel empty">${R.status === "pending_review" ? "Nothing waiting for review." : "Nothing here yet."}</div>`;
+    const pages = Math.ceil((d.total || 0) / R.size);
+    $("rPager").innerHTML = pages > 1 ? `<span class="pinfo">Page ${R.page + 1} of ${pages} · ${fmt(d.total)} in all</span><button class="btn sm" id="rPrev" ${R.page ? "" : "disabled"}>Previous</button><button class="btn sm" id="rNext" ${R.page < pages - 1 ? "" : "disabled"}>Next</button>` : "";
+    $("rPrev") && ($("rPrev").onclick = () => { R.page--; loadReview(); });
+    $("rNext") && ($("rNext").onclick = () => { R.page++; loadReview(); });
+  } catch (e) { $("rList").innerHTML = `<div class="panel empty">${esc(e.message)}</div>`; }
+}
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-rv]"); if (!b) return;
+  const card = document.getElementById(`rc-${b.dataset.id}`), approve = b.dataset.rv === "approve";
+  if (!(await confirmBox(approve ? "Approve this and add it to the verified archive?" : "Reject this contribution?", approve ? "Approve" : "Reject"))) return;
+  const st = card.querySelector("[data-st]"); st.textContent = approve ? "Approving…" : "Rejecting…";
+  $$("button", card).forEach((x) => (x.disabled = true));
+  try { const r = await api(`/admin/contributions/${encodeURIComponent(b.dataset.id)}/${b.dataset.rv}`, { method: "POST" }); toast(r.message || (approve ? "Approved." : "Rejected.")); card.remove(); refreshCounts(); if (!$("rList").children.length) loadReview(); }
+  catch (err) { st.textContent = err.message; $$("button", card).forEach((x) => (x.disabled = false)); }
+});
+
+/* ================= DOCUMENTS ================= */
+const D = { page: 0, size: 25, cat: "", all: null };
+loaders.archive = () => { renderDocTabs(); loadDocs(); };
+function renderDocTabs() {
+  const cats = OV?.documents || [];
+  $("docTabs").innerHTML = [`<button role="tab" aria-selected="${!D.cat}" data-c="">All · ${fmt(cats.reduce((n, c) => n + c.n, 0))}</button>`]
+    .concat(cats.map((c) => `<button role="tab" aria-selected="${D.cat === c.category}" data-c="${esc(c.category)}">${c.category === "none" ? "No category" : esc(c.category[0].toUpperCase() + c.category.slice(1))} · ${fmt(c.n)}</button>`)).join("");
+}
+$("docTabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setTabs($("docTabs"), b); D.cat = b.dataset.c; D.page = 0; loadDocs(); });
+let docTimer;
+$("docSearch").addEventListener("input", () => { clearTimeout(docTimer); docTimer = setTimeout(() => { D.page = 0; loadDocs(); }, 250); });
+async function allDocs() {
+  if (D.all) return D.all;
+  const out = []; let off = 0, total = Infinity;
+  while (off < total) { const d = await api(`/admin/documents?limit=100&offset=${off}`); out.push(...(d.documents || [])); total = d.total ?? out.length; off += 100; if (!(d.documents || []).length) break; }
+  return (D.all = out);
+}
 async function loadDocs() {
+  const q = $("docSearch").value.trim().toLowerCase();
   try {
-    const q = ($("docSearch")?.value || "").trim().toLowerCase();
-    if (q) {
-      if (!docsState.all) {
-        docsState.all = [];
-        let off = 0, total = Infinity;
-        while (off < total) {
-          const r = await fetch(`${API}/admin/documents?limit=100&offset=${off}`, { credentials: "include" });
-          if (!r.ok) break;
-          const d = await r.json();
-          docsState.all.push(...(d.documents || []));
-          total = d.total ?? docsState.all.length;
-          off += 100;
-        }
-      }
-      const filtered = docsState.all.filter(d =>
-        (d.original_filename || "").toLowerCase().includes(q) ||
-        (d.status || "").toLowerCase().includes(q) ||
-        (d.category || "").toLowerCase().includes(q));
-      docsState.total = filtered.length;
-      const maxPage = Math.max(0, Math.ceil(filtered.length / docsState.size) - 1);
-      if (docsState.page > maxPage) docsState.page = maxPage;
-      renderDocs(filtered.slice(docsState.page * docsState.size, (docsState.page + 1) * docsState.size));
+    let rows, total;
+    if (q || D.cat) {
+      const all = await allDocs();
+      const f = all.filter((d) => (!D.cat || (D.cat === "none" ? !d.category : d.category === D.cat)) && (!q || `${d.original_filename} ${d.status} ${d.category || ""}`.toLowerCase().includes(q)));
+      total = f.length; rows = f.slice(D.page * D.size, (D.page + 1) * D.size);
     } else {
-      docsState.all = null;
-      const r = await fetch(`${API}/admin/documents?limit=${docsState.size}&offset=${docsState.page * docsState.size}`, { credentials: "include" });
-      if (!r.ok) return;
-      const d = await r.json();
-      docsState.total = d.total ?? (d.documents || []).length;
-      if (!(d.documents || []).length && docsState.total > 0 && docsState.page > 0) {
-        docsState.page--; loadDocs(); return;
-      }
-      renderDocs(d.documents || []);
+      const d = await api(`/admin/documents?limit=${D.size}&offset=${D.page * D.size}`); rows = d.documents || []; total = d.total ?? rows.length;
     }
-    renderPager($("docsPager"), docsState, loadDocs);
-  } catch {}
+    $("docCount").textContent = `${fmt(total)} shown`;
+    $("docsEmpty").classList.toggle("hidden", !!rows.length);
+    $("docsBody").innerHTML = rows.map((doc) => {
+      let m = {}; try { m = JSON.parse(doc.metadata || "{}"); } catch {}
+      const tone = doc.status === "indexed" ? "ok" : doc.status === "error" ? "bad" : "info";
+      return `<tr data-doc="${esc(doc.id)}" style="cursor:pointer"><td style="font-weight:600;overflow-wrap:anywhere">${esc(doc.original_filename)}</td><td><span class="pill ${tone}">${esc(doc.status)}</span>${m.vector_pending ? ' <span class="pill info">search index pending</span>' : ""}</td><td class="muted">${esc(doc.category || "—")}</td><td class="muted num">${m.record_count != null ? fmt(m.record_count) : "—"}</td><td class="muted" style="white-space:nowrap">${esc(doc.uploaded_at || "")}</td><td style="text-align:right"><button class="btn sm bad" data-doc-del="${esc(doc.id)}" data-name="${esc(doc.original_filename)}">Delete</button></td></tr>`;
+    }).join("");
+    D.rows = rows;
+    const pages = Math.ceil(total / D.size);
+    $("docsPager").innerHTML = pages > 1 ? `<span class="pinfo">Page ${D.page + 1} of ${pages}</span><button class="btn sm" id="dPrev" ${D.page ? "" : "disabled"}>Previous</button><button class="btn sm" id="dNext" ${D.page < pages - 1 ? "" : "disabled"}>Next</button>` : "";
+    $("dPrev") && ($("dPrev").onclick = () => { D.page--; loadDocs(); });
+    $("dNext") && ($("dNext").onclick = () => { D.page++; loadDocs(); });
+  } catch (e) { $("docsBody").innerHTML = `<tr><td colspan="6" class="muted">${esc(e.message)}</td></tr>`; }
 }
-function renderDocs(filtered) {
-  const body = $("docsBody"), empty = $("docsEmpty");
-  if (!filtered.length) { body.innerHTML = ""; empty.style.display = "block"; return; }
-  empty.style.display = "none"; body.innerHTML = "";
-  for (const doc of filtered) {
-    const tr = document.createElement("tr");
-    tr.style.cursor = "pointer";
-    tr.onclick = () => showDocDetail(doc);
-    let meta = {};
-    try { meta = JSON.parse(doc.metadata || "{}"); } catch {}
-    const name = document.createElement("td"); name.style.fontWeight = "600"; name.textContent = doc.original_filename;
-    const st = document.createElement("td"); st.style.whiteSpace = "nowrap";
-    st.innerHTML = `<span class="pill ${doc.status}">${doc.status}</span>${meta.vector_pending ? ' <span class="pill vpend">◌ vectors pending</span>' : ""}`;
-    const cat = document.createElement("td"); cat.style.color = "var(--muted)"; cat.textContent = doc.category || "—";
-    const rows = document.createElement("td"); rows.style.fontFamily = "var(--mono)"; rows.style.color = "var(--muted)";
-    rows.textContent = meta.record_count != null ? Number(meta.record_count).toLocaleString() : "—";
-    const up = document.createElement("td"); up.style.color = "var(--muted)"; up.style.whiteSpace = "nowrap"; up.textContent = doc.uploaded_at;
-    const act = document.createElement("td"); act.style.textAlign = "right";
-    const del = document.createElement("button"); del.className = "icon-del"; del.title = "Delete"; del.innerHTML = TRASH;
-    del.onclick = (e) => { e.stopPropagation(); askConfirm(`Delete "${doc.original_filename}"? This removes the file and its index entries.`, () => deleteDoc(doc.id)); };
-    act.appendChild(del);
-    tr.append(name, st, cat, rows, up, act); body.appendChild(tr);
+$("docsBody").addEventListener("click", async (e) => {
+  const del = e.target.closest("[data-doc-del]");
+  if (del) {
+    e.stopPropagation();
+    if (!(await confirmBox(`Delete “${del.dataset.name}”? This removes the file and its search entries.`, "Delete"))) return;
+    try { await api(`/admin/documents/${encodeURIComponent(del.dataset.docDel)}`, { method: "DELETE" }); toast("Deleted."); D.all = null; refreshCounts().then(renderDocTabs); loadDocs(); } catch (err) { toast(err.message); }
+    return;
   }
+  const tr = e.target.closest("[data-doc]"); if (!tr) return;
+  const doc = (D.rows || []).find((d) => d.id === tr.dataset.doc); if (!doc) return;
+  let m = {}; try { m = JSON.parse(doc.metadata || "{}"); } catch {}
+  const p = $("docDetail"); p.classList.remove("hidden");
+  p.innerHTML = `<h2>${esc(doc.original_filename)} <button class="link" id="docClose">Close</button></h2>${m.error ? `<div class="note bad" style="margin-bottom:10px">${esc(m.error)}</div>` : ""}<div class="tbl-wrap"><table style="min-width:0"><tbody>${Object.entries(m).map(([k, v]) => `<tr><td class="muted" style="white-space:nowrap;font:600 12px var(--mono)">${esc(k)}</td><td style="font:12.5px var(--mono);overflow-wrap:anywhere">${esc(typeof v === "object" ? JSON.stringify(v) : v)}</td></tr>`).join("")}</tbody></table></div>`;
+  $("docClose").onclick = () => p.classList.add("hidden");
+  p.scrollIntoView({ behavior: "smooth" });
+});
+function dropzone(zone, input, label, empty) {
+  const show = (f) => { label.textContent = f ? f.name : empty; zone.classList.toggle("has-file", !!f); };
+  input.addEventListener("change", () => show(input.files[0]));
+  ["dragover", "dragenter"].forEach((ev) => zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add("drag"); }));
+  ["dragleave", "dragend"].forEach((ev) => zone.addEventListener(ev, () => zone.classList.remove("drag")));
+  zone.addEventListener("drop", (e) => { e.preventDefault(); zone.classList.remove("drag"); if (e.dataTransfer.files.length) { input.files = e.dataTransfer.files; show(input.files[0]); } });
+  return show;
 }
-function showDocDetail(doc) {
-  const panel = $("docDetailPanel"), body = $("docDetailBody");
-  panel.style.display = "block";
-  let meta = {};
-  try { meta = JSON.parse(doc.metadata || "{}"); } catch {}
-  const metaRows = Object.entries(meta).map(([k,v]) => `<tr><td style="font:600 12px var(--mono);color:var(--muted);padding:6px 14px 6px 0;white-space:nowrap;">${k}</td><td style="font:12.5px var(--mono);word-break:break-all;">${typeof v === 'object' ? JSON.stringify(v) : v}</td></tr>`).join("");
-  body.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
-      <div><div style="font:600 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">File</div><div style="font:600 14px var(--sans);">${doc.original_filename}</div></div>
-      <div><div style="font:600 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Status</div><span class="pill ${doc.status}">${doc.status}</span></div>
-    </div>
-    ${meta.error ? `<div style="padding:10px 14px;border:1px dashed var(--line-2);color:var(--ink-2);font:500 13px var(--sans);margin-bottom:16px;">${meta.error}</div>` : ""}
-    ${meta.record_count ? `<div style="font:600 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Metadata</div>` : ""}
-    <table style="width:100%;font-size:12.5px;">${metaRows}</table>
-  `;
-  panel.scrollIntoView({ behavior: "smooth" });
-}
-let docSearchTimer = null;
-if ($("docSearch")) {
-  $("docSearch").addEventListener("input", () => { clearTimeout(docSearchTimer); docSearchTimer = setTimeout(() => { docsState.page = 0; loadDocs(); }, 250); });
-}
-if ($("closeDocDetail")) {
-  $("closeDocDetail").onclick = () => { $("docDetailPanel").style.display = "none"; };
-}
-async function deleteDoc(id) {
-  try { await fetch(`${API}/admin/documents/${id}`, { method: "DELETE", credentials: "include" }); loadDocs(); loadStats(); } catch {}
-}
-
-// Upload (dropzone)
-const dz = $("dropzone"), upFile = $("upFile"), dropText = $("dropText");
-function showFile(f) {
-  if (f) { dropText.textContent = f.name; dz.classList.add("has-file"); }
-  else { dropText.textContent = "Drop a file or click to browse"; dz.classList.remove("has-file"); }
-}
-upFile.addEventListener("change", () => showFile(upFile.files[0]));
-["dragover", "dragenter"].forEach((e) => dz.addEventListener(e, (ev) => { ev.preventDefault(); dz.classList.add("drag"); }));
-["dragleave", "dragend"].forEach((e) => dz.addEventListener(e, () => dz.classList.remove("drag")));
-dz.addEventListener("drop", (e) => { e.preventDefault(); dz.classList.remove("drag"); if (e.dataTransfer.files.length) { upFile.files = e.dataTransfer.files; showFile(upFile.files[0]); } });
-
+const showUp = dropzone($("dz"), $("upFile"), $("dzText"), "Drop a file or click to browse");
 $("uploadBtn").onclick = async () => {
-  const file = upFile.files[0], status = $("upStatus");
-  if (!file) { status.textContent = "Choose a file first"; return; }
-  const isImg = file.type.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(file.name);
-  status.textContent = isImg ? "↥ Uploading image…" : "↥ Uploading file…";
-  $("uploadBtn").disabled = true;
-  if (isImg) setTimeout(() => { if ($("uploadBtn").disabled) status.textContent = "◌ OCR indexing in background…"; }, 2000);
+  const file = $("upFile").files[0], st = $("upStatus");
+  if (!file) { st.textContent = "Choose a file first."; return; }
+  st.textContent = "Uploading…"; $("uploadBtn").disabled = true;
   const fd = new FormData(); fd.append("file", file);
   const cat = $("upCategory").value; if (cat) fd.append("metadata", JSON.stringify({ category: cat }));
   try {
-    const r = await fetch(`${API}/admin/upload`, { method: "POST", credentials: "include", body: fd });
-    const d = await r.json();
-    if (!r.ok) { status.textContent = d.detail || "Upload failed"; return; }
-    status.textContent = "✓ " + (d.message || "Indexing started");
-    upFile.value = ""; showFile(null);
-    setTimeout(() => { loadDocs(); loadStats(); }, 1500); setTimeout(loadDocs, 5000);
-  } catch (e) { status.textContent = e.message; }
-  finally { $("uploadBtn").disabled = false; }
+    const d = await api("/admin/upload", { method: "POST", body: fd });
+    st.textContent = d.message || "Indexing started."; $("upFile").value = ""; showUp(null);
+    D.all = null; setTimeout(() => { loadDocs(); refreshCounts().then(renderDocTabs); }, 1500); setTimeout(loadDocs, 5000);
+  } catch (e) { st.textContent = e.message; }
+  $("uploadBtn").disabled = false;
 };
-$("refreshDocs").onclick = () => { docsState.all = null; loadDocs(); };
 
-// --- Users (server-side pages) ---
-const ROLES = ["admin", "moderator", "member", "user"];
-const usersState = { page: 0, size: 25, total: 0 };
-async function loadUsers() {
-  try {
-    const r = await fetch(`${API}/admin/users?limit=${usersState.size}&offset=${usersState.page * usersState.size}`, { credentials: "include" });
-    if (!r.ok) return;
-    const d = await r.json();
-    usersState.total = d.total ?? (d.users || []).length;
-    if (!(d.users || []).length && usersState.total > 0 && usersState.page > 0) {
-      usersState.page--; loadUsers(); return;
-    }
-    renderPager($("usersPager"), usersState, loadUsers);
-    const body = $("usersBody"), empty = $("usersEmpty");
-    if (!d.users.length) { body.innerHTML = ""; empty.style.display = "block"; return; }
-    empty.style.display = "none"; body.innerHTML = "";
-    for (const u of d.users) {
-      const tr = document.createElement("tr");
-      const em = document.createElement("td"); em.style.fontWeight = "600"; em.textContent = u.email;
-      const nm = document.createElement("td"); nm.style.color = "var(--muted)";
-      nm.textContent = [u.first_name, u.last_name].filter(Boolean).join(" ") || u.display_name || "—";
-      const rl = document.createElement("td");
-      const sel = document.createElement("select");
-      sel.dataset.prev = u.role;
-      for (const role of ROLES) { const o = document.createElement("option"); o.value = role; o.textContent = role; if (role === u.role) o.selected = true; sel.appendChild(o); }
-      sel.onchange = () => updateRole(u.id, sel.value, sel, u.email);
-      rl.appendChild(sel);
-      const jd = document.createElement("td"); jd.style.color = "var(--muted)"; jd.style.whiteSpace = "nowrap"; jd.textContent = u.created_at;
-      tr.append(em, nm, rl, jd); body.appendChild(tr);
-    }
-  } catch {}
-}
-function updateRole(id, role, sel, email) {
-  const prev = sel.dataset.prev;
-  askConfirm(`Change ${email || "this user"}'s role to "${role}"?`, async () => {
-    sel.disabled = true;
-    try { const r = await fetch(`${API}/admin/users/${id}/role?role=${encodeURIComponent(role)}`, { method: "PATCH", credentials: "include" }); if (r.ok) sel.dataset.prev = role; else { sel.value = prev; loadUsers(); } }
-    catch { sel.value = prev; loadUsers(); } finally { sel.disabled = false; }
-  });
-  if (prev) sel.value = prev; // revert pending confirm
-}
-$("refreshUsers").onclick = loadUsers;
-
-// --- OCR Import ---
-const ocrDz = $("ocrDrop"), ocrFile = $("ocrFile"), ocrTextEl = $("ocrText");
-function ocrShow(f) {
-  if (f) { ocrTextEl.textContent = f.name; ocrDz.classList.add("has-file"); }
-  else { ocrTextEl.textContent = "Drop a page image or PDF"; ocrDz.classList.remove("has-file"); }
-}
-ocrFile.addEventListener("change", () => ocrShow(ocrFile.files[0]));
-["dragover", "dragenter"].forEach((e) => ocrDz.addEventListener(e, (ev) => { ev.preventDefault(); ocrDz.classList.add("drag"); }));
-["dragleave", "dragend"].forEach((e) => ocrDz.addEventListener(e, () => ocrDz.classList.remove("drag")));
-ocrDz.addEventListener("drop", (e) => { e.preventDefault(); ocrDz.classList.remove("drag"); if (e.dataTransfer.files.length) { ocrFile.files = e.dataTransfer.files; ocrShow(ocrFile.files[0]); } });
-
+/* ================= SCAN IMPORT ================= */
+dropzone($("ocrDz"), $("ocrFile"), $("ocrText"), "Drop a page image or PDF");
 $("ocrBtn").onclick = async () => {
-  const file = ocrFile.files[0], status = $("ocrStatus");
-  if (!file) { status.textContent = "Choose a file first"; return; }
-  const engine = $("ocrEngine").value;
-  const engineLabel = engine === "vision" ? "vision OCR" : engine === "text" ? "text extraction" : "auto";
-  const isImg = file.type.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(file.name);
-  // Show stage-specific messages
-  if (engine === "vision" || (engine === "auto" && isImg)) {
-    status.textContent = "↥ Uploading image…";
-    setTimeout(() => { if ($("ocrBtn").disabled) status.textContent = "◌ Running vision model…"; }, 2000);
-    setTimeout(() => { if ($("ocrBtn").disabled) status.textContent = "◌ Structuring Ga↔English pairs…"; }, 8000);
-  } else {
-    status.textContent = "↥ Uploading file…";
-    setTimeout(() => { if ($("ocrBtn").disabled) status.textContent = "◌ Parsing/extracting text…"; }, 1500);
-    setTimeout(() => { if ($("ocrBtn").disabled) status.textContent = "◌ Structuring Ga↔English pairs…"; }, 5000);
-  }
-  $("ocrBtn").disabled = true;
-  const fd = new FormData(); fd.append("file", file); fd.append("engine", engine);
+  const file = $("ocrFile").files[0], st = $("ocrStatus");
+  if (!file) { st.textContent = "Choose a file first."; return; }
+  st.textContent = "Uploading…"; $("ocrBtn").disabled = true;
+  const later = [setTimeout(() => (st.textContent = "Reading the page…"), 2000), setTimeout(() => (st.textContent = "Pairing English and Ga…"), 8000)];
+  const fd = new FormData(); fd.append("file", file); fd.append("engine", $("ocrEngine").value);
   try {
-    const r = await fetch(`${API}/admin/ocr/preview`, { method: "POST", credentials: "include", body: fd });
-    const d = await r.json();
-    if (!r.ok) { status.textContent = d.detail || "Extraction failed"; return; }
-    status.textContent = `✓ Found ${d.record_count} pairs${d.note ? " · " + d.note : ""}. Review below, then index.`;
-    $("ocrJsonl").value = d.jsonl || "";
-    $("ocrCount").textContent = `${d.record_count} pairs`;
-    $("ocrReview").style.display = "block";
-    $("ocrReview").scrollIntoView({ behavior: "smooth" });
-  } catch (e) { status.textContent = e.message; }
-  finally { $("ocrBtn").disabled = false; }
+    const d = await api("/admin/ocr/preview", { method: "POST", body: fd });
+    later.forEach(clearTimeout);
+    st.textContent = `Found ${d.record_count} pairs${d.note ? ` · ${d.note}` : ""}. Check them below, then index.`;
+    $("ocrJsonl").value = d.jsonl || ""; $("ocrCount").textContent = `${d.record_count} pairs`;
+    $("ocrReview").classList.remove("hidden"); $("ocrReview").scrollIntoView({ behavior: "smooth" });
+  } catch (e) { later.forEach(clearTimeout); st.textContent = e.message; }
+  $("ocrBtn").disabled = false;
 };
-
 $("ocrCommit").onclick = async () => {
-  const jsonl = $("ocrJsonl").value.trim(), status = $("ocrCommitStatus");
-  if (!jsonl) { status.textContent = "Nothing to index"; return; }
-  status.textContent = "Indexing…"; $("ocrCommit").disabled = true;
+  const jsonl = $("ocrJsonl").value.trim(), st = $("ocrCommitStatus");
+  if (!jsonl) { st.textContent = "Nothing to index."; return; }
+  st.textContent = "Indexing…"; $("ocrCommit").disabled = true;
   try {
-    const r = await fetch(`${API}/admin/heritage/commit`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-      body: JSON.stringify({ jsonl, original_filename: (ocrFile.files[0]?.name || "ocr-import") + ".jsonl" }),
-    });
-    const d = await r.json();
-    if (!r.ok) { status.textContent = d.detail || "Index failed"; return; }
-    status.textContent = "✓ " + (d.message || "Indexed");
-    setTimeout(() => { loadDocs(); loadStats(); }, 1200);
-  } catch (e) { status.textContent = e.message; }
-  finally { $("ocrCommit").disabled = false; }
+    const d = await api("/admin/heritage/commit", { json: { jsonl, original_filename: ($("ocrFile").files[0]?.name || "scan-import") + ".jsonl" } });
+    st.textContent = d.message || "Indexed."; D.all = null;
+  } catch (e) { st.textContent = e.message; }
+  $("ocrCommit").disabled = false;
 };
 
-// --- Learning Analytics (client-side pages over returned arrays) ---
-const conflictsState = { page: 0, size: 10, total: 0, rows: [] };
-const cyclesState = { page: 0, size: 10, total: 0, rows: [] };
-function renderConflicts() {
-  const body = $("conflictsBody"), empty = $("conflictsEmpty");
-  const rows = conflictsState.rows;
-  if (!rows.length) { body.innerHTML = ""; empty.style.display = "block"; renderPager($("conflictsPager"), { ...conflictsState, total: 0 }, renderConflicts); return; }
-  empty.style.display = "none"; body.innerHTML = "";
-  const slice = rows.slice(conflictsState.page * conflictsState.size, (conflictsState.page + 1) * conflictsState.size);
-  for (const c of slice) {
-    const tr = document.createElement("tr");
-    const q = document.createElement("td"); q.style.fontWeight = "600"; q.textContent = c.original_query;
-    const a = document.createElement("td"); a.textContent = c.answer_count;
-    const s = document.createElement("td"); s.innerHTML = `<span class="pill indexing">Pending</span>`;
-    tr.append(q, a, s); body.appendChild(tr);
-  }
-  conflictsState.total = rows.length;
-  renderPager($("conflictsPager"), conflictsState, renderConflicts);
+/* ================= TRAFFIC ================= */
+const T = { days: 7 };
+$("tTabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setTabs($("tTabs"), b); T.days = +b.dataset.d; loadTraffic(); });
+loaders.traffic = () => loadTraffic();
+const COUNTRY = (cc) => { try { return new Intl.DisplayNames(["en"], { type: "region" }).of(cc) || cc; } catch { return cc; } };
+function mini(el, rows, label) {
+  const max = Math.max(1, ...rows.map((r) => r[1]));
+  el.innerHTML = rows.length ? rows.map((r) => `<div><span title="${esc(r[0])}">${esc(r[0])}</span><b>${fmt(r[1])}</b><span class="m"><i style="width:${r[1] / max * 100}%"></i></span></div>`).join("") : `<p class="muted">${label}</p>`;
 }
-function renderCycles() {
-  const body = $("cyclesBody"), empty = $("cyclesEmpty");
-  const rows = cyclesState.rows;
-  if (!rows.length) { body.innerHTML = ""; empty.style.display = "block"; return; }
-  empty.style.display = "none"; body.innerHTML = "";
-  const slice = rows.slice(cyclesState.page * cyclesState.size, (cyclesState.page + 1) * cyclesState.size);
-  for (const c of slice) {
-    const tr = document.createElement("tr");
-    const wk = document.createElement("td"); wk.style.whiteSpace = "nowrap"; wk.textContent = `${c.weekStart} – ${c.weekEnd}`;
-    const fb = document.createElement("td"); fb.textContent = `${c.feedback?.helpful ?? 0}/${c.feedback?.total ?? 0}`;
-    const cn = document.createElement("td"); cn.textContent = `${c.contributions?.approved ?? 0}/${c.contributions?.total ?? 0}`;
-    const gp = document.createElement("td"); gp.textContent = `${c.gaps?.resolved ?? 0}/${c.gaps?.total ?? 0}`;
-    const sc = document.createElement("td"); sc.style.fontWeight = "600"; sc.style.color = c.score > 0.5 ? "var(--ink)" : "var(--muted)"; sc.textContent = `${(c.score * 100).toFixed(0)}%`;
-    tr.append(wk, fb, cn, gp, sc); body.appendChild(tr);
-  }
-  cyclesState.total = rows.length;
-  renderPager($("cyclesPager"), cyclesState, renderCycles);
-}
-async function loadLearning() {
+async function loadTraffic() {
   try {
-    const [progressRes, conflictRes, cycleRes] = await Promise.all([
-      fetch(`${API}/analytics/progress`, { credentials: "include" }),
-      fetch(`${API}/conflicts/stats`, { credentials: "include" }),
-      fetch(`${API}/analytics/cycles`, { credentials: "include" }),
-    ]);
-
-    if (progressRes.ok) {
-      const p = await progressRes.json();
-      const cards = [
-        { l: "Total Feedback", v: p.feedback?.total ?? 0, sub: `${((p.feedback?.ratio ?? 0) * 100).toFixed(0)}% helpful` },
-        { l: "Contributions", v: p.contributions?.total ?? 0, sub: `${p.contributions?.approved ?? 0} approved` },
-        { l: "Knowledge Gaps", v: p.gaps?.total ?? 0, sub: `${p.gaps?.resolved ?? 0} resolved` },
-        { l: "Active Period", v: p.period, sub: `${p.days} days` },
-      ];
-      $("learningCards").innerHTML = cards
-        .map((c) => `<div class="card"><div class="v" style="font-size:28px;">${c.v}</div><div class="l">${c.l}</div>${c.sub ? `<div class="sub">${c.sub}</div>` : ""}</div>`)
-        .join("");
-    }
-
-    if (conflictRes.ok) {
-      const cf = await conflictRes.json();
-      conflictsState.rows = cf.recentConflicts || [];
-      conflictsState.page = 0;
-      renderConflicts();
-    }
-
-    if (cycleRes.ok) {
-      const cy = await cycleRes.json();
-      cyclesState.rows = cy.cycles || [];
-      cyclesState.page = 0;
-      renderCycles();
-    }
-  } catch {}
+    const t = await api(`/analytics/traffic?days=${T.days}`);
+    const f = t.funnel;
+    $("tKpis").innerHTML = [
+      ["Visitors", t.visitors, "counted once a day"], ["Page views", t.views, t.visitors ? `${(t.views / t.visitors).toFixed(1)} per visitor` : "—"],
+      ["Landing to app", f.site_visitors ? `${Math.round(t.actions.start / f.site_visitors * 100)}%` : "—", `${fmt(t.actions.start)} clicked through`],
+      ["App installs", t.actions.install, "added to a home screen"], ["Support clicks", t.actions.support, "in Support the research"], ["Contribution forms", t.actions.give, "sent from speakga.org"],
+    ].map(([k, v, s]) => `<div class="kpi"><small>${k}</small><b>${typeof v === "number" ? fmt(v) : v}</b><span>${s}</span></div>`).join("");
+    const steps = [["Visited speakga.org", f.site_visitors], ["Opened the app", f.app_visitors], ["Asked a question (accounts)", f.asked], ["Created an account", f.signed_up], ["Contributed", f.contributed]];
+    const top = Math.max(1, ...steps.map((s) => s[1]));
+    $("tFunnel").innerHTML = steps.map(([k, v]) => `<div class="fn"><span>${k}</span><span class="track"><i style="width:${v / top * 100}%"></i></span><b>${fmt(v)}</b></div>`).join("");
+    const days = lastDays(Math.min(T.days, 30)), map = Object.fromEntries(t.daily.map((d) => [d.day, d.visitors]));
+    const vals = days.map((d) => map[d] || 0);
+    bars("tChart", days.map(dayLabel), vals, { hi: vals.indexOf(Math.max(...vals)), sub: monthAt(days) });
+    mini($("tPages"), t.pages.map((p) => [`${p.host === "site" ? "speakga.org" : "app"} ${p.path}`, p.views]), "No page views yet.");
+    mini($("tRefs"), t.referrers.map((r) => [r.ref, r.visitors]), "No visits yet.");
+    mini($("tGeo"), t.countries.map((c) => [c.country === "??" ? "Unknown" : COUNTRY(c.country), c.visitors]), "No visits yet.");
+    const dt = t.devices.reduce((n, d) => n + d.visitors, 0) || 1;
+    $("tDevices").innerHTML = t.devices.length ? t.devices.map((d) => `<div class="bar-row"><span style="text-transform:capitalize">${esc(d.device)}</span><span class="track"><i style="width:${d.visitors / dt * 100}%;background:var(--gold)"></i></span><b>${Math.round(d.visitors / dt * 100)}%</b></div>`).join("") : '<p class="muted">No visits yet.</p>';
+  } catch (e) { $("tKpis").innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
-$("refreshLearning").onclick = loadLearning;
 
-// --- Contributions Review (server-side pages) ---
-const contribState = { page: 0, size: 25, total: 0 };
-async function loadContributions() {
-  const status = $("contribFilter").value;
+/* ================= LEARNING ================= */
+loaders.usage = async () => {
   try {
-    const r = await fetch(`${API}/admin/contributions?status=${status}&limit=${contribState.size}&offset=${contribState.page * contribState.size}`, { credentials: "include" });
-    if (!r.ok) return;
-    const d = await r.json();
-    contribState.total = d.total ?? (d.contributions || []).length;
-    // Page drained (e.g. last item approved) — step back and reload.
-    if (!d.contributions.length && contribState.total > 0 && contribState.page > 0) {
-      contribState.page--; loadContributions(); return;
-    }
-    renderPager($("contribPager"), contribState, loadContributions);
-    const body = $("contribBody"), empty = $("contribEmpty");
-    if (!d.contributions.length) { body.innerHTML = ""; empty.style.display = "block"; return; }
-    empty.style.display = "none"; body.innerHTML = "";
-    for (const c of d.contributions) {
-      const tr = document.createElement("tr");
-      const q = document.createElement("td");
-      q.style.fontWeight = "600"; q.textContent = c.query;
-      if (c.has_conflict) { const f = document.createElement("span"); f.className = "pill conflict"; f.style.marginLeft = "8px"; f.textContent = "⚑ conflict"; f.title = "Conflicting answers exist — resolves on approve"; q.appendChild(f); }
-      const a = document.createElement("td"); a.textContent = c.answer;
-      const who = [c.contributor_name, c.contributor_email, c.contributor_location].filter(Boolean).join(" · ");
-      if (who) {
-        const w = document.createElement("div");
-        w.style.cssText = "font:500 12.5px var(--sans);color:var(--muted);margin-top:4px";
-        w.textContent = `by ${who}`;
-        a.appendChild(w);
-      }
-      const tp = document.createElement("td"); tp.innerHTML = `<span class="tchip">${c.type || "translation"}</span>`;
-      const cat = document.createElement("td"); cat.innerHTML = `<span class="pill">${c.category}</span>`;
-      const ag = document.createElement("td"); ag.style.fontWeight = "600";
-      ag.style.color = c.agreement_score > 0 ? "var(--ink)" : "var(--muted)";
-      ag.textContent = c.agreement_score > 0 ? `+${c.agreement_score}` : "0";
-      const dt = document.createElement("td"); dt.style.color = "var(--muted)"; dt.style.whiteSpace = "nowrap"; dt.textContent = c.created_at;
-      const act = document.createElement("td"); act.style.textAlign = "right"; act.style.whiteSpace = "nowrap";
-      if (status === "pending_review") {
-        const approve = document.createElement("button"); approve.className = "btn sm ok"; approve.style.marginRight = "6px";
-        approve.textContent = "Approve";
-        approve.onclick = () => askConfirm(`Approve "${c.query}" → verified knowledge base?`, () => reviewContrib(c.id, "approve", tr));
-        const reject = document.createElement("button"); reject.className = "btn sm danger";
-        reject.textContent = "Reject";
-        reject.onclick = () => askConfirm(`Reject this contribution?`, () => reviewContrib(c.id, "reject", tr));
-        act.append(approve, reject);
-      } else {
-        const pill = document.createElement("span"); pill.className = `pill ${status}`;
-        pill.textContent = status;
-        act.appendChild(pill);
-      }
-      tr.append(q, a, tp, cat, ag, dt, act); body.appendChild(tr);
-    }
-  } catch {}
-}
-async function reviewContrib(id, action, row) {
-  try {
-    const r = await fetch(`${API}/admin/contributions/${id}/${action}`, { method: "POST", credentials: "include" });
-    if (r.ok) { row.style.opacity = "0.4"; row.style.pointerEvents = "none"; setTimeout(loadContributions, 800); }
-  } catch {}
-}
-$("refreshContrib").onclick = loadContributions;
-$("contribFilter").onchange = () => { contribState.page = 0; loadContributions(); };
+    const [p, cf, cy] = await Promise.all([api("/analytics/progress"), api("/conflicts/stats"), api("/analytics/cycles")]);
+    $("lKpis").innerHTML = [
+      ["Ratings", p.feedback?.total ?? 0, `${Math.round((p.feedback?.ratio ?? 0) * 100)}% helpful`],
+      ["Contributions", p.contributions?.total ?? 0, `${p.contributions?.approved ?? 0} approved`],
+      ["Logged questions", p.gaps?.total ?? 0, `${p.gaps?.resolved ?? 0} answered`],
+      ["Period", p.period ?? "—", `${p.days ?? 0} days`],
+    ].map(([k, v, s]) => `<div class="kpi"><small>${k}</small><b>${typeof v === "number" ? fmt(v) : esc(v)}</b><span>${s}</span></div>`).join("");
+    const conf = cf.recentConflicts || [];
+    $("conflictsEmpty").classList.toggle("hidden", !!conf.length);
+    $("conflictsBody").innerHTML = conf.map((c) => `<tr><td style="font-weight:600">${esc(c.original_query)}</td><td class="num">${esc(c.answer_count)}</td><td><span class="pill info">Open</span></td></tr>`).join("");
+    const cyc = cy.cycles || [];
+    $("cyclesEmpty").classList.toggle("hidden", !!cyc.length);
+    $("cyclesBody").innerHTML = cyc.map((c) => `<tr><td style="white-space:nowrap">${esc(c.weekStart)} – ${esc(c.weekEnd)}</td><td class="num">${c.feedback?.helpful ?? 0} of ${c.feedback?.total ?? 0}</td><td class="num">${c.contributions?.approved ?? 0} of ${c.contributions?.total ?? 0}</td><td class="num">${c.gaps?.resolved ?? 0} of ${c.gaps?.total ?? 0}</td><td class="num" style="font-weight:700">${Math.round((c.score || 0) * 100)}%</td></tr>`).join("");
+  } catch (e) { $("lKpis").innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+};
 
-// --- Logout (hard reset) ---
-$("logoutBtn").onclick = async () => {
-  try { await fetch(`${API}/auth/logout`, { method: "POST", credentials: "include" }); } catch {}
-  try { localStorage.removeItem("anonId"); } catch {}
-  window.location.href = "/auth";
+/* ================= USERS ================= */
+const U = { page: 0, size: 25 };
+const ROLES = ["admin", "moderator", "member", "user"];
+loaders.users = async () => {
+  try {
+    const d = await api(`/admin/users?limit=${U.size}&offset=${U.page * U.size}`);
+    $("usersEmpty").classList.toggle("hidden", !!d.users.length);
+    $("usersBody").innerHTML = d.users.map((u) => `<tr><td style="font-weight:600;overflow-wrap:anywhere">${esc(u.email)}</td><td class="muted">${esc([u.first_name, u.last_name].filter(Boolean).join(" ") || u.display_name || "—")}</td><td><select class="in" style="height:34px;width:auto" data-role="${esc(u.id)}" data-email="${esc(u.email)}" data-prev="${esc(u.role)}">${ROLES.map((r) => `<option${r === u.role ? " selected" : ""}>${r}</option>`).join("")}</select></td><td class="muted" style="white-space:nowrap">${esc(u.created_at)}</td></tr>`).join("");
+    const pages = Math.ceil((d.total || 0) / U.size);
+    $("usersPager").innerHTML = pages > 1 ? `<span class="pinfo">Page ${U.page + 1} of ${pages}</span><button class="btn sm" id="uPrev" ${U.page ? "" : "disabled"}>Previous</button><button class="btn sm" id="uNext" ${U.page < pages - 1 ? "" : "disabled"}>Next</button>` : "";
+    $("uPrev") && ($("uPrev").onclick = () => { U.page--; loaders.users(); });
+    $("uNext") && ($("uNext").onclick = () => { U.page++; loaders.users(); });
+  } catch (e) { $("usersBody").innerHTML = `<tr><td colspan="4" class="muted">${esc(e.message)}</td></tr>`; }
+};
+$("usersBody").addEventListener("change", async (e) => {
+  const s = e.target.closest("[data-role]"); if (!s) return;
+  const role = s.value, prev = s.dataset.prev;
+  if (!(await confirmBox(`Change ${s.dataset.email}'s role to ${role}?`, "Change role"))) { s.value = prev; return; }
+  s.disabled = true;
+  try { await api(`/admin/users/${encodeURIComponent(s.dataset.role)}/role?role=${encodeURIComponent(role)}`, { method: "PATCH" }); s.dataset.prev = role; toast("Role changed."); }
+  catch (err) { s.value = prev; toast(err.message); }
+  s.disabled = false;
+});
+
+/* ================= SYSTEM ================= */
+loaders.system = async () => {
+  const checks = [
+    ["Database", "/admin/console/overview", (d) => `${fmt(d.vocabulary.total)} words · ${fmt(d.questions.total)} questions`],
+    ["Site analytics", "/analytics/traffic?days=1", (d) => `${fmt(d.views)} page views today`],
+    ["Search and answers", "/analytics/health", (d) => `${fmt(d.interactions)} answers saved`],
+    ["Documents and files", "/admin/documents?limit=1", (d) => `${fmt(d.total)} documents`],
+  ];
+  $("sHealth").innerHTML = checks.map(([k]) => `<div class="hc"><i></i><div><b>${k}</b><span>Checking…</span></div></div>`).join("");
+  checks.forEach(async ([k, path, say], i) => {
+    const el = $("sHealth").children[i]; const t0 = performance.now();
+    try { const d = await api(path); el.innerHTML = `<i class="ok"></i><div><b>${k}</b><span>${esc(say(d))} · ${Math.round(performance.now() - t0)} ms</span></div>`; }
+    catch (e) { el.innerHTML = `<i class="bad"></i><div><b>${k}</b><span>${esc(e.message)}</span></div>`; }
+  });
+  try {
+    const d = await api("/admin/console/activity");
+    const VERB = { answer: "Answered", send_to_review: "Sent to review", dismiss: "Dismissed", recheck_resolved: "Closed after checking", feedback_handled: "Handled a rating", reopen: "Put back" };
+    $("sLog").innerHTML = d.items.length ? d.items.map((a) => `<li><time>${esc(ago(a.at))}</time><span><b>${esc(a.who || "Admin")}</b> · ${esc(VERB[a.action] || a.action)}: ${esc(a.detail || "")}</span></li>`).join("") : '<li><time></time><span class="muted">Nothing yet. Answers, dismissals and handled ratings appear here.</span></li>';
+  } catch (e) { $("sLog").innerHTML = `<li><time></time><span>${esc(e.message)}</span></li>`; }
 };
 </script>
 </body>

@@ -31,6 +31,7 @@ import quiz from "./routes/quiz";
 import agent from "./routes/agent";
 import bible from "./routes/bible";
 import traffic from "./routes/traffic";
+import adminConsole from "./routes/console";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -66,6 +67,7 @@ api.route("/auth", auth);
 api.route("/user", user);
 api.route("/", chat);
 api.route("/", conversations);
+api.route("/admin/console", adminConsole);
 api.route("/admin", admin);
 
 // Admin-only gates for the raw (Request, Env) handlers below — these bypass
