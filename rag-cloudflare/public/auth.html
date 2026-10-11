@@ -12,115 +12,172 @@
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <style>
-  /* Same warm token layer as the app (public/index.html). */
+  /* Sign-in page. Left: the Ga samai symbols, animated. Right: a borderless form
+     (no card, no filled fields; underline inputs with floating labels).
+     Phones: a slim samai strip above the form, which gets the screen. */
   :root {
-    --bg:#FBF7F1; --paper:#ffffff; --paper-2:#F5EEE3; --paper-3:#EFE6D8;
-    --ink:#16130F; --ink-2:rgba(22,19,15,.74); --muted:rgba(22,19,15,.58); --faint:rgba(22,19,15,.42);
-    --line:#EFE6D8; --line-2:#E2D6C3;
-    --accent:#F2B33D; --accent-ink:#7A5200; --accent-soft:#FBF3E2; --accent-line:#F2D79A;
-    --sand:#FBEFD6; --sage:#E3F1E4; --sage-ink:#1F7A4A; --sky:#E1ECFA; --sky-ink:#1E5AA8;
-    --blush:#FBE4E3; --blush-ink:#A3312A;
-    --sans:"Plus Jakarta Sans",ui-sans-serif,-apple-system,"Segoe UI",sans-serif;
-    --display:"Bricolage Grotesque","Plus Jakarta Sans",ui-sans-serif,sans-serif;
+    --bg:#FBF7F1; --paper-2:#F1EBE1; --line:#E7DCCB; --line-2:#D9CBB4;
+    --ink:#16130F; --ink-2:rgba(22,19,15,.74); --muted:rgba(22,19,15,.6); --faint:rgba(22,19,15,.45);
+    --accent:#F2B33D; --accent-ink:#7A5200; --sand:#FBEFD6; --blush-ink:#A3312A; --sage-ink:#1F7A4A;
+    --display:"Bricolage Grotesque","Plus Jakarta Sans",ui-sans-serif,system-ui,sans-serif;
+    --sans:"Plus Jakarta Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+    --ease:cubic-bezier(.2,.8,.2,1);
+    /* samai colours: deeper gold on cream */
+    --g1:#9A6A0E; --g2:#C98F1E; --g3:#F2C766; --sat:rgba(22,19,15,.38); --orbit-line:rgba(22,19,15,.16); --halo:rgba(242,179,61,.26);
+    --lit-bg:var(--sand); --lit-fg:var(--accent-ink); --lit-line:rgba(201,143,30,.35);
   }
   [data-theme="dark"] {
-    --bg:#141414; --paper:#1c1c1c; --paper-2:#232323; --paper-3:#2a2a2c;
-    --ink:#f5f5f5; --ink-2:rgba(255,255,255,.74); --muted:rgba(255,255,255,.55); --faint:rgba(255,255,255,.36);
-    --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.18);
-    --accent-ink:#F2B33D; --accent-soft:#2A2418; --accent-line:#5A4720;
-    --sand:#2C2416; --sage:#1C2A21; --sage-ink:#8FD4A9; --sky:#1B2433; --sky-ink:#9CC0F0;
-    --blush:#2F1E1D; --blush-ink:#F2A79F;
+    --bg:#141414; --paper-2:#232323; --line:rgba(255,255,255,.12); --line-2:rgba(255,255,255,.22);
+    --ink:#f5f5f5; --ink-2:rgba(255,255,255,.76); --muted:rgba(255,255,255,.6); --faint:rgba(255,255,255,.42);
+    --accent-ink:#F2B33D; --sand:#2C2416; --blush-ink:#F2A79F; --sage-ink:#8FD4A9;
+    --g1:#F2B33D; --g2:#FFD98A; --g3:#FFF3D6; --sat:rgba(255,255,255,.45); --orbit-line:rgba(255,255,255,.18); --halo:rgba(242,179,61,.22);
+    --lit-bg:rgba(242,179,61,.14); --lit-fg:#FFD98A; --lit-line:rgba(242,179,61,.35);
+    color-scheme:dark;
   }
   * { box-sizing:border-box; }
   html, body { min-height:100%; }
-  body { margin:0; font:500 15px/1.55 var(--sans); color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:500 15px/1.55 var(--sans); -webkit-font-smoothing:antialiased; overflow-x:clip; }
   a { color:inherit; }
   .hidden { display:none !important; }
+  :focus-visible { outline:3px solid var(--accent); outline-offset:3px; border-radius:8px; }
 
-  .top { display:flex; align-items:center; justify-content:space-between; padding:20px 28px; max-width:1180px; margin:0 auto; }
-  .brand { display:flex; align-items:center; gap:10px; text-decoration:none; }
-  .brand .mark { width:34px; height:34px; border-radius:11px; background:var(--ink); color:var(--bg); display:grid; place-items:center; font:800 16px var(--display); }
-  .brand b { font:800 22px var(--display); letter-spacing:-.4px; }
+  /* top bar */
+  .top { display:flex; align-items:center; gap:14px; max-width:1180px; margin:0 auto; padding:20px clamp(16px,3vw,28px); }
   .brand img { height:34px; width:auto; display:block; }
   .brand .logo-dark { display:none; }
   [data-theme="dark"] .brand .logo-light { display:none; }
   [data-theme="dark"] .brand .logo-dark { display:block; }
-  .round { width:46px; height:46px; border:0; border-radius:50%; background:var(--paper-2); color:var(--ink); display:grid; place-items:center; cursor:pointer; }
+  .ghost-link { margin-left:auto; display:inline-flex; align-items:center; gap:6px; font:700 14px var(--sans); text-decoration:none; color:var(--ink-2); padding:10px 4px; }
+  .ghost-link:hover { color:var(--ink); }
+  .round { width:44px; height:44px; border:0; border-radius:50%; background:transparent; box-shadow:inset 0 0 0 1.5px var(--line); color:var(--ink); display:grid; place-items:center; cursor:pointer; }
+  .round:hover { box-shadow:inset 0 0 0 1.5px var(--line-2); }
 
-  .wrap { max-width:1180px; margin:0 auto; padding:12px 28px 48px; display:grid; grid-template-columns:minmax(0, 1.05fr) minmax(0, 1fr); gap:48px; align-items:center; min-height:calc(100dvh - 100px); }
+  /* split: both columns the same height; the symbol area grows to fill it */
+  .wrap { max-width:1180px; margin:0 auto; padding:8px clamp(16px,3vw,28px) 56px; display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr); gap:clamp(32px,7vw,110px); align-items:stretch; min-height:calc(100dvh - 90px); }
 
-  .pitch { position:relative; display:flex; flex-direction:column; gap:18px; }
-  .pitch .art { width:100%; max-width:440px; height:auto; aspect-ratio:3/2; object-fit:cover; object-position:70% 30%;
-    -webkit-mask-image:radial-gradient(ellipse 72% 78% at 62% 46%, #000 58%, transparent 100%);
-            mask-image:radial-gradient(ellipse 72% 78% at 62% 46%, #000 58%, transparent 100%); }
-  .pitch h1 { margin:0; font:800 48px/1.02 var(--display); letter-spacing:-1.2px; }
-  .pitch h1 span { color:var(--accent-ink); }
-  .pitch p { margin:0; font:500 17px/1.6 var(--sans); color:var(--ink-2); max-width:460px; }
-  .why { list-style:none; margin:4px 0 0; padding:0; display:flex; flex-direction:column; gap:10px; }
-  .why li { display:flex; align-items:center; gap:12px; font:600 15px var(--sans); }
-  .why i { width:34px; height:34px; flex:none; border-radius:11px; display:grid; place-items:center; font-style:normal; }
+  /* ---------- Samai animation ---------- */
+  .stage-wrap { display:flex; min-height:0; }
+  .stage { position:relative; flex:1; min-height:480px; display:grid; grid-template-rows:auto minmax(260px,1fr) auto; gap:6px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .st-head { font:700 11.5px var(--sans); letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  .st-head b { color:var(--accent-ink); font-weight:800; }
+  .arena { position:relative; display:grid; place-items:center; min-height:0; --r:150px; }
+  .orbit { position:absolute; width:calc(var(--r) * 2); aspect-ratio:1; border-radius:50%; border:1px dashed var(--orbit-line); animation:spin 48s linear infinite; }
+  .orbit .sat { position:absolute; left:50%; top:50%; width:34px; height:34px; margin:-17px 0 0 -17px; transform:rotate(var(--a)) translateY(calc(var(--r) * -1)) rotate(calc(var(--a) * -1)); }
+  .orbit .sat button { width:100%; height:100%; border:0; padding:0; cursor:pointer; background:none; animation:spin 48s linear infinite reverse; display:grid; place-items:center; border-radius:50%; }
+  .orbit .sat i { width:26px; height:26px; display:block; background:var(--sat); -webkit-mask:var(--m) center/contain no-repeat; mask:var(--m) center/contain no-repeat; transition:background .3s, transform .4s var(--ease); }
+  .orbit .sat button:hover i { background:var(--ink); transform:scale(1.25); }
+  .orbit .sat.on i { background:var(--g2); transform:scale(1.35); }
+  .orbit .sat button:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+  .halo { position:absolute; width:200px; aspect-ratio:1; border-radius:50%; background:radial-gradient(circle, var(--halo), transparent 65%); animation:breathe 4s ease-in-out infinite; }
+  @keyframes breathe { 50% { transform:scale(1.15); opacity:.7; } }
+  .ring { position:absolute; width:150px; aspect-ratio:1; border-radius:50%; border:2px solid var(--g2); opacity:0; pointer-events:none; }
+  .ring.go { animation:ring 1s var(--ease); }
+  @keyframes ring { 0% { opacity:.9; transform:scale(.6); } 100% { opacity:0; transform:scale(1.9); } }
+  .glyph { position:relative; width:150px; aspect-ratio:1; }
+  .glyph i { position:absolute; inset:0; background:linear-gradient(110deg, var(--g1) 20%, var(--g2) 40%, var(--g3) 48%, var(--g2) 56%, var(--g1) 76%); background-size:260% 100%; animation:shimmer 3.2s linear infinite; -webkit-mask:var(--m) center/contain no-repeat; mask:var(--m) center/contain no-repeat; }
+  @keyframes shimmer { from { background-position:130% 0; } to { background-position:-130% 0; } }
+  .glyph.in { animation:glyphIn .9s var(--ease) both; }
+  @keyframes glyphIn { 0% { opacity:0; transform:scale(.4) rotate(-35deg); filter:blur(10px); } 60% { opacity:1; transform:scale(1.08) rotate(4deg); filter:blur(0); } 100% { transform:none; } }
+  .spark { position:absolute; left:50%; top:50%; width:6px; height:6px; margin:-3px; border-radius:50%; background:var(--g2); pointer-events:none; }
+  .cap { display:flex; flex-direction:column; align-items:flex-start; gap:8px; height:184px; overflow:hidden; }
+  .ga { font:800 clamp(28px,3.6vw,40px)/1.05 var(--display); letter-spacing:-.03em; display:flex; flex-wrap:wrap; column-gap:.28em; }
+  .ga .w { display:inline-flex; }
+  .ga .ch { display:inline-block; }
+  .ga.in .ch { animation:chIn .6s var(--ease) both; animation-delay:calc(var(--i) * 32ms); }
+  @keyframes chIn { from { opacity:0; transform:translateY(.6em) rotate(8deg); filter:blur(6px); } }
+  .lit { flex:none; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font:700 12px var(--sans); padding:4px 11px; border-radius:999px; background:var(--lit-bg); color:var(--lit-fg); border:1px solid var(--lit-line); }
+  .mean { margin:0; font:500 16px/1.5 var(--sans); color:var(--ink-2); max-width:46ch; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; line-clamp:3; overflow:hidden; }
+  .prov { margin:0; font:500 13.5px/1.45 var(--sans); color:var(--muted); font-style:italic; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2; overflow:hidden; }
+  .cap.in .lit, .cap.in .mean, .cap.in .prov { animation:up .6s var(--ease) both; }
+  .cap.in .mean { animation-delay:.18s; } .cap.in .prov { animation-delay:.3s; }
+  @keyframes up { from { opacity:0; transform:translateY(10px); } }
 
-  .card { width:100%; max-width:440px; justify-self:end; background:var(--paper); border:1px solid var(--line); border-radius:28px; padding:28px; display:flex; flex-direction:column; gap:18px; }
-  .card h2 { margin:0; font:800 26px/1.1 var(--display); letter-spacing:-.4px; }
-  .card .sub { margin:4px 0 0; font:500 14.5px var(--sans); color:var(--muted); }
-
-  .seg { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:4px; background:var(--paper-2); padding:4px; border-radius:999px; }
-  .seg button { border:0; border-radius:999px; min-height:42px; background:transparent; font:600 14px var(--sans); color:var(--muted); cursor:pointer; }
-  .seg button.on { background:var(--paper); color:var(--ink); font-weight:700; box-shadow:0 1px 2px rgba(60,40,10,.08); }
-
-  form { display:flex; flex-direction:column; gap:14px; }
-  .field label { display:block; margin:0 0 6px 2px; font:700 13px var(--sans); color:var(--ink-2); }
-  .ip { position:relative; }
-  .ip input { width:100%; min-height:52px; border:0; border-radius:16px; background:var(--bg); box-shadow:inset 0 0 0 1px var(--line-2);
-    padding:0 16px; color:var(--ink); font:500 16px var(--sans); outline:0; }
-  .ip input::placeholder { color:var(--faint); }
-  .ip input:focus { box-shadow:inset 0 0 0 2px var(--ink); }
-  .ip.pw input { padding-right:84px; }
-  .peek { position:absolute; right:8px; top:50%; transform:translateY(-50%); min-height:36px; padding:0 12px; border:0; border-radius:999px;
-    background:var(--paper-2); color:var(--ink-2); font:700 12.5px var(--sans); cursor:pointer; }
-  .hint { margin:6px 0 0 2px; font:500 12.5px var(--sans); color:var(--muted); }
-
-  .btn { min-height:52px; border:0; border-radius:999px; background:var(--ink); color:var(--bg); font:700 15px var(--sans);
-    display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; margin-top:2px; }
-  .btn:disabled { opacity:.55; cursor:progress; }
-  .btn svg { width:16px; height:16px; }
-  .guest { display:flex; align-items:center; justify-content:center; min-height:48px; border-radius:999px; text-decoration:none;
-    box-shadow:inset 0 0 0 1.5px var(--line-2); font:700 14px var(--sans); color:var(--ink); }
-  .guest:hover { background:var(--paper-2); }
-
-  .status { min-height:0; font:600 13.5px/1.45 var(--sans); border-radius:14px; }
-  .status:empty { display:none; }
-  .status.wait { color:var(--muted); text-align:center; }
-  .status.err { background:var(--blush); color:var(--blush-ink); padding:11px 14px; }
-  .status.ok { background:var(--sage); color:var(--sage-ink); padding:11px 14px; }
-  .status a { color:inherit; font-weight:800; }
-  .fine { margin:0; text-align:center; font:500 12.5px var(--sans); color:var(--faint); }
-
-  /* Google button (white with the four-colour G, per Google's sign-in guidelines) */
-  .gbtn { display:flex; align-items:center; justify-content:center; gap:10px; min-height:52px; border-radius:999px; text-decoration:none;
-    background:#fff; color:#1f1f1f; box-shadow:inset 0 0 0 1.5px #dadce0; font:700 15px var(--sans); }
-  .gbtn:hover { background:#f8f9fa; }
+  /* ---------- Form ---------- */
+  .form-col { width:100%; max-width:420px; justify-self:end; align-self:center; display:flex; flex-direction:column; gap:26px; }
+  .headline { display:grid; gap:10px; }
+  .hello { display:flex; align-items:baseline; gap:10px; }
+  .hello b { font:800 17px var(--display); color:var(--accent-ink); }
+  .hello span { font:600 13px var(--sans); color:var(--muted); }
+  h1 { margin:0; font:800 clamp(38px,4.6vw,56px)/1 var(--display); letter-spacing:-.04em; text-wrap:balance; }
+  .sub { margin:0; font:500 16px var(--sans); color:var(--muted); }
+  .swap { animation:swap .45s var(--ease); }
+  @keyframes swap { from { opacity:0; transform:translateY(8px); } }
+  .tabs { position:relative; display:flex; gap:28px; border-bottom:1.5px solid var(--line); }
+  .tabs button { border:0; background:none; padding:0 0 12px; font:700 15px var(--sans); color:var(--faint); cursor:pointer; transition:color .2s; }
+  .tabs button[aria-selected="true"] { color:var(--ink); }
+  .tabs .bar { position:absolute; bottom:-1.5px; height:2.5px; border-radius:2px; background:var(--ink); transition:left .35s var(--ease), width .35s var(--ease); }
+  .gbtn { display:flex; align-items:center; justify-content:center; gap:10px; min-height:54px; border-radius:999px; text-decoration:none; background:transparent; box-shadow:inset 0 0 0 1.5px var(--line-2); color:var(--ink); font:700 15px var(--sans); }
+  .gbtn:hover { box-shadow:inset 0 0 0 1.5px var(--ink); }
   .gbtn svg { width:20px; height:20px; flex:none; }
-  [data-theme="dark"] .gbtn { background:#131314; color:#e3e3e3; box-shadow:inset 0 0 0 1.5px #8e918f; }
-  [data-theme="dark"] .gbtn:hover { background:#1f1f20; }
-  .or { display:flex; align-items:center; gap:12px; font:600 12.5px var(--sans); color:var(--faint); }
-  .or::before, .or::after { content:""; flex:1; height:1px; background:var(--line-2); }
+  .or { display:flex; align-items:center; gap:14px; font:600 12.5px var(--sans); color:var(--faint); }
+  .or::before, .or::after { content:""; flex:1; height:1px; background:var(--line); }
+  form { display:flex; flex-direction:column; gap:22px; }
+  .fl { position:relative; padding-top:18px; }
+  .fl input { width:100%; border:0; border-radius:0; background:transparent; padding:8px 0 10px; font:600 17px var(--sans); color:var(--ink); outline:0; border-bottom:1.5px solid var(--line-2); }
+  .fl label { position:absolute; left:0; top:26px; font:500 16px var(--sans); color:var(--faint); pointer-events:none; transform-origin:left top; transition:transform .25s var(--ease), color .25s, top .25s var(--ease); }
+  .fl input:focus + label, .fl input:not(:placeholder-shown) + label { top:0; transform:scale(.78); color:var(--muted); font-weight:700; }
+  .fl .uline { position:absolute; left:0; right:0; bottom:0; height:2px; background:var(--accent); transform:scaleX(0); transition:transform .35s var(--ease); }
+  .fl input:focus ~ .uline { transform:scaleX(1); }
+  .fl.pw input { padding-right:64px; }
+  .peek { position:absolute; right:0; bottom:10px; border:0; background:none; font:700 13px var(--sans); color:var(--muted); cursor:pointer; padding:4px 0; }
+  .peek:hover { color:var(--ink); }
+  .hint { margin:6px 0 0; font:500 12.5px var(--sans); color:var(--muted); }
+  .btn { min-height:56px; border:0; border-radius:999px; background:var(--ink); color:var(--bg); font:700 16px var(--sans); display:flex; align-items:center; justify-content:center; gap:10px; cursor:pointer; margin-top:4px; }
+  .btn:hover { opacity:.92; }
+  .btn:disabled { opacity:.55; cursor:progress; }
+  .status { margin:0; font:600 13.5px/1.45 var(--sans); color:var(--muted); min-height:1.45em; }
+  .status.err { color:var(--blush-ink); }
+  .status.ok { color:var(--sage-ink); }
+  .status a { font-weight:800; }
+  .guest-m { display:none; align-items:center; justify-content:center; gap:6px; min-height:50px; font:700 15px var(--sans); color:var(--ink-2); text-decoration:none; border-radius:999px; }
+  .guest-m:hover { color:var(--ink); }
+  .perks { list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:8px 18px; font:600 13px var(--sans); color:var(--muted); }
+  .perks li { display:flex; align-items:center; gap:7px; }
+  .perks li::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--accent); }
+  .fine { margin:0; font:500 12.5px var(--sans); color:var(--faint); }
 
+  /* ---------- Phones and small tablets ---------- */
   @media (max-width:900px) {
-    .wrap { grid-template-columns:minmax(0, 1fr); gap:20px; padding:0 16px 32px; min-height:0; }
-    .top { padding:16px; }
-    .pitch { gap:10px; }
-    .pitch .art, .pitch p, .why { display:none; }
-    .pitch h1 { font-size:32px; letter-spacing:-.8px; }
-    .card { justify-self:stretch; max-width:none; padding:20px; border-radius:24px; }
+    .top { padding-block:14px; }
+    .brand img { height:30px; }
+    .top .ghost-link { display:none; }
+    .top .round { margin-left:auto; }
+    .wrap { grid-template-columns:minmax(0,1fr); align-items:start; min-height:0; gap:20px; padding-bottom:28px; padding-top:0; }
+    .stage-wrap { display:block; }
+    .stage { min-height:0; grid-template-columns:60px minmax(0,1fr); grid-template-rows:auto; align-items:center; gap:0 14px; padding:4px 0 16px; border-bottom:1px solid var(--line); }
+    .st-head, .orbit, .lit, .prov { display:none !important; }
+    .arena { width:60px; height:60px; }
+    .halo { width:84px; }
+    .glyph, .ring { width:54px; }
+    .cap { height:auto; gap:1px; }
+    .ga { font-size:21px; justify-content:flex-start; }
+    .mean { font-size:13.5px; line-height:1.4; -webkit-line-clamp:2; line-clamp:2; }
+    .form-col { max-width:none; justify-self:stretch; gap:18px; }
+    .headline { gap:6px; }
+    h1 { font-size:34px; }
+    .sub { font-size:15px; }
+    .tabs { gap:0; }
+    .tabs button { flex:1; padding:12px 0 13px; }
+    form { gap:16px; }
+    .guest-m { display:flex; }
+    .status:empty { display:none; }
+    .perks { display:none; }
+    .fine { text-align:center; }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    .orbit, .orbit .sat button, .halo, .glyph i { animation:none !important; }
+    .glyph.in, .ga.in .ch, .cap.in .lit, .cap.in .mean, .cap.in .prov, .swap { animation:none !important; }
+    .tabs .bar, .fl label, .fl .uline { transition:none; }
   }
 </style>
 </head>
 <body>
   <div class="top">
     <a class="brand" href="/" title="SpeakGa — back to the app"><img class="logo-light" src="/img/brand/speakga-logo.png" width="515" height="144" alt="SpeakGa" /><img class="logo-dark" src="/img/brand/speakga-logo-dark.png" width="515" height="144" alt="SpeakGa" /></a>
+    <a class="ghost-link" href="/" id="guestBtn">Continue as a guest <span aria-hidden="true">→</span></a>
     <button class="round" id="themeToggle" type="button" aria-label="Toggle theme" title="Toggle theme">
       <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
       <svg class="moon-icon hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -128,25 +185,38 @@
   </div>
 
   <main class="wrap">
-    <section class="pitch">
-      <img class="art" src="/img/hero.webp" width="1200" height="800" alt="" decoding="async" />
-      <h1><span id="greet">Ojekoo!</span> Keep learning Ga with Nii Obodai.</h1>
-      <p>Signing in is free. You can also keep using SpeakGa as a guest — nothing is lost either way.</p>
-      <ul class="why">
-        <li><i style="background:var(--sky);color:var(--sky-ink)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/></svg></i>Your chats are saved, on any device</li>
-        <li><i style="background:var(--sand);color:var(--accent-ink)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></i>Words you teach are credited to you</li>
-        <li><i style="background:var(--sage);color:var(--sage-ink)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></i>Vote on corrections in the review queue</li>
-      </ul>
+    <!-- Ga samai symbols (datasets/ga-samai.jsonl; images in /img/samai) -->
+    <section class="stage-wrap" aria-label="Ga samai symbols">
+      <div class="stage" id="stage">
+        <div class="st-head"><b>Samai</b> · Ga symbols</div>
+        <div class="arena">
+          <div class="halo"></div>
+          <div class="orbit" id="orbit"></div>
+          <span class="ring" id="ring"></span>
+          <div class="glyph" id="glyph"><i></i></div>
+        </div>
+        <div>
+          <div class="cap" id="cap" aria-live="polite">
+            <div class="ga" id="gaName">Abui</div>
+            <span class="lit" id="lit">“needle”</span>
+            <p class="mean" id="mean">Patience and self-control. Words once spoken can't be taken back.</p>
+            <p class="prov" id="prov">Abui ni edɔ shaa ni · a hot needle burns things</p>
+          </div>
+        </div>
+      </div>
     </section>
 
-    <section class="card" aria-labelledby="title">
-      <div>
-        <h2 id="title">Welcome back</h2>
+    <section class="form-col" aria-labelledby="title">
+      <div class="headline">
+        <div class="hello"><b id="greet">Ojekoo!</b><span id="greetEn">Good morning</span></div>
+        <h1 id="title">Welcome back.</h1>
         <p class="sub" id="subtitle">Sign in to pick up where you left off.</p>
       </div>
-      <div class="seg" role="tablist" aria-label="Sign in or create an account">
-        <button type="button" role="tab" id="tabLogin" class="on" aria-selected="true">Sign in</button>
+
+      <div class="tabs" role="tablist" aria-label="Sign in or create an account">
+        <button type="button" role="tab" id="tabLogin" aria-selected="true">Sign in</button>
         <button type="button" role="tab" id="tabSignup" aria-selected="false">Create account</button>
+        <span class="bar" id="tabBar"></span>
       </div>
 
       <!-- Shown only when the server has Google sign-in configured (/auth/providers). -->
@@ -157,32 +227,39 @@
       <div class="or hidden" id="orLine">or with email</div>
 
       <form id="form" autocomplete="on" novalidate>
-        <div class="field">
-          <label for="email">Email</label>
-          <div class="ip"><input type="email" id="email" placeholder="you@example.com" autocomplete="username" inputmode="email" required /></div>
+        <div class="fl">
+          <input type="email" id="email" placeholder=" " autocomplete="username" inputmode="email" required />
+          <label for="email">Email address</label>
+          <span class="uline"></span>
         </div>
-        <div class="field">
-          <label for="password">Password</label>
-          <div class="ip pw">
-            <input type="password" id="password" placeholder="Your password" autocomplete="current-password" required />
+        <div>
+          <div class="fl pw">
+            <input type="password" id="password" placeholder=" " autocomplete="current-password" required />
+            <label for="password" id="pwLabel">Password</label>
+            <span class="uline"></span>
             <button class="peek" id="peek" type="button" aria-label="Show password" aria-pressed="false">Show</button>
           </div>
           <p class="hint hidden" id="pwHint">At least 8 characters.</p>
         </div>
-        <div class="status" id="status" role="status" aria-live="polite"></div>
-        <button class="btn" id="submitBtn" type="submit">
-          <span id="btnText">Sign in</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-        </button>
-        <a class="guest" id="guestBtn" href="/">Continue as a guest</a>
+        <button class="btn" id="submitBtn" type="submit"><span id="btnText">Sign in</span><span aria-hidden="true">→</span></button>
+        <p class="status" id="status" role="status" aria-live="polite"></p>
+        <a class="guest-m" href="/">Continue as a guest <span aria-hidden="true">→</span></a>
       </form>
+
+      <ul class="perks">
+        <li>Chats saved on any device</li>
+        <li>Words you teach credited to you</li>
+        <li>Vote in the review queue</li>
+      </ul>
       <p class="fine">Admin? Use the <a href="https://heritage-admin.heritage-app.workers.dev/auth">admin console</a>.</p>
     </section>
   </main>
 
 <script>
 const API = "/api/v1";
+const ADMIN_AUTH = "https://heritage-admin.heritage-app.workers.dev/auth";
 const $ = (id) => document.getElementById(id);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 let kind = "login";
 
 // Theme switching (shares the app's saved choice)
@@ -214,16 +291,81 @@ $("themeToggle").addEventListener("click", toggleTheme);
   } catch {}
 })();
 
-function setStatus(cls, text) { const s = $("status"); s.className = "status " + cls; s.textContent = text; return s; }
+/* ---------- Ga samai symbols ---------- */
+const SAMAI = [
+  { id: "abui", ga: "Abui", lit: "needle", en: "Patience and self-control. Words once spoken can't be taken back.", prov: "Abui ni edɔ shaa ni · a hot needle burns things" },
+  { id: "akpakpa", ga: "Akpakpa", lit: "pawpaw", en: "A pawpaw held by two hands: it pays to help one another." },
+  { id: "asamankama", ga: "Asamankama", en: "Be cautious of the company you keep." },
+  { id: "asrafoi", ga: "Asrafoi", en: "Vigilance and unity of purpose are crucial for success in life." },
+  { id: "atoobi", ga: "Atoobi", en: "Respect is due everyone, whatever they look like or whatever their circumstances." },
+  { id: "atswa", ga: "Atswa", en: "Prevention is better than cure. Secure what you value before you lose it." },
+  { id: "hinmeisee", ga: "Hinmeisee", en: "Personal development is essential. Without it, one fails in life.", prov: "However long the beard grows, it can't match the eyebrow in seniority." },
+  { id: "abii-woo-ni-ahe-nu", ga: "Abii Woo Ni Ahe Nu", lit: "one doesn't ask for honey and get water", en: "When you ask God for something, keep strong faith that He can do exactly as you desire." },
+];
+const SAMAI_MS = 6000;
+let sIdx = 0, sTimer = null, hovering = false;
+SAMAI.forEach((s, i) => {
+  const sat = document.createElement("span");
+  sat.className = "sat"; sat.style.setProperty("--a", `${(360 / SAMAI.length) * i}deg`);
+  sat.innerHTML = `<button type="button" aria-label="${s.ga}"><i style="--m:url(/img/samai/${s.id}.png)"></i></button>`;
+  sat.querySelector("button").addEventListener("click", () => showSamai(i));
+  $("orbit").appendChild(sat);
+});
+function splitName(el, text) {
+  el.textContent = ""; let n = 0;
+  text.split(" ").forEach((word) => {
+    const w = document.createElement("span"); w.className = "w";
+    for (const c of word) { const ch = document.createElement("span"); ch.className = "ch"; ch.textContent = c; ch.style.setProperty("--i", n++); w.appendChild(ch); }
+    el.appendChild(w);
+  });
+}
+function burst() {
+  if (reduce) return;
+  const arena = $("glyph").parentElement, k = $("glyph").offsetWidth / 150; // smaller burst for the phone symbol
+  for (let i = 0; i < 18; i++) {
+    const s = document.createElement("span"); s.className = "spark";
+    const ang = Math.random() * Math.PI * 2, dist = (90 + Math.random() * 80) * k, size = (3 + Math.random() * 5) * Math.max(k, .6);
+    s.style.width = s.style.height = size + "px";
+    arena.appendChild(s);
+    s.animate([{ transform: "translate(0,0) scale(1)", opacity: 1 }, { transform: `translate(${Math.cos(ang) * dist}px,${Math.sin(ang) * dist}px) scale(.2)`, opacity: 0 }],
+      { duration: 700 + Math.random() * 500, easing: "cubic-bezier(.2,.8,.2,1)" }).onfinish = () => s.remove();
+  }
+  const r = $("ring"); r.classList.remove("go"); void r.offsetWidth; r.classList.add("go");
+}
+function showSamai(i) {
+  sIdx = (i + SAMAI.length) % SAMAI.length;
+  const s = SAMAI[sIdx], g = $("glyph");
+  g.style.setProperty("--m", `url(/img/samai/${s.id}.png)`);
+  g.classList.remove("in"); void g.offsetWidth; g.classList.add("in");
+  splitName($("gaName"), s.ga);
+  $("gaName").classList.remove("in"); void $("gaName").offsetWidth; $("gaName").classList.add("in");
+  $("lit").classList.toggle("hidden", !s.lit); if (s.lit) $("lit").textContent = `“${s.lit}”`;
+  $("mean").textContent = s.en;
+  $("prov").classList.toggle("hidden", !s.prov); if (s.prov) $("prov").textContent = s.prov;
+  $("cap").classList.remove("in"); void $("cap").offsetWidth; $("cap").classList.add("in");
+  document.querySelectorAll(".sat").forEach((el, k) => el.classList.toggle("on", k === sIdx));
+  burst();
+  clearTimeout(sTimer);
+  if (!reduce && !hovering) sTimer = setTimeout(() => showSamai(sIdx + 1), SAMAI_MS);
+}
+// Pause while a mouse is over the symbols so people can read.
+$("stage").addEventListener("pointerenter", (e) => { if (e.pointerType !== "mouse") return; hovering = true; clearTimeout(sTimer); });
+$("stage").addEventListener("pointerleave", (e) => {
+  if (e.pointerType !== "mouse") return;
+  hovering = false; if (!reduce) sTimer = setTimeout(() => showSamai(sIdx + 1), 2500);
+});
+showSamai(0);
 
-// Ga greeting for the time of day, the same rule as the app's Home screen.
+/* ---------- Greeting, status, Google ---------- */
 (function () {
   const h = new Date().getHours();
   const g = h < 12 ? "Ojekoo" : h < 17 ? "Oshwiee" : "M'naokoo";
-  const en = { "Ojekoo": "Good morning", "Oshwiee": "Good afternoon", "M'naokoo": "Good evening" }[g];
   $("greet").textContent = g + "!";
-  $("greet").title = en;
+  $("greetEn").textContent = { "Ojekoo": "Good morning", "Oshwiee": "Good afternoon", "M'naokoo": "Good evening" }[g];
 })();
+
+function setStatus(cls, text) { const s = $("status"); s.className = "status " + cls; s.textContent = text; return s; }
+function adminLink(s, href) { const a = document.createElement("a"); a.href = href; a.textContent = " Open the admin console →"; s.appendChild(a); }
 
 // Offer Google only when the server has it set up.
 (async function () {
@@ -245,34 +387,38 @@ function setStatus(cls, text) { const s = $("status"); s.className = "status " +
     google_failed: "Google couldn't confirm your account. Try again, or use your email.",
     admin_console: "Admin accounts sign in to the admin console.",
   }[code];
-  if (msg) {
-    const s = setStatus("err", msg);
-    if (code === "admin_console") {
-      const a = document.createElement("a");
-      a.href = "https://heritage-admin.heritage-app.workers.dev/auth"; a.textContent = " Open the admin console →";
-      s.appendChild(a);
-    }
-  }
-  try { history.replaceState(null, "", location.pathname); } catch {}
+  if (msg) { const s = setStatus("err", msg); if (code === "admin_console") adminLink(s, ADMIN_AUTH); }
+  try { history.replaceState(null, "", location.pathname + (/[?&]signup\b/.test(location.search) ? "?signup" : "")); } catch {}
 })();
 
-function setKind(k) {
+/* ---------- Tabs and form ---------- */
+function moveBar() {
+  const on = document.querySelector('.tabs [aria-selected="true"]'), bar = $("tabBar");
+  bar.style.left = on.offsetLeft + "px"; bar.style.width = on.offsetWidth + "px";
+}
+function swapIn(el, text) { el.textContent = text; el.classList.remove("swap"); void el.offsetWidth; el.classList.add("swap"); }
+function setKind(k, quiet) {
   kind = k;
   const login = k === "login";
-  $("tabLogin").classList.toggle("on", login); $("tabLogin").setAttribute("aria-selected", String(login));
-  $("tabSignup").classList.toggle("on", !login); $("tabSignup").setAttribute("aria-selected", String(!login));
-  $("title").textContent = login ? "Welcome back" : "Create your account";
-  $("subtitle").textContent = login ? "Sign in to pick up where you left off." : "Free — it saves your chats and credits what you teach.";
+  $("tabLogin").setAttribute("aria-selected", String(login));
+  $("tabSignup").setAttribute("aria-selected", String(!login));
+  moveBar();
+  const title = login ? "Welcome back." : "Join SpeakGa.";
+  const sub = login ? "Sign in to pick up where you left off." : "Free. It saves your chats and credits what you teach.";
+  if (quiet) { $("title").textContent = title; $("subtitle").textContent = sub; } else { swapIn($("title"), title); swapIn($("subtitle"), sub); }
   $("btnText").textContent = login ? "Sign in" : "Create account";
   $("googleText").textContent = login ? "Sign in with Google" : "Sign up with Google";
+  $("pwLabel").textContent = login ? "Password" : "Choose a password";
   $("password").setAttribute("autocomplete", login ? "current-password" : "new-password");
-  $("password").placeholder = login ? "Your password" : "Choose a password";
   $("pwHint").classList.toggle("hidden", login);
-  setStatus("", "");
+  if (!quiet) setStatus("", "");
 }
 $("tabLogin").onclick = () => setKind("login");
 $("tabSignup").onclick = () => setKind("signup");
-if (/[?&]signup\b/.test(location.search)) setKind("signup");
+addEventListener("resize", moveBar);
+document.fonts?.ready.then(moveBar);
+moveBar();
+if (/[?&]signup\b/.test(location.search)) setKind("signup", true);
 
 $("peek").onclick = () => {
   const show = $("password").type === "password";
@@ -299,16 +445,11 @@ $("form").onsubmit = async (e) => {
     if (!r.ok) {
       const msg = r.status === 401 ? "That email and password don't match." : (d.detail || "Something went wrong. Try again.");
       const s = setStatus("err", msg);
-      // Admins are turned away here; point them at the console.
-      if (d.admin_console) {
-        const a = document.createElement("a");
-        a.href = d.admin_console; a.textContent = " Open the admin console →";
-        s.appendChild(a);
-      }
+      if (d.admin_console) adminLink(s, d.admin_console); // admins are turned away here; point them at the console
       $("submitBtn").disabled = false;
       return;
     }
-    setStatus("ok", kind === "login" ? "Signed in — opening SpeakGa…" : "Account created — opening SpeakGa…");
+    setStatus("ok", kind === "login" ? "Signed in. Opening SpeakGa…" : "Account created. Opening SpeakGa…");
     window.location.href = "/";
   } catch {
     setStatus("err", "Couldn't reach SpeakGa. Check your connection and try again.");
