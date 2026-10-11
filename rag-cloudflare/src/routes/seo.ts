@@ -12,6 +12,7 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import type { Env, Variables } from "../types";
+import { sitePages } from "./pages";
 
 export const SITE = "https://speakga.org";
 export const APP = "https://app.speakga.org";
@@ -38,18 +39,30 @@ app.get("/robots.txt", (c) => {
   return c.text(body, 200, HOUR);
 });
 
-app.get("/sitemap.xml", (c) => {
+app.get("/sitemap.xml", async (c) => {
   const kind = hostKind(c.req.url);
   if (kind !== "site" && kind !== "app") return c.text("Not found", 404);
   const base = kind === "site" ? SITE : APP;
-  const images = [`${base}/img/og/speakga-share.png`, `${base}/img/hero.webp`];
+  // speakga.org also has the pages built from the archive (src/routes/pages.ts):
+  // Learn Ga topics, Ga samai, About and Support. They change as the archive does.
+  const today = new Date().toISOString().slice(0, 10);
+  const urls: Array<{ loc: string; lastmod: string; images: string[] }> = [
+    { loc: `${base}/`, lastmod: LASTMOD, images: [`${base}/img/og/speakga-share.png`, `${base}/img/hero.webp`] },
+  ];
+  if (kind === "site") {
+    const pages = await sitePages(c.env).catch(() => []);
+    for (const p of pages) {
+      urls.push({ loc: `${SITE}${p.path}`, lastmod: today, images: (p.images || []).map((i) => (i.startsWith("http") ? i : `${SITE}${i}`)) });
+    }
+  }
+  const x = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
-  <url>
-    <loc>${base}/</loc>
-    <lastmod>${LASTMOD}</lastmod>
-${images.map((u) => `    <image:image><image:loc>${u}</image:loc></image:image>`).join("\n")}
-  </url>
+${urls.map((u) => `  <url>
+    <loc>${x(u.loc)}</loc>
+    <lastmod>${u.lastmod}</lastmod>
+${u.images.map((i) => `    <image:image><image:loc>${x(i)}</image:loc></image:image>`).join("\n")}
+  </url>`).join("\n")}
 </urlset>
 `;
   return c.body(xml, 200, { "Content-Type": "application/xml; charset=utf-8", ...HOUR });

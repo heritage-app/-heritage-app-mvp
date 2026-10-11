@@ -15,6 +15,7 @@ import { bootstrapSuperAdmin } from "./bootstrap";
 import meta from "./routes/meta";
 import auth from "./routes/auth";
 import seo, { hostKind } from "./routes/seo";
+import pages from "./routes/pages";
 import user from "./routes/user";
 import chat from "./routes/chat";
 import conversations from "./routes/conversations";
@@ -143,6 +144,8 @@ app.get("/admin.html", (c) => c.redirect(`${ADMIN_CONSOLE}/admin.html`, 302));
 
 // robots.txt, sitemap.xml and the /landing redirect, per domain (src/routes/seo.ts).
 app.route("/", seo);
+// Learn Ga, Ga samai, About and Support pages on speakga.org (src/routes/pages.ts).
+app.route("/", pages);
 
 // The root page depends on the domain (wrangler.toml runs the Worker first for "/"):
 // speakga.org is the landing page, www.speakga.org goes to it, and every other host
