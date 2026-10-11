@@ -16,6 +16,7 @@ import type { Context } from "hono";
 import type { Env, Variables } from "../types";
 import { hostKind, SITE } from "./seo";
 import { SAMAI, type SamaiSymbol } from "../data/samai";
+import { archiveStats } from "../rag/archive-stats";
 
 type C = Context<{ Bindings: Env; Variables: Variables }>;
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -184,7 +185,7 @@ header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,#fff 86%,tr
 @media (max-width:760px){.cta{grid-template-columns:1fr}}
 .prose{display:grid;gap:16px;max-width:70ch;font-size:17.5px;color:var(--ink-2)}
 .prose h2{font-size:clamp(24px,2.6vw,32px);color:var(--ink);margin-top:18px}
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 @media (max-width:820px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .stat{background:var(--app);border-radius:20px;padding:18px}
 .stat b{display:block;font:800 clamp(28px,3.4vw,40px)/1 var(--display);letter-spacing:-.03em}
@@ -272,14 +273,14 @@ app.get("/learn-ga", async (c) => {
   const live = TOPICS.filter((t) => counts[t.slug] > 0);
   const body = `${crumbs([["Home", "/"], ["Learn Ga"]])}
 <section class="hero wrap"><span class="eyebrow">Learn Ga</span><h1>Ga words and phrases, checked by Ga speakers</h1>
-<p class="lede">${fmt(total)} Ga words and phrases in ${live.length} topics, each checked before it's published. Pick a topic, or ask Nii Obodai, SpeakGa's Ga companion, anything.</p>
+<p class="lede">${fmt(total)} entries from SpeakGa's checked Ga dictionary, in ${live.length} topics. Pick a topic, or ask Nii Obodai, SpeakGa's Ga companion, anything: he also knows phrases from the Language Guide, every number in Ga, the Bible in Ga, stories and poems.</p>
 <div class="row"><a class="btn btn-ink" href="https://app.speakga.org/">Ask Nii Obodai</a><a class="btn btn-line" href="/samai">Ga samai symbols</a></div></section>
 <section class="sec wrap" style="padding-top:0"><div class="grid">${live.map((t) => `<a class="card" href="/learn-ga/${t.slug}"><h2>${esc(t.title)}</h2><p>${esc(t.blurb)}</p><span class="n">${fmt(counts[t.slug])} words and phrases →</span></a>`).join("")}</div></section>
 ${contributeCta("Know a Ga word that isn't here?")}`;
   return send(c, page({
     path: "/learn-ga", section: "/learn-ga",
     title: "Learn Ga: words and phrases by topic | SpeakGa",
-    description: `Learn the Ga language of Accra with ${fmt(total)} checked words and phrases: greetings, numbers, family, food, days and more, with pronunciation and examples.`,
+    description: `Learn the Ga language of Accra with ${fmt(total)} checked dictionary entries by topic: greetings, numbers, family, food, days and more, with pronunciation and examples.`,
     body,
     jsonld: [crumbLd([["Home", "/"], ["Learn Ga", "/learn-ga"]]), {
       "@context": "https://schema.org", "@type": "ItemList", name: "Ga vocabulary topics",
@@ -388,12 +389,8 @@ app.get("/samai/:slug", async (c) => {
 });
 
 async function liveFigures(env: Env) {
-  const [v, b, samai] = await Promise.all([
-    env.DB.prepare("SELECT COUNT(*) n FROM vocabulary WHERE source IS NOT NULL AND TRIM(source)<>'' AND verified_at IS NOT NULL AND TRIM(verified_at)<>''").first<{ n: number }>(),
-    env.DB.prepare("SELECT COUNT(*) n FROM bible_verses").first<{ n: number }>(),
-    liveSamai(env),
-  ]);
-  return { words: v?.n ?? 0, verses: b?.n ?? 0, samai: samai.length };
+  const s = await archiveStats(env);
+  return { words: s.words_and_phrases, dictionary: s.dictionary_entries, numbers: s.numbers_in_words, verses: s.bible_verses, translations: s.bible_translations, stories: s.stories, poems: s.poems_and_songs, samai: s.samai };
 }
 
 app.get("/about", async (c) => {
@@ -406,7 +403,7 @@ app.get("/about", async (c) => {
 <h2>Meet Nii Obodai</h2>
 <p>In the app you talk to Nii Obodai, SpeakGa's Ga companion. Ask how to say something, what a word means, or for a verse in Ga, and he answers from the SpeakGa archive. When the archive doesn't have it, he says so instead of guessing, and the question is passed to the team so it can be answered properly.</p>
 <h2>What's in the archive</h2>
-<p>${fmt(f.words)} Ga words and phrases checked by Ga speakers, ${fmt(f.verses)} Bible verses from two full Ga translations alongside English, and ${f.samai} samai symbols with their meanings. Sources include the Bureau of Ghana Languages' Ga Language Guide.</p>
+<p>${fmt(f.words)} Ga words and phrases, including ${fmt(f.dictionary)} entries in SpeakGa's checked dictionary. Every number from 1 to ${fmt(f.numbers)} in Ga words. ${fmt(f.verses)} Bible verses from ${f.translations} full Ga translations alongside English. ${f.stories} stories and ${f.poems} poems and songs, and ${f.samai} samai symbols with their meanings. Sources include the Bureau of Ghana Languages' Ga Language Guide, a 1980 UCLA Ga conversation course and Storybooks Ghana.</p>
 <h2>Learn, read and play</h2>
 <p>Beyond questions, the app has short lessons, quizzes and word games, the Bible in Ga verse by verse, and Ga stories and poems. It works in any browser and can be installed on a phone.</p>
 <h2>Built with Ga speakers</h2>
@@ -418,7 +415,7 @@ app.get("/about", async (c) => {
   return send(c, page({
     path: "/about", section: "/about",
     title: "About SpeakGa: the Ga language companion | SpeakGa",
-    description: `SpeakGa is a free Ga language app and research project by Codetrain Foundation: ${fmt(f.words)} checked Ga words, the Bible in Ga and Ga samai, with an AI companion that answers from checked sources.`,
+    description: `SpeakGa is a free Ga language app and research project by Codetrain Foundation: ${fmt(f.words)} Ga words and phrases, the Bible in Ga, stories, poems and Ga samai, with an AI companion that answers from checked sources.`,
     body,
     jsonld: [crumbLd([["Home", "/"], ["About", "/about"]])],
   }));
@@ -432,8 +429,10 @@ app.get("/support", async (c) => {
 <p class="lede">SpeakGa is a research project by Codetrain Foundation. The app works today, but Ga still has very little digital language data. Funding and data partners decide how fast that changes.</p>
 <div class="row"><a class="btn btn-ink" href="mailto:${mail}?subject=${encodeURIComponent("SpeakGa: project brief")}">Request the project brief</a><a class="btn btn-line" href="/#give">Contribute a word</a></div></section>
 <section class="sec wrap" style="padding-top:0"><h2 style="font-size:clamp(24px,2.6vw,32px);margin-bottom:16px">Where the research stands</h2><div class="stats">
-<div class="stat"><b>${fmt(f.verses)}</b><span>Bible verses in Ga</span><small>Two full translations, with English</small></div>
-<div class="stat"><b>${fmt(f.words)}</b><span>Checked words and phrases</span><small>Verified before they're searchable</small></div>
+<div class="stat"><b>${fmt(f.words)}</b><span>Ga words and phrases</span><small>${fmt(f.dictionary)} in the checked dictionary</small></div>
+<div class="stat"><b>${fmt(f.verses)}</b><span>Bible verses in Ga</span><small>${f.translations} full translations, with English</small></div>
+<div class="stat"><b>1–${fmt(f.numbers)}</b><span>Numbers in Ga words</span><small>Every number, spelled out</small></div>
+<div class="stat"><b>${f.stories + f.poems}</b><span>Stories, poems and songs</span><small>${f.stories} stories, ${f.poems} poems and songs</small></div>
 <div class="stat"><b>${f.samai}</b><span>Samai symbols</span><small>With meanings and sources</small></div>
 <div class="stat gap"><b>0 hrs</b><span>Recorded Ga speech</span><small>Not started. This needs funding.</small></div>
 </div></section>
@@ -451,7 +450,7 @@ app.get("/support", async (c) => {
   return send(c, page({
     path: "/support", section: "/support",
     title: "Support Ga language research | SpeakGa",
-    description: `Help build digital resources for the Ga language. SpeakGa has ${fmt(f.verses)} Bible verses and ${fmt(f.words)} checked words; recorded Ga speech still needs funding. Fund, partner or share data.`,
+    description: `Help build digital resources for the Ga language. SpeakGa has ${fmt(f.words)} Ga words and phrases and ${fmt(f.verses)} Bible verses; recorded Ga speech still needs funding. Fund, partner or share data.`,
     body,
     jsonld: [crumbLd([["Home", "/"], ["Support the research", "/support"]])],
   }));

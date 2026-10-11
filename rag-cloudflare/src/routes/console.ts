@@ -19,6 +19,7 @@ import { requireAdmin } from "../auth/middleware";
 import { ask } from "../rag/service";
 import { isNotFoundResponse } from "../rag/flagging";
 import admin from "./admin";
+import { archiveStats } from "../rag/archive-stats";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use("*", requireAdmin);
@@ -73,7 +74,7 @@ app.get("/overview", async (c) => {
   const since14 = new Date(Date.now() - 13 * 86400000).toISOString().slice(0, 10);
   const since7 = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
 
-  const [q, daily, gaps, flagged, contrib, vocab, bible, docs, users, sessions, feedback, samaiDocs] = await Promise.all([
+  const [q, daily, gaps, flagged, contrib, vocab, bible, docs, users, sessions, feedback, samaiDocs, archive] = await Promise.all([
     one<{ total: number; week: number }>(`SELECT COUNT(*) total, SUM(date(created_at) >= ?) week FROM interactions`, since7),
     all<{ day: string; n: number }>(`SELECT date(created_at) day, COUNT(*) n FROM interactions WHERE date(created_at) >= ? GROUP BY 1 ORDER BY 1`, since14),
     one<{ open: number; asks: number; total: number }>(`SELECT SUM(status='pending') open, SUM(CASE WHEN status='pending' THEN frequency ELSE 0 END) asks, COUNT(*) total FROM knowledge_gaps`),
@@ -81,12 +82,13 @@ app.get("/overview", async (c) => {
       AND NOT EXISTS (SELECT 1 FROM admin_actions a WHERE a.ref_kind='feedback' AND a.ref_id=f.id)`),
     one<{ pending: number; total: number; approved: number }>(`SELECT SUM(status='pending_review') pending, COUNT(*) total, SUM(status='approved') approved FROM user_contributions`),
     one<{ verified: number; total: number }>(`SELECT SUM(verified_at IS NOT NULL AND TRIM(verified_at) <> '') verified, COUNT(*) total FROM vocabulary`),
-    all<{ source: string; n: number }>(`SELECT COALESCE(source_name,'other') source, COUNT(*) n FROM bible_verses GROUP BY 1 ORDER BY n DESC`),
+    all<{ source: string; n: number }>(`SELECT COALESCE(ga_version_abbr,'other') source, COUNT(*) n FROM bible_verses GROUP BY 1 ORDER BY n DESC`),
     all<{ category: string; n: number }>(`SELECT COALESCE(category,'none') category, COUNT(*) n FROM documents GROUP BY 1 ORDER BY n DESC`),
     one<{ total: number; admins: number }>(`SELECT COUNT(*) total, SUM(role='admin') admins FROM users`),
     one<{ n: number; people: number }>(`SELECT COUNT(*) n, COUNT(DISTINCT user_id) people FROM chat_sessions`),
     one<{ total: number; down: number }>(`SELECT COUNT(*) total, SUM(rating='not_helpful') down FROM response_feedback`),
     all<{ original_filename: string }>(`SELECT DISTINCT original_filename FROM documents WHERE original_filename LIKE 'ga-samai%'`),
+    archiveStats(c.env).catch(() => null),
   ]);
 
   // Distinct symbols each samai dataset adds (datasets/ga-samai*.jsonl; the
@@ -109,6 +111,7 @@ app.get("/overview", async (c) => {
     conversations: { total: sessions?.n ?? 0, people: sessions?.people ?? 0 },
     feedback: { total: feedback?.total ?? 0, down: feedback?.down ?? 0 },
     speech_hours: 0,
+    archive,
   });
 });
 

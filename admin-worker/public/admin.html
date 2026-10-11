@@ -522,7 +522,7 @@ loaders.overview = async () => {
     { k: "Questions this week", v: o.questions.week, s: `${fmt(o.questions.total)} saved in total`, go: "usage" },
     { k: "Unanswered", v: o.gaps.open, s: `asked ${fmt(o.gaps.asks)} times`, go: "questions", alert: o.gaps.open > 0 },
     { k: "Waiting for review", v: o.contributions.pending, s: `${fmt(o.contributions.total)} contributions so far`, go: "review" },
-    { k: "Verified words", v: o.vocabulary.verified, s: `${fmt(o.vocabulary.total - o.vocabulary.verified)} not verified`, go: "archive" },
+    { k: "Words and phrases", v: o.archive?.words_and_phrases ?? o.vocabulary.verified, s: `${fmt(o.vocabulary.verified)} in the checked dictionary`, go: "archive" },
     { k: "Bible verses", v: bibleTotal, s: o.bible.map((b) => b.source).join(" and "), go: "archive" },
     { k: "Accounts", v: o.users.total, s: `${fmt(o.conversations.total)} conversations`, go: "users" },
   ].map((x) => `<button class="kpi${x.alert ? " alert" : ""}" data-go="${x.go}"><small>${esc(x.k)}</small><b>${fmt(x.v)}</b><span>${esc(x.s)}</span></button>`).join("");
@@ -550,19 +550,22 @@ loaders.overview = async () => {
   const sum = vals.reduce((a, b) => a + b, 0);
   $("ovChartNote").innerHTML = `<span><i style="background:var(--gold)"></i>Questions per day from accounts</span><span>${sum ? `Busiest: ${vals[peak]} on ${new Date(days[peak] + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}` : "No questions saved in the last 14 days"}</span>`;
 
-  const docs = Object.fromEntries(o.documents.map((d) => [d.category, d.n])), docTotal = o.documents.reduce((n, d) => n + d.n, 0);
+  const A = o.archive || {};
+  const docTotal = o.documents.reduce((n, d) => n + d.n, 0);
   const maxB = Math.max(...o.bible.map((b) => b.n), 1);
   const pct = (n, of) => `${Math.max(n ? 1 : 0, Math.round(n / of * 100))}%`;
   $("ovArchive").innerHTML = [
     ...o.bible.map((b) => `<div class="bar-row"><span>Bible · ${esc(b.source)}</span><span class="track"><i style="width:${pct(b.n, maxB)};background:var(--info)"></i></span><b>${fmt(b.n)}</b></div>`),
-    `<div class="bar-row"><span>Verified words</span><span class="track"><i style="width:${pct(o.vocabulary.verified, 2000)};background:var(--ok)"></i></span><b>${fmt(o.vocabulary.verified)}</b></div>`,
+    `<div class="bar-row"><span>Words and phrases</span><span class="track"><i style="width:${pct(o.vocabulary.verified, A.words_and_phrases || 1)};background:var(--ok)"></i><i style="width:${pct((A.words_and_phrases || 0) - o.vocabulary.verified, A.words_and_phrases || 1)};background:color-mix(in srgb, var(--ok) 40%, transparent)"></i></span><b>${fmt(A.words_and_phrases || o.vocabulary.verified)}</b></div>`,
+    `<div class="bar-row"><span>Numbers in Ga words</span><span class="track"><i style="width:100%;background:var(--gold)"></i></span><b>1–${fmt(A.numbers_in_words || 999)}</b></div>`,
+    `<div class="bar-row"><span>Stories, poems, songs</span><span class="track"><i style="width:${pct((A.stories || 0) + (A.poems_and_songs || 0), 20)};background:var(--info)"></i></span><b>${fmt((A.stories || 0) + (A.poems_and_songs || 0))}</b></div>`,
     `<div class="bar-row"><span>Documents</span><span class="track">${o.documents.map((d) => `<i style="width:${pct(d.n, docTotal)};background:${d.category === "bible" ? "var(--gold)" : d.category === "none" ? "var(--faint)" : "var(--ok)"}"></i>`).join("")}</span><b>${fmt(docTotal)}</b></div>`,
     `<div class="bar-row"><span>Samai symbols</span><span class="track"><i style="width:${pct(o.samai.live, o.samai.live + o.samai.ready + o.samai.review)};background:var(--ok)"></i><i style="width:${pct(o.samai.ready, o.samai.live + o.samai.ready + o.samai.review)};background:var(--gold)"></i></span><b>${o.samai.live} live</b></div>`,
     `<div class="bar-row"><span>Recorded speech</span><span class="track"></span><b style="color:var(--bad)">${o.speech_hours} hrs</b></div>`,
   ].join("");
-  $("ovArchiveNote").innerHTML = `<span>Documents: ${o.documents.map((d) => `${d.category === "none" ? "no category" : esc(d.category)} ${fmt(d.n)}`).join(" · ")}</span><span>Samai: ${o.samai.live} live, ${o.samai.ready} ready to import, ${o.samai.review} need a Ga reader</span>`;
+  $("ovArchiveNote").innerHTML = `<span>Words: ${fmt(o.vocabulary.verified)} in the checked dictionary, the rest from imported guides and phrasebooks</span><span>${fmt(A.stories || 0)} stories, ${fmt(A.poems_and_songs || 0)} poems and songs</span><span>Documents: ${o.documents.map((d) => `${d.category === "none" ? "no category" : esc(d.category)} ${fmt(d.n)}`).join(" · ")}</span><span>Samai: ${o.samai.live} live, ${o.samai.ready} ready to import, ${o.samai.review} need a Ga reader</span>`;
   $("ovResearch").innerHTML = [
-    ["Verified language data", "ok", "Under way", `${fmt(o.vocabulary.verified)} checked words and phrases, ${fmt(bibleTotal)} Bible verses. Grows with every approved contribution.`],
+    ["Verified language data", "ok", "Under way", `${fmt(A.words_and_phrases || 0)} Ga words and phrases (${fmt(o.vocabulary.verified)} in the checked dictionary), ${fmt(bibleTotal)} Bible verses, ${fmt((A.stories || 0) + (A.poems_and_songs || 0))} stories, poems and songs. Grows with every approved contribution.`],
     ["Recorded speech", "bad", "Not started", "Needs funding and a recording plan. 0 hours so far."],
     ["Accuracy and evaluation", "warn", "Early", `${fmt(o.feedback.total)} ratings (${fmt(o.feedback.down)} thumbs-down) and ${fmt(o.gaps.total)} logged questions. A fixed test set would turn these into a benchmark.`],
   ].map(([t, c, p, s]) => `<div><div style="display:flex;gap:10px;align-items:center;justify-content:space-between"><b>${t}</b><span class="pill ${c}">${p}</span></div><p class="muted" style="font-size:12.5px;margin-top:2px">${s}</p></div>`).join("");

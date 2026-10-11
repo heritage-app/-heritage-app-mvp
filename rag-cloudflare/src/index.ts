@@ -33,6 +33,7 @@ import agent from "./routes/agent";
 import bible from "./routes/bible";
 import traffic from "./routes/traffic";
 import adminConsole from "./routes/console";
+import archiveStatsRoute from "./rag/archive-stats";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -133,6 +134,7 @@ api.route("/quiz", quiz);
 api.route("/", agent);
 api.route("/", bible);
 api.route("/", traffic);
+api.route("/", archiveStatsRoute);
 
 app.route("/api/v1", api);
 
