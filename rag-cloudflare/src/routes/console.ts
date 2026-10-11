@@ -115,37 +115,64 @@ app.post("/documents/clear-failed", async (c) => {
  * re-embedding. The rest are listed for the console to re-index (POST /admin/reindex,
  * paged), then marked done with POST /documents/:id/search-index-done.
  */
+/** First and last search-entry ids a file should have. Bible files: their verses' ids
+ *  (from the verse table, else from the stored file). Other datasets: <path>:rec:<n>. */
+async function endIds(env: Env, path: string): Promise<{ ids: string[]; records: number | null }> {
+  const ends = await env.DB.prepare(
+    `SELECT (SELECT id FROM bible_verses WHERE source_name = ?1 ORDER BY chapter_num, verse_num LIMIT 1) a,
+            (SELECT id FROM bible_verses WHERE source_name = ?1 ORDER BY chapter_num DESC, verse_num DESC LIMIT 1) b,
+            (SELECT COUNT(*) FROM bible_verses WHERE source_name = ?1) n`
+  ).bind(path).first<{ a: string | null; b: string | null; n: number }>();
+  if (ends?.a && ends?.b) return { ids: [ends.a, ends.b], records: ends.n };
+  // No verses point at this file (e.g. a re-upload of verses another file already
+  // saved): read the file itself.
+  if (!/\.jsonl$/i.test(path)) return { ids: [], records: null };
+  const obj = await env.DOCS_BUCKET.get(path);
+  if (!obj) return { ids: [], records: null };
+  const lines = (await obj.text()).split("\n").filter((l) => l.trim());
+  const parse = (l: string | undefined) => { try { return l ? JSON.parse(l) : null; } catch { return null; } };
+  const first = parse(lines[0]), last = parse(lines[lines.length - 1]);
+  const idOf = (r: any, i: number) =>
+    r?.id ?? (r?.book && r?.chapter_num && r?.verse_num ? `bible:${String(r.book).toLowerCase()}:${r.chapter_num}:${r.verse_num}` : `${path}:rec:${i}`);
+  return { ids: lines.length ? [idOf(first, 0), idOf(last, lines.length - 1)] : [], records: lines.length };
+}
+
 app.get("/documents/search-index", async (c) => {
+  // Checks a batch at a time (?limit, default 40). Complete files are cleared; incomplete
+  // ones are marked so the next batch moves on, and every incomplete file is returned.
   const adminId = c.get("adminId")!;
+  const limit = Math.min(Math.max(parseInt(c.req.query("limit") || "40", 10) || 40, 1), 100);
+  const PENDING = `json_extract(metadata, '$.vector_pending') = 1 AND status = 'indexed'`;
   const docs = await c.env.DB.prepare(
-    `SELECT id, original_filename, unique_path, json_extract(metadata, '$.record_count') records
-     FROM documents WHERE json_extract(metadata, '$.vector_pending') = 1 AND status = 'indexed'`
-  ).all<{ id: string; original_filename: string; unique_path: string; records: number | null }>();
-  const pending: Array<{ id: string; name: string; path: string; records: number | null }> = [];
+    `SELECT id, original_filename, unique_path FROM documents
+     WHERE ${PENDING} AND COALESCE(json_extract(metadata, '$.vector_check'), '') <> 'incomplete' LIMIT ?`
+  ).bind(limit).all<{ id: string; original_filename: string; unique_path: string }>();
   let cleared = 0;
   for (const d of docs.results || []) {
-    const ends = await c.env.DB.prepare(
-      `SELECT (SELECT id FROM bible_verses WHERE source_name = ?1 ORDER BY chapter_num, verse_num LIMIT 1) a,
-              (SELECT id FROM bible_verses WHERE source_name = ?1 ORDER BY chapter_num DESC, verse_num DESC LIMIT 1) b`
-    ).bind(d.unique_path).first<{ a: string | null; b: string | null }>();
-    const ids = [ends?.a, ends?.b].filter(Boolean) as string[];
+    const { ids, records } = await endIds(c.env, d.unique_path);
     const found = ids.length ? await c.env.VECTORIZE.getByIds(ids).catch(() => []) : [];
     if (ids.length === 2 && found.length === 2) {
-      await c.env.DB.prepare("UPDATE documents SET metadata = json_remove(metadata, '$.vector_pending') WHERE id = ?").bind(d.id).run();
+      await c.env.DB.prepare("UPDATE documents SET metadata = json_remove(metadata, '$.vector_pending', '$.vector_check') WHERE id = ?").bind(d.id).run();
       cleared++;
     } else {
-      pending.push({ id: d.id, name: d.original_filename, path: d.unique_path, records: d.records });
+      await c.env.DB.prepare("UPDATE documents SET metadata = json_set(metadata, '$.vector_check', 'incomplete', '$.record_count', ?) WHERE id = ?")
+        .bind(records, d.id).run();
     }
   }
   if (cleared) await logAction(c.env, adminId, "search_index_checked", "document", "bulk", `${cleared} files were already complete in the search index`);
-  return c.json({ cleared, pending });
+  const [left, incomplete] = await Promise.all([
+    c.env.DB.prepare(`SELECT COUNT(*) n FROM documents WHERE ${PENDING} AND COALESCE(json_extract(metadata, '$.vector_check'), '') <> 'incomplete'`).first<{ n: number }>(),
+    c.env.DB.prepare(`SELECT id, original_filename name, unique_path path, json_extract(metadata, '$.record_count') records FROM documents WHERE ${PENDING} AND json_extract(metadata, '$.vector_check') = 'incomplete'`)
+      .all<{ id: string; name: string; path: string; records: number | null }>(),
+  ]);
+  return c.json({ cleared, checked: (docs.results || []).length, remaining: left?.n ?? 0, pending: incomplete.results || [] });
 });
 
 app.post("/documents/:id/search-index-done", async (c) => {
   const adminId = c.get("adminId")!;
   const d = await c.env.DB.prepare("SELECT original_filename FROM documents WHERE id = ?").bind(c.req.param("id")).first<{ original_filename: string }>();
   if (!d) return c.json({ detail: "Document not found" }, 404);
-  await c.env.DB.prepare("UPDATE documents SET metadata = json_remove(metadata, '$.vector_pending') WHERE id = ?").bind(c.req.param("id")).run();
+  await c.env.DB.prepare("UPDATE documents SET metadata = json_remove(metadata, '$.vector_pending', '$.vector_check') WHERE id = ?").bind(c.req.param("id")).run();
   await logAction(c.env, adminId, "search_index_finished", "document", c.req.param("id"), d.original_filename);
   return c.json({ status: "ok" });
 });

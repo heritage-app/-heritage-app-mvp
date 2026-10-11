@@ -752,8 +752,14 @@ function showSix(msg) {
 $("sixBtn").onclick = async () => {
   const btn = $("sixBtn"); btn.disabled = true;
   try {
-    showSix("Checking which files are already complete…");
-    const d = await api("/admin/console/documents/search-index");
+    let d = { cleared: 0, remaining: 1, pending: [] }, cleared = 0;
+    while (d.remaining > 0) {
+      d = await api("/admin/console/documents/search-index?limit=30");
+      cleared += d.cleared;
+      showSix(`Checking which files are already complete… ${cleared} cleared, ${d.remaining} left to check`);
+      if (!d.checked) break;
+    }
+    d.cleared = cleared;
     const todo = d.pending, total = todo.reduce((n, p) => n + (p.records || 0), 0); let done = 0;
     for (const [i, p] of todo.entries()) {
       let off = 0;
