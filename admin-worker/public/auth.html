@@ -53,7 +53,7 @@ button,input{font:inherit;color:inherit}
 .form-col{flex:1;display:grid;place-items:center;padding-block:40px}
 form{width:min(400px,100%);display:grid;gap:22px}
 .hello small{display:block;font:800 12px var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--gold-ink);margin-bottom:10px}
-.hello h1{font-size:clamp(32px,4vw,44px);line-height:1.02}
+.hello h1{font-size:clamp(34px,4vw,46px);line-height:1.02;max-width:11ch}
 .hello p{color:var(--muted);margin-top:10px}
 .field{display:grid;gap:6px}
 .field label{font:700 13px var(--sans);color:var(--ink-2)}
@@ -161,7 +161,7 @@ form{width:min(400px,100%);display:grid;gap:22px}
 
     <div class="form-col">
       <form id="f" novalidate>
-        <div class="hello"><small>Admin console</small><h1 id="greet">Ojekoo. Sign in to look after the archive.</h1><p>Review contributions, answer what people asked, and keep SpeakGa accurate.</p></div>
+        <div class="hello"><small><span id="greet">Ojekoo</span> · Admin console</small><h1>Look after the archive.</h1><p>Review contributions, answer what people asked, and keep SpeakGa accurate.</p></div>
         <div class="msg" id="msg" role="alert" hidden></div>
         <div class="field"><label for="email">Email</label><div class="line" id="emailLine"><input id="email" type="email" autocomplete="username" placeholder="you@codetrainafrica.com" required></div></div>
         <div class="field"><label for="pw">Password</label><div class="line" id="pwLine"><input id="pw" type="password" autocomplete="current-password" placeholder="Your password" required><button class="peek" id="peek" type="button" aria-pressed="false">Show</button></div></div>
@@ -203,7 +203,7 @@ form{width:min(400px,100%);display:grid;gap:22px}
 <script>
 const $ = (id) => document.getElementById(id);
 const h = new Date().getHours();
-$("greet").textContent = `${h < 12 ? "Ojekoo" : h < 17 ? "Oshwiee" : "M'naokoo"}. Sign in to look after the archive.`;
+$("greet").textContent = h < 12 ? "Ojekoo" : h < 17 ? "Oshwiee" : "M'naokoo";
 const API = "/api/v1", APP_URL = "https://app.speakga.org";
 try { if (localStorage.getItem("theme") === "dark") document.documentElement.dataset.theme = "dark"; } catch {}
 $("theme").onclick = () => {
