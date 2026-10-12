@@ -37,17 +37,19 @@ const SYSTEM = `You are Nii Obodai, a Ga-language heritage assistant. You answer
 
 How to work:
 - Bible: a named book/chapter/verse -> lookup_verse. A topic ("a verse about love") -> search_archive(scope="bible"). Structure questions -> list_books / list_chapters / list_verses.
-- Ga words and phrases: vocab_lookup first, then phrase_overlap, then search_archive(scope="heritage").
+- Ga words and phrases: for "what is X in Ga" or "how do you say X" call vocab_lookup(X) first, then phrase_overlap, then search_archive(scope="heritage").
+- Lists and enumerations: a question that asks to list, name or enumerate a set (months, days, colours, animals, birds, insects, fish, body parts, family, food, weather, greetings, numbers) -> list_category(category). The subject is the category, never the instruction ("list the names of the months" -> list_category("months")).
 - "Use X in a sentence" / "give me an example of X" / "how is X used": vocab_lookup(X), then find_usage(X). Any sentence or phrase a tool returns containing the word IS the answer — quote it. Reply NOT_IN_ARCHIVE only when every tool came back empty.
 - Culture, history, stories: search_archive(scope="heritage").
 - Pass tools the SUBJECT of the question, not the question: for "what do you call a place to sleep in ga", look up "bed".
 - A lookup that returns rows which don't fit is not the end: try the plain English word or a close synonym ("sleeping place" -> "bed", "physician" -> "doctor") before giving up.
 
 How to answer:
-- Put every piece of Ga text in **bold**, copied exactly from a tool result. Your reply is checked: Ga that is not in a tool result is rejected.
+- Put every piece of Ga text in **bold**, copied exactly from a tool result. Every Ga word in your answer must have appeared in a tool result — your reply is checked, and Ga that is not in a tool result is rejected.
 - A word can have several Ga renderings ("bad" -> **Efɔŋ** or **Gbonyo**; "bad man" -> **Nuu gbonyo** or **Nuu efɔŋ**). When the tools return more than one, name them ALL with their English glosses — never silently pick one.
+- A list_category result is the answer: present its rows as a list, never collapse it into a single word.
 - Never translate, compose or guess Ga yourself. Never re-type a Bible verse — just say which verse it is; the system prints it.
-- If the tools don't answer the question, reply exactly: NOT_IN_ARCHIVE
+- Never answer NOT_IN_ARCHIVE when list_category or search_archive returned rows. If the tools don't answer the question and every tool came back empty, reply exactly: NOT_IN_ARCHIVE
 - One or two short sentences. No greetings.`;
 
 const TOOLS = [
@@ -119,6 +121,24 @@ const TOOLS = [
     },
   },
   {
+    name: "list_category",
+    description:
+      "List verified Ga vocabulary in a category. Use for questions asking to list/name/enumerate a set (months, days, colours, animals, birds, insects, fish, body parts, family, food, weather, greetings, numbers). Prefer this over vocab_lookup for 'list the months/days/colours…' questions.",
+    parameters: {
+      type: "object",
+      properties: {
+        category: {
+          type: "string",
+          enum: [
+            "months", "days", "colours", "animals", "birds", "insects", "fish",
+            "body", "family", "food", "weather", "greeting", "number", "phrase",
+          ],
+        },
+      },
+      required: ["category"],
+    },
+  },
+  {
     name: "find_usage",
     description: "Real sentences and phrases from the archive that USE a word — for 'use X in a sentence', 'give me an example of X', 'how is X used'. Pass the Ga or English word alone.",
     parameters: {
@@ -139,6 +159,8 @@ interface ToolResult {
   verses?: string[];
   /** Ga/English pairs, for composing an answer when the model's is rejected. */
   pairs?: Array<{ ga: string; english: string }>;
+  /** An enumeration result (list_category): stays a list, never a sentence. */
+  list?: Array<{ ga: string; english: string }>;
   /** A dictionary entry whose English is exactly the term searched for. */
   exact?: { ga: string; english: string };
 }
@@ -152,7 +174,7 @@ export interface AgentStep {
 /** The term a step searched for, for the trace ("vocab_lookup: bed"). */
 export function stepTerm(st: AgentStep): string {
   const a = st.args ?? {};
-  const v = a.term ?? a.query ?? (a.book ? [a.book, a.chapter, a.verse].filter((x) => x != null).join(" ") : "");
+  const v = a.term ?? a.query ?? a.category ?? (a.book ? [a.book, a.chapter, a.verse].filter((x) => x != null).join(" ") : "");
   return String(v).slice(0, 40);
 }
 
@@ -162,7 +184,7 @@ export interface AgentResult {
   steps: AgentStep[];
   modelCalls: number;
   /** How the reply was produced — for the trace. */
-  composedBy: "model" | "evidence" | "verse" | "none";
+  composedBy: "model" | "evidence" | "verse" | "list" | "none";
 }
 
 const EMPTY = (text: string): ToolResult => ({ text, empty: true });
@@ -276,6 +298,38 @@ async function execTool(env: Env, tc: ToolCall): Promise<ToolResult> {
           empty: false,
           pairs,
           exact,
+        };
+      }
+      case "list_category": {
+        // Verified single-category vocabulary, formatted so the model can only
+        // quote it — and returned as pairs so the evidence-composer can print
+        // the same list when the model's write-up is rejected.
+        const cat = String(a.category ?? "").trim();
+        if (!cat) return EMPTY("EMPTY");
+        const res = await env.DB.prepare(
+          `SELECT headword, translations, meanings FROM vocabulary
+           WHERE category = ?
+             AND source IS NOT NULL AND TRIM(source) <> ''
+             AND verified_at IS NOT NULL AND TRIM(verified_at) <> ''
+             AND LENGTH(headword_normalized) <= 30
+           ORDER BY headword_normalized LIMIT 60`
+        ).bind(cat).all<{ headword: string; translations: string; meanings: string }>();
+        const rows = res.results ?? [];
+        if (!rows.length) return EMPTY("NO_MATCH");
+        const pairs = rows
+          .map((r) => {
+            let t: string[] = [], m: string[] = [];
+            try { t = JSON.parse(r.translations || "[]"); } catch {}
+            try { m = JSON.parse(r.meanings || "[]"); } catch {}
+            return { ga: r.headword, english: t[0] ?? m[0] ?? "" };
+          })
+          .filter((p) => p.ga && p.english);
+        if (!pairs.length) return EMPTY("NO_MATCH");
+        return {
+          text: pairs.map((p) => `**${p.ga}** = ${p.english}`).join("\n"),
+          empty: false,
+          pairs,
+          list: pairs,
         };
       }
       case "phrase_overlap": {
@@ -549,6 +603,18 @@ export async function runAgent(
   const exact = found.find((r) => r.exact)?.exact;
   if (exact) {
     return { text: `In Ga, “${exact.english}” is **${exact.ga}**.`, steps, modelCalls, composedBy: "evidence" };
+  }
+  // An enumeration result stays a list — never forced into a single "X is Y"
+  // sentence. When the model's write-up was rejected (or it wrongly said
+  // NOT_IN_ARCHIVE despite rows), emit the verified rows directly.
+  const list = found.find((r) => r.list?.length)?.list;
+  if (list) {
+    return {
+      text:
+        "From the archive:\n\n" +
+        list.slice(0, 30).map((p) => `- **${p.ga}** — “${p.english}”`).join("\n"),
+      steps, modelCalls, composedBy: "list",
+    };
   }
   // The model declined, or wrote Ga the tools never returned — show evidence
   // only when the model had not already judged it irrelevant.

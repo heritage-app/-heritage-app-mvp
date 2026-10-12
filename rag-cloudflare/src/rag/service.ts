@@ -128,6 +128,39 @@ function isNotFound(answer: string): boolean {
   return a === NOT_IN_ARCHIVE || (a.includes(NOT_IN_ARCHIVE) && a.length <= NOT_IN_ARCHIVE.length + 12);
 }
 
+/** Word-level normal form: folded, apostrophes dropped, single-spaced. */
+const norm = (s: string) =>
+  foldGa(s.toLowerCase()).replace(/['’]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
+// --- List/enumeration detection, shared by the engine's list handler and by
+// the not-found flag (which lifts the asked TOPIC for the contribution card).
+// Optional fillers may sit between the list verb and the topic: "list THE
+// NAMES OF THE months", "what are ALL THE colours", "tell me things ABOUT
+// the animals". ---
+const LIST_TOPIC_WORDS =
+  "months?(?:\\s+of\\s+the\\s+year)?|days?(?:\\s+of\\s+the\\s+week)?|weekdays|colou?rs|numbers?|numerals|animals|birds|insects|fish(?:es)?|body\\s+parts|family(?:\\s+(?:members|words|terms))?|foods?|weather(?:\\s+words)?|greetings|drinks|pronouns|fruits?";
+const LIST_FILLER = "(?:all|the|names?|of|things\\s+about)\\s+";
+const LIST_TOPIC_RE = new RegExp(
+  `\\b(?:list|name|enumerate|what\\s+are|which\\s+are|how\\s+many|give\\s+me|show\\s+me|tell\\s+me|all(?:\\s+the)?)\\s+(?:${LIST_FILLER})*(?:\\d+\\s+|ga\\s+)?(?<topic>${LIST_TOPIC_WORDS})\\b`,
+  "i"
+);
+// Whole-query fallback for a bare topic ("months", "the days", "the names of
+// the months", "ga months") once trailing punctuation and "in ga" are gone.
+const LIST_TOPIC_BARE_RE = new RegExp(
+  `^(?:(?:ga|all|the|names?|of|things\\s+about)\\s+)*(${LIST_TOPIC_WORDS})$`,
+  "i"
+);
+
+/** The topic a list/enumeration question asks for, or null. */
+function listTopicOf(query: string): string | null {
+  return (
+    query.match(LIST_TOPIC_RE)?.groups?.topic ??
+    norm(query.trim().replace(/[?!.]+$/, "").replace(/\s+(?:in|into)\s+ga(?:\s+language)?$/i, ""))
+      .match(LIST_TOPIC_BARE_RE)?.[1] ??
+    null
+  );
+}
+
 /** Dedicated Bible RAG engine with strict archival fidelity. */
 async function* askBible(
   env: Env,
@@ -453,10 +486,8 @@ async function* askGeneral(
   }
 
   // --- Dictionary lookup (SQL) ---
-  // Word-level normal form: folded, apostrophes dropped (so "lets" meets
-  // "let's"), everything else a single space.
-  const norm = (s: string) =>
-    foldGa(s.toLowerCase()).replace(/['’]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  // (norm is the module-level helper: folded, apostrophes dropped — so "lets"
+  // meets "let's" — everything else a single space.)
 
   // The heritage Ga/English records, read straight out of the JSONL archives in
   // R2 — the same corpus phrase_overlap scans. Used by the "in a sentence"
@@ -541,17 +572,13 @@ async function* askGeneral(
   // "name the animals". Named sets are resolved member by member from the
   // archive and gaps are printed, never skipped; generic topics list the
   // single-word entries of their category. Thin results fall through. ---
-  const listTopic =
-    (query.match(/\b(?:list|name|enumerate|what\s+are|give\s+me|show\s+me|tell\s+me|all(?:\s+the)?)\s+(?:all\s+|the\s+)?(?:\d+\s+|ga\s+)?(?<topic>months?|days?(?:\s+of\s+the\s+week)?|weekdays|colou?rs|numbers?|numerals|animals|birds|insects|fish(?:es)?|body\s+parts|family(?:\s+(?:members|words|terms))?|foods?|weather(?:\s+words)?|greetings|drinks|pronouns|fruits?)\b/i)?.groups?.topic) ??
-    norm(query.trim().replace(/[?!.]+$/, "").replace(/\s+(?:in|into)\s+ga(?:\s+language)?$/i, ""))
-      .match(/^(?:ga\s+)?(months?|days?(?:\s+of\s+the\s+week)?|weekdays|colou?rs|numbers?|numerals|animals|birds|insects|fish(?:es)?|body\s+parts|family|foods?|weather|greetings|drinks|pronouns|fruits?)$/i)?.[1] ??
-    null;
+  const listTopic = listTopicOf(query);
   if (
     !asksToTell && listTopic &&
     !/\bin\s+a\s+sentence\b/i.test(query) &&
     !/^\s*(?:how\s+do\s+you\s+say|what\s+is\s+the\s+ga\s+for|translate)\b/i.test(query)
   ) {
-    const tw = norm(listTopic).replace(/\s+of\s+the\s+week$/, "");
+    const tw = norm(listTopic).replace(/\s+of\s+the\s+(?:week|year)$/, "");
     const key =
       /^month/.test(tw) ? "months" :
       /^day|^weekday/.test(tw) ? "days" :
@@ -1701,8 +1728,14 @@ export async function* ask(
   // The archive had nothing: offer the contribution card instead of leaving
   // the invitation as prose the user can't act on. The gap itself is already
   // logged by the engine — this only adds the affordance.
+  // An enumeration question that still missed ("list the names of the
+  // months") flags its TOPIC rather than the whole question, so the
+  // contribution card asks for something a speaker can answer ('Do you know
+  // the Ga for "months"?'). The same matcher the list handler uses extracts
+  // it — a match that produced no rows still names the gap correctly.
+  const flagTopic = listTopicOf(query);
   let notFoundFlag: TurnFlag | undefined = isNotFoundResponse(full)
-    ? { kind: "not_found", english: cleanEnglish(query) }
+    ? { kind: "not_found", english: flagTopic ?? cleanEnglish(query) }
     : undefined;
 
   // "Suɔmɔ in a sentence" produced a not-found flag whose `english` is the Ga
