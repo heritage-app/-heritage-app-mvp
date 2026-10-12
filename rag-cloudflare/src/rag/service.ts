@@ -1706,9 +1706,18 @@ async function* askGeneral(
 
   const hits: Array<{ mc: number; score: number; eng: string; ga: string; gaSide: boolean; image: string }> = [];
   const seen = new Set<string>();
+  // The corpus source keeps typographic spacing ("school .", trailing ")
+  // — tidy it for display so quoted sentences read naturally.
+  const tidy = (s: string) =>
+    s.trim()
+      .replace(/\s+([.,?!:;])/g, "$1")
+      .replace(/^["'“‘]+|["'”’]+$/g, "")
+      .replace(/\s+([)\]}])/g, "$1")
+      .replace(/([(\[{])\s+/g, "$1")
+      .trim();
   for (const n of expandedNodes) {
-    const eng = String(n.metadata?.english ?? "").trim();
-    const ga = String(n.metadata?.ga ?? "").trim();
+    const eng = tidy(String(n.metadata?.english ?? ""));
+    const ga = tidy(String(n.metadata?.ga ?? ""));
     if (!eng || !ga) continue;
     const key = eng.toLowerCase();
     if (seen.has(key)) continue;
