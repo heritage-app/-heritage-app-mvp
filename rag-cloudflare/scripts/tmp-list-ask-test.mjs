@@ -67,7 +67,22 @@ const sentenceAsk = (q) =>
   q.match(/\b(?:make|give|show|write|compose|form)\b(?:\s+me)?\s+a\s+sentence\s+(?:with|using|for|containing|that\s+uses?)\s+["“']?(.+?)["”']?\s*[?!.]*$/i);
 
 const SELF_RE =
-  /^(?:who are you|what are you|what['’]?s your name|what is your name|who is nii obodai|what can you do|introduce yourself|tell me about yourself)\b/i;
+  /^(?:who are you|what are you|what['’]?s your name|what is your name|who is nii obodai|what does nii obodai mean|what is nii obodai|meaning of nii obodai|what can you do|introduce yourself|tell me about yourself)\b/i;
+
+// FIX 1 — learn-intent branch (applied to the query with trailing punctuation stripped).
+const LEARN_RE =
+  /^(?:teach\s+me\s+(?:ga|the\s+ga\s+language)|i\s+want\s+to\s+learn\s+ga|i\s+am\s+learning\s+ga|help\s+me\s+learn\s+ga|where\s+do\s+i\s+start|how\s+do\s+i\s+(?:learn|start\s+learning)\s+ga)\b/i;
+
+// FIX 4 — "how to pronounce X" / "pronunciation of X".
+const pronounceAsk = (q) =>
+  q.match(/\bhow\s+(?:do\s+(?:you|i|we)\s+|to\s+|can\s+i\s+)?pronounce\s+["“']?(.+?)["”']?\s*(?:in\s+ga(?:\s+language)?)?\s*[?!.]*$/i) ||
+  q.match(/\bpronunciation\s+of\s+["“']?(.+?)["”']?\s*(?:in\s+ga(?:\s+language)?)?\s*[?!.]*$/i);
+
+// FIX 5 — "is X a bad/good/rude … word" meta questions.
+const metaAsk = (q) =>
+  q.match(/^is\s+["“']?(.+?)["”']?\s+(?:a\s+|an\s+)?(bad|good|rude|offensive|polite|positive|negative|strong|swear|slang)\b/i);
+
+const stripped = (q) => q.trim().replace(/[?!.]+$/, "");
 
 const diffAsk = (q) =>
   q.match(/(?:difference|distinction|contrast)(?:\s+between)?\s+["“']?(.+?)["”']?\s+(?:and|vs\.?|versus)\s+["“']?(.+?)["”']?\s*(?:in\s+ga)?[?!.\s]*$/i) ||
@@ -124,6 +139,31 @@ const matchCases = [
   ["difference between efɔŋ and gbonyo", diffAsk, true],
   ["efɔŋ vs gbonyo", diffAsk, true],
   ["what is the difference between fɔŋ and efɔŋ", diffAsk, true],
+  // FIX 1 — learn-intent branch.
+  ["teach me ga", (q) => stripped(q).match(LEARN_RE), true],
+  ["i want to learn ga", (q) => stripped(q).match(LEARN_RE), true],
+  // FIX 3 — Nii Obodai meaning questions extend the self branch.
+  ["what does nii obodai mean", (q) => stripped(q).match(SELF_RE), true],
+  // FIX 4 — pronunciation asks.
+  ["how to pronounce enyɔ", pronounceAsk, true],
+  ["how do you pronounce enyɔ", pronounceAsk, true],
+  ["pronunciation of enyɔ", pronounceAsk, true],
+  // FIX 5 — register/judgement meta questions.
+  ["is gbonyo a bad word", metaAsk, true],
+  ["is efɔŋ rude", metaAsk, true],
+  // FIX 2 is data-dependent (coverage gate, not a matcher) — just verify the
+  // query isn't stolen by any of the new/existing deterministic regexes.
+  [
+    "how old is the ga language",
+    (q) =>
+      stripped(q).match(LEARN_RE) ||
+      stripped(q).match(SELF_RE) ||
+      diffAsk(q) ||
+      sentenceAsk(q) ||
+      pronounceAsk(q) ||
+      metaAsk(q),
+    false,
+  ],
 ];
 
 let pass = 0, fail = 0;

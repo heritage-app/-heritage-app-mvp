@@ -414,12 +414,30 @@ async function* askGeneral(
 
   // --- Self-referential questions about Nii Obodai: answered directly so
   // they can never reach retrieval or the knowledge-gap flow. ---
+  const selfStripped = query.trim().replace(/[?!.]+$/, "");
+  const NII_MEANING_RE =
+    /what does nii obodai mean|what is nii obodai|meaning of nii obodai/i;
   if (
-    /^(?:who are you|what are you|what['’]?s your name|what is your name|who is nii obodai|what can you do|introduce yourself|tell me about yourself)\b/i.test(
-      query.trim().replace(/[?!.]+$/, "")
+    /^(?:who are you|what are you|what['’]?s your name|what is your name|who is nii obodai|what does nii obodai mean|what is nii obodai|meaning of nii obodai|what can you do|introduce yourself|tell me about yourself)\b/i.test(
+      selfStripped
     )
   ) {
-    yield "Atsɛɔ mi **Nii Obodai** — your Ga guide. I answer Ga words, phrases, Bible verses, stories and culture from an archive people have checked — and when I don't know something, you can teach me.";
+    yield NII_MEANING_RE.test(selfStripped)
+      ? "**Nii** is a Ga honorific for a man — seniority or lineage. **Obodai** is a name; together Nii Obodai is the name your Ga guide answers to."
+      : "Atsɛɔ mi **Nii Obodai** — your Ga guide. I answer Ga words, phrases, Bible verses, stories and culture from an archive people have checked — and when I don't know something, you can teach me.";
+    return;
+  }
+
+  // --- Learn-intent ("teach me ga", "i want to learn ga"): answered with
+  // concrete next steps. Fires before the dictionary path on purpose — "i am
+  // learning ga" is itself a verified entry, but the ask here is the intent,
+  // not the phrase. ---
+  if (
+    /^(?:teach\s+me\s+(?:ga|the\s+ga\s+language)|i\s+want\s+to\s+learn\s+ga|i\s+am\s+learning\s+ga|help\s+me\s+learn\s+ga|where\s+do\s+i\s+start|how\s+do\s+i\s+(?:learn|start\s+learning)\s+ga)\b/i.test(
+      selfStripped
+    )
+  ) {
+    yield "Let's begin. Greetings first: **Ojekoo** (good morning), **Oshwiee** (good afternoon), **M'naokoo** (good evening). Ask me: \"days of the week\", \"colours in ga\", \"count 1 to 10\", or \"use mi in a sentence\" — and I'll answer from the archive.";
     return;
   }
 
@@ -478,6 +496,23 @@ async function* askGeneral(
     .map((m) => m[0])
     .filter((w) => w.length > 1 && !stop.has(w) && !nearStop(w) && !/^\d+$/.test(w)
       && !w.split("-").every((p) => numWordSet.has(p)));
+
+  // Coverage gate for English-side phrase-pair hits. A query built only from
+  // question-framing words ("how old is the ga language") overlaps every
+  // "how old are you?" entry without meaning it — with no content words any
+  // English-side hit is coincidence, and with 3+ the record's English-or-Ga
+  // tokens must cover at least 60% of them. Below that the whole-word match
+  // gates are already strict enough. ("old"/"new"/"its" are framing here.)
+  const coverStop = new Set([...stop, "old", "new", "its"]);
+  const coverWords = norm(query).split(" ").filter((w) => w && !coverStop.has(w));
+  const coversQuery = (eng: string, ga: string): boolean => {
+    if (!coverWords.length) return false;
+    if (coverWords.length < 3) return true;
+    const have = new Set(
+      [...norm(eng).split(" "), ...norm(ga).split(" ")].filter(Boolean)
+    );
+    return coverWords.filter((w) => have.has(w)).length >= Math.ceil(coverWords.length * 0.6);
+  };
 
   // --- Number translation: fire only when a number is the actual subject (no other
   // content words), so "21 in Ga" works but "1 Samuel" / "21st May" don't misfire. ---
@@ -826,6 +861,99 @@ async function* askGeneral(
           return;
         }
       } catch (e) { console.warn("[ask] difference lookup failed, falling through:", e); }
+    }
+  }
+
+  // Verified-vocabulary lookup shared by the pronunciation and
+  // "is X a bad word" branches: a headword match wins, then an exact
+  // English translation/meaning.
+  const lookupVerified = async (
+    term: string
+  ): Promise<{ ga: string; gloss: string; spellings: string[] } | null> => {
+    const f = foldGa(norm(term));
+    const n = norm(term);
+    if (!f || !n) return null;
+    try {
+      const res = await env.DB.prepare(
+        `SELECT headword, headword_normalized, translations, meanings, variants FROM vocabulary
+         WHERE (headword_normalized = ? OR translations LIKE ? OR meanings LIKE ?)
+           AND source IS NOT NULL AND TRIM(source) <> ''
+           AND verified_at IS NOT NULL AND TRIM(verified_at) <> ''
+         ORDER BY LENGTH(translations) ASC LIMIT 20`
+      ).bind(f, `%${n}%`, `%${n}%`).all<{
+        headword: string; headword_normalized: string;
+        translations: string; meanings: string; variants: string;
+      }>();
+      const jArr = (s: string): string[] => {
+        try {
+          const v = JSON.parse(s || "[]");
+          return Array.isArray(v) ? v.map(String) : [];
+        } catch { return []; }
+      };
+      let byTrans: { ga: string; gloss: string; spellings: string[] } | null = null;
+      for (const r of res.results ?? []) {
+        const ts = jArr(r.translations);
+        const ms = jArr(r.meanings);
+        if ((r.headword_normalized ?? "").trim() === f) {
+          return {
+            ga: r.headword,
+            gloss: ts.slice(0, 3).join("; ") || ms[0] || term,
+            spellings: jArr(r.variants).filter(Boolean),
+          };
+        }
+        const exactT = [...ts, ...ms].find((t) => norm(t) === n);
+        if (!byTrans && exactT) {
+          byTrans = { ga: r.headword, gloss: exactT, spellings: jArr(r.variants).filter(Boolean) };
+        }
+      }
+      return byTrans;
+    } catch (e) {
+      console.warn("[ask] verified lookup failed:", e);
+      return null;
+    }
+  };
+
+  // --- "How to pronounce X" / "pronunciation of X": the archive holds no
+  // audio, but the verified entry is still worth showing — answer with the
+  // headword, its gloss, and the Ga letter guide. Unknown terms fall through
+  // to the normal lookup. ---
+  const pronounceMatch =
+    query.match(/\bhow\s+(?:do\s+(?:you|i|we)\s+|to\s+|can\s+i\s+)?pronounce\s+["“']?(.+?)["”']?\s*(?:in\s+ga(?:\s+language)?)?\s*[?!.]*$/i) ||
+    query.match(/\bpronunciation\s+of\s+["“']?(.+?)["”']?\s*(?:in\s+ga(?:\s+language)?)?\s*[?!.]*$/i);
+  if (pronounceMatch?.[1]) {
+    const pTerm = pronounceMatch[1]
+      .trim()
+      .replace(/^(?:the\s+)?(?:word|phrase|term)\s+/i, "")
+      .trim();
+    const pHit = pTerm ? await lookupVerified(pTerm) : null;
+    if (pHit) {
+      yield `**${pHit.ga}** — “${pHit.gloss}”.` +
+        (pHit.spellings.length ? ` *(also spelled: ${pHit.spellings.join(", ")})*` : "") +
+        ` — Pronunciation/audio isn't in the archive yet; the letter guide: ɛ = 'eh', ɔ = 'aw', ŋ = 'ng', ã/ɛ̃/ɔ̃ nasal.`;
+      return;
+    }
+  }
+
+  // --- "Is X a bad/good/rude word": a meta question about a headword's
+  // register. Answer with the verified gloss, then say whether the gloss
+  // itself carries the asked judgement. Unknown terms fall through. ---
+  const metaAsk = query.match(
+    /^is\s+["“']?(.+?)["”']?\s+(?:a\s+|an\s+)?(bad|good|rude|offensive|polite|positive|negative|strong|swear|slang)\b/i
+  );
+  if (metaAsk?.[1]) {
+    const mTerm = metaAsk[1]
+      .trim()
+      .replace(/^(?:the\s+)?(?:word|phrase|term)\s+/i, "")
+      .trim();
+    const mHit = mTerm ? await lookupVerified(mTerm) : null;
+    if (mHit) {
+      const adj = norm(metaAsk[2] ?? "");
+      const agrees =
+        adj.length >= 3 && norm(mHit.gloss).split(" ").some((w) => w === adj);
+      yield `**${mHit.ga}** — “${mHit.gloss}”` +
+        (mHit.spellings.length ? ` *(also spelled: ${mHit.spellings.join(", ")})*` : "") +
+        `.\n${agrees ? "So yes — that's part of its meaning." : "Its gloss says nothing about that."}`;
+      return;
     }
   }
 
@@ -1188,6 +1316,11 @@ async function* askGeneral(
           } else if (inMean) {
             hit = { ga: row.headword, eng: inMean, gaSide: false, rank: 4 };
           }
+          // An English-side hit whose tokens don't cover the query's content
+          // words is a framing coincidence ("how old is the ga language" ~
+          // "how old are you?") — reject it like a non-match. Whole-query
+          // exact hits (rank < 1) are exempt: the query IS the entry.
+          if (hit && !hit.gaSide && hit.rank >= 1 && !coversQuery(hit.eng, hit.ga)) hit = null;
           if (hit && (!bestHit || hit.rank < bestHit.rank)) bestHit = hit;
           if (bestHit?.rank === 0) break;
         }
@@ -1343,6 +1476,25 @@ async function* askGeneral(
     }
   };
 
+  // A record with no Ga side is a bare English note — print it as a plain
+  // sentence, not a labelled "English:" line — and don't print the same line
+  // twice. (A bare "does ga have tones" once surfaced as two raw "English: …"
+  // lines.)
+  const seenPairLines = new Set<string>();
+  const pushPairLines = (lines: string[], ga: string, english: string) => {
+    const g = modernizeGa(String(ga ?? "").trim());
+    const e = String(english ?? "").trim();
+    const out = g && e
+      ? [`**Ga:** ${g}`, `**English:** ${e}`]
+      : g ? [`**Ga:** ${g}`] : e ? [e] : [];
+    for (const l of out) {
+      const k = norm(l.replace(/\*\*/g, ""));
+      if (k && seenPairLines.has(k)) continue;
+      if (k) seenPairLines.add(k);
+      lines.push(l);
+    }
+  };
+
   const phraseTopK = Math.max(topK, 20);
   const complexity = analyzeQueryComplexity(query);
   const dynamicTopK = complexity === 'high' ? 25 : complexity === 'medium' ? 15 : phraseTopK;
@@ -1421,7 +1573,8 @@ async function* askGeneral(
         if (fresh.length) {
           const lines = ["Here is more of the story:\n"];
           for (const n of fresh) {
-            lines.push(`**Ga:** ${modernizeGa(String(n.metadata.ga ?? ""))}`, `**English:** ${n.metadata.english}`, "");
+            pushPairLines(lines, String(n.metadata.ga ?? ""), String(n.metadata.english ?? ""));
+            lines.push("");
           }
           yield lines.join("\n");
           return;
@@ -1521,7 +1674,8 @@ async function* askGeneral(
         const title = String(grp[0].metadata?.title ?? "").trim();
         lines.push(title ? `Here is a Ga story from *${title}*:\n` : "Here is a Ga story:\n");
         for (const n of grp) {
-          lines.push(`**Ga:** ${modernizeGa(String(n.metadata.ga ?? ""))}`, `**English:** ${n.metadata.english}`, "");
+          pushPairLines(lines, String(n.metadata.ga ?? ""), String(n.metadata.english ?? ""));
+          lines.push("");
         }
       } else {
         // Poem/song: prefer complete "(full)" records, else the top-scored pair.
@@ -1537,7 +1691,7 @@ async function* askGeneral(
         const m = node.metadata as Record<string, any>;
         const title = String(m.title ?? "").replace(/\s*\((?:[^)]*,\s*)?full\)\s*/i, "").trim();
         lines.push(title ? `Here is *${title}*:\n` : `Here is a Ga ${browseIntent.kind}:\n`);
-        lines.push(`**Ga:** ${modernizeGa(String(m.ga ?? ""))}`, `**English:** ${m.english}`);
+        pushPairLines(lines, String(m.ga ?? ""), String(m.english ?? ""));
         if (m.note) lines.push(`\n*${String(m.note).slice(0, 200)}*`);
       }
       yield lines.join("\n");
@@ -1584,8 +1738,13 @@ async function* askGeneral(
     // matched — otherwise one accidental overlap yields a confident non-answer
     // (e.g. "alphabets in Ga" matching the "a" in "I see a rainbow").
     if (queryWords.length > 0 && matchedCount === queryWords.length) {
-      seen.add(key);
-      hits.push({ mc, score: n.score ?? 0, eng, ga, gaSide: mcGa >= mcEn, image: String(n.metadata?.image ?? "") });
+      const gaSide = mcGa >= mcEn;
+      // English-side pair sharing only the question framing ("how old is the
+      // ga language" ~ "how old are you?") is a coincidence — drop the hit.
+      if (gaSide || coversQuery(eng, ga)) {
+        seen.add(key);
+        hits.push({ mc, score: n.score ?? 0, eng, ga, gaSide, image: String(n.metadata?.image ?? "") });
+      }
     }
   }
 
@@ -1654,7 +1813,18 @@ async function* askGeneral(
     await logKnowledgeGap(env, query, 'general', 'Grounding failed - content not in context');
     yield generateLearningNotFoundResponse(query, 'general');
   } else {
-    yield answer;
+    // Records with no Ga side reach the answer as bare "English: …" lines —
+    // print them as plain sentences, and don't repeat near-identical lines.
+    const seenAns = new Set<string>();
+    const tidied: string[] = [];
+    for (const raw of answer.split("\n")) {
+      const line = raw.replace(/^(\s*[-*•]?\s*)\*{0,2}English:\*{0,2}\s+/i, "$1");
+      const k = norm(line.replace(/\*\*/g, ""));
+      if (k && seenAns.has(k)) continue;
+      if (k) seenAns.add(k);
+      tidied.push(line);
+    }
+    yield tidied.join("\n");
   }
 }
 
