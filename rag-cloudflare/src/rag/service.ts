@@ -536,6 +536,164 @@ async function* askGeneral(
   // "tell me a Ga story" asks for a story, not the Ga word for "story" —
   // the dictionary step must not answer it ("In Ga, 'story' is Adesa").
   const asksToTell = /\b(tell|read|recite|sing|share|give|show)\b[\s\S]*\b(stor(?:y|ies)|tales?|folktales?|legends?|poems?|poetry|songs?)\b/i.test(query);
+
+  // --- Lists: "list the months in ga", "colours", "the days of the week",
+  // "name the animals". Named sets are resolved member by member from the
+  // archive and gaps are printed, never skipped; generic topics list the
+  // single-word entries of their category. Thin results fall through. ---
+  const listTopic =
+    (query.match(/\b(?:list|name|enumerate|what\s+are|give\s+me|show\s+me|tell\s+me|all(?:\s+the)?)\s+(?:all\s+|the\s+)?(?:\d+\s+|ga\s+)?(?<topic>months?|days?(?:\s+of\s+the\s+week)?|weekdays|colou?rs|numbers?|numerals|animals|birds|insects|fish(?:es)?|body\s+parts|family(?:\s+(?:members|words|terms))?|foods?|weather(?:\s+words)?|greetings|drinks|pronouns|fruits?)\b/i)?.groups?.topic) ??
+    norm(query.trim().replace(/[?!.]+$/, "").replace(/\s+(?:in|into)\s+ga(?:\s+language)?$/i, ""))
+      .match(/^(?:ga\s+)?(months?|days?(?:\s+of\s+the\s+week)?|weekdays|colou?rs|numbers?|numerals|animals|birds|insects|fish(?:es)?|body\s+parts|family|foods?|weather|greetings|drinks|pronouns|fruits?)$/i)?.[1] ??
+    null;
+  if (
+    !asksToTell && listTopic &&
+    !/\bin\s+a\s+sentence\b/i.test(query) &&
+    !/^\s*(?:how\s+do\s+you\s+say|what\s+is\s+the\s+ga\s+for|translate)\b/i.test(query)
+  ) {
+    const tw = norm(listTopic).replace(/\s+of\s+the\s+week$/, "");
+    const key =
+      /^month/.test(tw) ? "months" :
+      /^day|^weekday/.test(tw) ? "days" :
+      /^colo/.test(tw) ? "colours" :
+      /^num/.test(tw) ? "numbers" :
+      /^bod/.test(tw) ? "body" :
+      /^famil/.test(tw) ? "family" :
+      /^food/.test(tw) ? "food" :
+      /^weather/.test(tw) ? "weather" :
+      /^fruit/.test(tw) ? "fruits" :
+      /^fish/.test(tw) ? "fish" :
+      /^drink/.test(tw) ? "drinks" :
+      /^pronoun/.test(tw) ? "pronouns" :
+      /^greet/.test(tw) ? "greetings" :
+      /^insect/.test(tw) ? "insects" :
+      /^bird/.test(tw) ? "birds" :
+      /^animal/.test(tw) ? "animals" : null;
+    const LISTS: Record<string, { title: string; members?: string[]; cats: string[]; htopics: string[] }> = {
+      months: { title: "The months of the year in Ga (nyɔji)", cats: ["months"], htopics: ["months"],
+        members: ["january","february","march","april","may","june","july","august","september","october","november","december"] },
+      days: { title: "The days of the week in Ga", cats: ["days","phrase","time"], htopics: ["days"],
+        members: ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"] },
+      colours: { title: "Colours in Ga", cats: ["colours"], htopics: ["colours"],
+        members: ["black","white","red","green","blue","yellow","brown","grey"] },
+      numbers: { title: "Numbers 1 to 10 in Ga", cats: ["number"], htopics: ["numerals","numbers"] },
+      animals: { title: "Animals in Ga", cats: ["animals"], htopics: ["animals"] },
+      birds: { title: "Birds in Ga", cats: ["birds"], htopics: ["birds"] },
+      insects: { title: "Insects in Ga", cats: ["insects"], htopics: ["insects"] },
+      fish: { title: "Fish in Ga", cats: ["fish"], htopics: ["fish"] },
+      body: { title: "Body parts in Ga", cats: ["body"], htopics: ["body"] },
+      family: { title: "Family in Ga", cats: ["family"], htopics: ["family"] },
+      food: { title: "Food in Ga", cats: ["food"], htopics: ["food"] },
+      weather: { title: "Weather in Ga", cats: ["weather"], htopics: ["weather"] },
+      greetings: { title: "Greetings in Ga", cats: ["greeting"], htopics: ["greetings"] },
+      drinks: { title: "Drinks in Ga", cats: ["food"], htopics: ["drinks"] },
+      pronouns: { title: "Pronouns in Ga", cats: [], htopics: ["pronouns"] },
+      fruits: { title: "Fruits in Ga", cats: ["food"], htopics: ["fruits","food"] },
+    };
+    const spec = key ? LISTS[key] : null;
+    if (spec) {
+      try {
+        const jList = (s: string | null | undefined): string[] => {
+          try { const v = JSON.parse(s ?? "[]"); return Array.isArray(v) ? v.map(String) : []; } catch { return []; }
+        };
+        const gaToks = (s: string) => foldGa(s).match(/[\p{L}\p{N}'-]+/gu) ?? [];
+        const glosses = (r: Record<string, any>) => [...jList(r.translations), ...jList(r.meanings)];
+        const members = spec.members ?? [];
+        const conds: string[] = [];
+        const binds: string[] = [];
+        if (spec.cats.length) {
+          conds.push(`category IN (${spec.cats.map(() => "?").join(",")})`);
+          binds.push(...spec.cats);
+        }
+        if (members.length) {
+          conds.push(members.map(() => "(translations LIKE ? OR meanings LIKE ?)").join(" OR "));
+          binds.push(...members.flatMap((m) => [`%${m}%`, `%${m}%`]));
+        }
+        let vRows: Record<string, any>[] = [];
+        if (conds.length) {
+          const vr = await env.DB.prepare(
+            `SELECT headword, headword_normalized, translations, meanings FROM vocabulary
+             WHERE (${conds.map((c) => `(${c})`).join(" OR ")})
+               AND source IS NOT NULL AND TRIM(source) <> ''
+               AND verified_at IS NOT NULL AND TRIM(verified_at) <> ''
+             ORDER BY LENGTH(headword_normalized) ASC LIMIT 300`
+          ).bind(...binds).all<Record<string, any>>();
+          vRows = vr.results ?? [];
+        }
+        let recs: Record<string, any>[] | null = null;
+        const getRecs = async () => (recs ??= await readHeritageRecords());
+        const pushGa = (list: string[], seen: Set<string>, ga: string) => {
+          const f = foldGa(ga);
+          if (ga && !seen.has(f)) { seen.add(f); list.push(ga); }
+        };
+
+        let rows: string[] = [];
+        let tail = "";
+        if (key === "numbers") {
+          rows = Array.from({ length: 10 }, (_, i) => `| **${i + 1}** | **${cap(numToGa(i + 1))}** |`);
+          tail = "Ask for any number up to 999, or “count from 11 to 20”.";
+        } else if (members.length) {
+          for (const m of members) {
+            const gas: string[] = [];
+            const seen = new Set<string>();
+            for (const r of vRows) {
+              if (gaToks(String(r.headword ?? "")).length !== 1) continue;
+              if (glosses(r).some((g) => norm(g) === m)) pushGa(gas, seen, String(r.headword));
+            }
+            if (!gas.length) {
+              const hrs = (await getRecs()).filter((r) => {
+                const tn = gaToks(String(r.ga ?? "")).length;
+                return tn >= 1 && tn <= 2 && norm(String(r.english ?? "")) === m;
+              });
+              hrs.sort((a, b) => Number(spec.htopics.includes(norm(String(b.topic ?? "")))) - Number(spec.htopics.includes(norm(String(a.topic ?? "")))));
+              for (const r of hrs) pushGa(gas, seen, modernizeGa(String(r.ga ?? "").trim()));
+            }
+            rows.push(`| ${cap(m)} | ${gas.length ? gas.map((g) => `**${g}**`).join(" / ") : "— (not in the archive yet)"} |`);
+          }
+          if (key === "months") tail = "Traditionally the Ga year began with **Gbo** (September). Ask about any month for its meaning.";
+        } else {
+          const seenGa = new Set<string>();
+          const items: { en: string; ga: string }[] = [];
+          for (const r of vRows) {
+            const hw = String(r.headword ?? "").trim();
+            const tn = gaToks(hw).length;
+            if (tn < 1 || tn > 2) continue;
+            const f = foldGa(hw);
+            if (seenGa.has(f)) continue;
+            seenGa.add(f);
+            items.push({ en: glosses(r)[0] ?? "", ga: hw });
+          }
+          items.sort((a, b) => a.en.localeCompare(b.en));
+          if (items.length < 5) {
+            for (const r of await getRecs()) {
+              if (!spec.htopics.includes(norm(String(r.topic ?? "")))) continue;
+              const ga = modernizeGa(String(r.ga ?? "").trim());
+              const tn = gaToks(ga).length;
+              if (tn < 1 || tn > 2) continue;
+              const f = foldGa(ga);
+              const en = String(r.english ?? "").trim();
+              if (seenGa.has(f) || !en) continue;
+              seenGa.add(f);
+              items.push({ en, ga });
+            }
+            items.sort((a, b) => a.en.localeCompare(b.en));
+          }
+          const shown = items.slice(0, 30);
+          if (shown.length >= 3) {
+            rows = shown.map((it) => `| ${cap(it.en)} | **${it.ga}** |`);
+            tail = "Ask about any of these for more, or say “use X in a sentence”.";
+          }
+        }
+        if (rows.length) {
+          yield `**${spec.title}**\n\n| English | Ga |\n| :--- | :--- |\n${rows.join("\n")}${tail ? `\n\n${tail}` : ""}`;
+          return;
+        }
+      } catch (e) {
+        console.warn("[ask] list handler failed, falling through:", e);
+      }
+    }
+  }
+
   // "X in a sentence" wants an example, not the bare translation. Accepts
   // "use X in a sentence", "the word X in a sentence", "make a sentence
   // with X", "give me a sentence using X".
@@ -706,7 +864,15 @@ async function* askGeneral(
           };
           const gaHits: Record<string, any>[] = [];
           const enHits: Record<string, any>[] = [];
+          // A usage example needs at least two Ga tokens and can't be the bare
+          // headword itself — "Tsatsu — 'ant'" is the entry, not a sentence.
+          const exactFolds = new Set(exacts.map((e) => foldGa(e.ga)));
+          const isSent = (ga: string) => {
+            const f = foldGa(ga);
+            return (f.match(/[\p{L}\p{N}'-]+/gu) ?? []).length >= 2 && !exactFolds.has(f);
+          };
           for (const rec of recs) {
+            if (!isSent(String(rec.ga ?? ""))) continue;
             if (usesPrimary(String(rec.ga ?? ""))) gaHits.push(rec);
             else if (glossKeys.length && norm(String(rec.english ?? "")).split(" ").some((w) => glossKeys.includes(w))) enHits.push(rec);
           }
@@ -719,7 +885,7 @@ async function* askGeneral(
                 "SELECT ga, en AS english FROM bible_verses WHERE ga LIKE ? OR ga LIKE ? LIMIT 12"
               ).bind(`%${needleS}%`, `%${foldedS}%`).all<{ ga: string; english: string }>();
               for (const r of bRes.results ?? []) {
-                if (usesPrimary(String(r.ga))) gaHits.push(r as Record<string, any>);
+                if (isSent(String(r.ga)) && usesPrimary(String(r.ga))) gaHits.push(r as Record<string, any>);
               }
             } catch { /* verse probe is best-effort */ }
           }
