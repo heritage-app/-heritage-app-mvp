@@ -21,7 +21,7 @@ const docs = await (await fetch(`${API}/api/v1/admin/documents`, {
   headers: { Authorization: `Bearer ${token}` },
 })).json();
 const pending = (docs.documents ?? [])
-  .filter((d) => /corpus/.test(d.public_url ?? "") && d.status !== "indexed")
+  .filter((d) => /corpus|parallel/.test(d.public_url ?? "") && d.status !== "indexed")
   .map((d) => d.public_url);
 console.log("pending files:", pending.length);
 
