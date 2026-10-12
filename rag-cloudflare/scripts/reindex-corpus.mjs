@@ -20,8 +20,12 @@ console.log("login ok");
 const docs = await (await fetch(`${API}/api/v1/admin/documents`, {
   headers: { Authorization: `Bearer ${token}` },
 })).json();
+// Optional argv pattern forces reindex of every matching doc regardless of
+// status — the upload's background indexer can mark files 'indexed' without
+// having embedded all their records.
+const PATTERN = process.argv[2] ? new RegExp(process.argv[2]) : /corpus|parallel|farmer-qa/;
 const pending = (docs.documents ?? [])
-  .filter((d) => /corpus|parallel/.test(d.public_url ?? "") && d.status !== "indexed")
+  .filter((d) => PATTERN.test(d.public_url ?? "") && (process.argv[2] ? true : d.status !== "indexed"))
   .map((d) => d.public_url);
 console.log("pending files:", pending.length);
 

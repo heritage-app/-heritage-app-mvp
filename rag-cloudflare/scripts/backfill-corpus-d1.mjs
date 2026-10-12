@@ -7,7 +7,7 @@
 import { readdirSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 
 const FILES = readdirSync("datasets").filter(
-  (f) => f.startsWith("ga-corpus-") || f === "ga-parallel-text.jsonl"
+  (f) => f.startsWith("ga-corpus-") || f.startsWith("ga-farmer-qa-") || f === "ga-parallel-text.jsonl"
 );
 
 // foldGa() without modernizeGa — these corpora carry no legacy-orthography
