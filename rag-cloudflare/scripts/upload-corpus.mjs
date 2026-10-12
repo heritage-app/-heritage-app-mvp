@@ -4,7 +4,7 @@
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 
-const BASE = "https://heritage-admin.heritage-app.workers.dev";
+const BASE = "https://api.speakga.org";
 const EMAIL = "corpus-ingest@speakga.local";
 const PASSWORD = process.env.HERITAGE_ADMIN_PASSWORD;
 

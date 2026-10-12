@@ -20,7 +20,7 @@ import user from "./routes/user";
 import chat from "./routes/chat";
 import conversations from "./routes/conversations";
 import admin from "./routes/admin";
-import { requireAdmin, requireUser } from "./auth/middleware";
+import { requireAdmin, requireUser, API_HOST } from "./auth/middleware";
 import { handleGetAttachment } from "./routes/attachments";
 import { handleSuggestions } from "./routes/suggestions";
 import { handleLearningInsights, handleUserContribution, handleAdminInsights } from "./routes/learning";
@@ -50,6 +50,18 @@ app.use("*", async (c, next) => {
     allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["X-Conversation-Id", "X-Interaction-Id"],
   })(c, next);
+});
+
+// api.speakga.org is the API alone — for scripts, a future mobile app and
+// partners, using Bearer tokens. The app and the admin console keep calling
+// /api on their own address (same-origin cookies, no preflight). Anything that
+// isn't the API on this host goes to the app.
+app.use("*", async (c, next) => {
+  const url = new URL(c.req.url);
+  if (url.hostname === API_HOST && !url.pathname.startsWith("/api/") && url.pathname !== "/robots.txt") {
+    return c.redirect(`https://app.speakga.org${url.pathname === "/" ? "/" : url.pathname}${url.search}`, 301);
+  }
+  await next();
 });
 
 // Provision the super admin once per isolate (no-op unless configured).

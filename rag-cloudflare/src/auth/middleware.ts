@@ -12,6 +12,13 @@ import { getUserById } from "../db/users";
 type AppEnv = { Bindings: Env; Variables: Variables };
 
 export const ADMIN_CONSOLE_URL = "https://admin.speakga.org";
+/** The API's own address (token clients: scripts, mobile, partners). */
+export const API_HOST = "api.speakga.org";
+
+/** api.speakga.org: not the app, so admin accounts may sign in (scripts). */
+export function fromApiHost(c: Context): boolean {
+  try { return new URL(c.req.url).hostname === API_HOST; } catch { return false; }
+}
 
 /** The admin console is its own site; it reaches this worker through a
  *  service binding and its requests keep the console's host name

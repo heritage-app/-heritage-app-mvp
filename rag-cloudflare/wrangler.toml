@@ -10,6 +10,8 @@ routes = [
   { pattern = "app.speakga.org", custom_domain = true },
   { pattern = "speakga.org", custom_domain = true },
   { pattern = "www.speakga.org", custom_domain = true },
+  # The API alone, for token clients (scripts, mobile, partners); see src/index.ts.
+  { pattern = "api.speakga.org", custom_domain = true },
 ]
 # Keep heritage-rag.heritage-app.workers.dev serving too: Wrangler turns it off once
 # routes exist, and the admin console and older links still use that address.

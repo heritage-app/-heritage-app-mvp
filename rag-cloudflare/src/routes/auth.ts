@@ -6,7 +6,7 @@ import type { Env, Variables } from "../types";
 import { getUserByEmail, createUser } from "../db/users";
 import { verifyPassword } from "../auth/password";
 import { createAccessToken, buildAuthCookie, clearAuthCookie } from "../auth/jwt";
-import { requireUser, optionalUser, fromAdminConsole, ADMIN_CONSOLE_URL } from "../auth/middleware";
+import { requireUser, optionalUser, fromAdminConsole, fromApiHost, ADMIN_CONSOLE_URL } from "../auth/middleware";
 import { getTokenFromRequest } from "../auth/jwt";
 import google, { googleEnabled } from "./google";
 
@@ -56,7 +56,8 @@ app.post("/login", async (c) => {
   // Admins use the console; everyone else uses the app. Checked after the
   // password so the answer reveals nothing about an address to a stranger.
   const console_ = fromAdminConsole(c);
-  if (user.role === "admin" && !console_) {
+  // api.speakga.org is for token clients (scripts), not the app: admins may sign in there.
+  if (user.role === "admin" && !console_ && !fromApiHost(c)) {
     return c.json({ detail: "Admin accounts sign in to the admin console.", admin_console: `${ADMIN_CONSOLE_URL}/auth` }, 403);
   }
   if (user.role !== "admin" && console_) {

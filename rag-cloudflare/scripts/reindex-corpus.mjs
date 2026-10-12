@@ -1,7 +1,7 @@
 // Drive /admin/reindex through each corpus file in rec_limit pages.
 // Vector ids are deterministic (file:rec:N), so re-embedding is idempotent.
 // Usage: node scripts/reindex-corpus.mjs
-const BASE = "https://heritage-admin.heritage-app.workers.dev";
+const BASE = "https://api.speakga.org";
 const API = "https://heritage-rag.heritage-app.workers.dev";
 const EMAIL = "corpus-ingest@speakga.local";
 const PASSWORD = process.env.HERITAGE_ADMIN_PASSWORD;
