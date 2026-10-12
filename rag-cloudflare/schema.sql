@@ -79,3 +79,19 @@ CREATE TABLE IF NOT EXISTS bible_verses (
   created_at            TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_verses_lookup ON bible_verses(book, chapter_num, verse_num);
+
+-- Lexical backstop for the bulk sentence corpus. Semantic (Vectorize)
+-- recall is weak for proper nouns, rare bigrams, and Ga-side queries —
+-- this table gives the phrase-pair matcher exact-word recall over the
+-- same records via LIKE probes. en_norm/ga_norm are lowercase/folded
+-- (ŋ→n, ɛ→e, ɔ→o, combining marks stripped) so a typed n/e/o matches.
+-- Populated by scripts/backfill-corpus-d1.mjs — re-run it after any new
+-- corpus upload.
+CREATE TABLE IF NOT EXISTS corpus_pairs (
+  id        INTEGER PRIMARY KEY AUTOINCREMENT,
+  english   TEXT NOT NULL,
+  ga        TEXT NOT NULL,
+  en_norm   TEXT NOT NULL,
+  ga_norm   TEXT NOT NULL,
+  src       TEXT
+);

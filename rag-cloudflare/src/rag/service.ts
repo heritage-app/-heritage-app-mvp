@@ -460,7 +460,7 @@ async function* askGeneral(
 
   // Tokens that don't count as "content" when deciding what the query is about.
   const stop = new Set([
-    "in", "ga", "the", "a", "an", "is", "are", "what", "how", "do", "does", "you",
+    "in", "into", "ga", "the", "a", "an", "is", "are", "what", "how", "do", "does", "you",
     "say", "said", "tell", "me", "to", "of", "for", "your", "my", "i", "we", "they",
     "translate", "translation", "number", "numeral", "count", "spell", "word",
     "mean", "means", "meaning", "language", "english", "version",
@@ -1607,15 +1607,27 @@ async function* askGeneral(
     ? `${browseIntent.kind} ${queryWords.filter((w) => !INTENT_WORDS.has(w)).join(" ")}`.trim()
     : query;
 
-  // Use intelligent retrieval with expansion. Three sources run in parallel:
+  // Use intelligent retrieval with expansion. Four sources run in parallel:
   // the full pool, a curated-only vector pass (the bulk corpus must not
   // crowd the curated archive out — a corpus sentence containing "needle"
-  // can outscore the Abui definition for "needle symbol"), and the curated
-  // JSONL records themselves. The hit matcher below is lexical, so every
-  // curated pair is a candidate: a definitional record whose long gloss
-  // dilutes its own embedding ("needle — a samai symbol warning against
-  // anger…") can fall outside ANY vector top-K and still answer correctly.
-  const [{ nodes: expandedNodes }, { nodes: curatedNodes }, heritageRecs] = await Promise.all([
+  // can outscore the Abui definition for "needle symbol"), the curated
+  // JSONL records themselves, and a D1 LIKE probe over the corpus. The hit
+  // matcher below is lexical, so every curated pair is a candidate and a
+  // rare-term corpus record ("Osei Tutu", "unpaid labor", a Ga sentence)
+  // reaches it even when it ranks below every vector top-K — embeddings
+  // are weak on proper nouns and Ga-side queries.
+  const probeWords = queryWords.slice(0, 6);
+  const corpusProbe =
+    !browseIntent && probeWords.length
+      ? env.DB.prepare(
+          `SELECT english, ga FROM corpus_pairs WHERE ${probeWords
+            .map(() => "(en_norm LIKE ? OR ga_norm LIKE ?)")
+            .join(" AND ")} LIMIT 40`
+        )
+          .bind(...probeWords.flatMap((w) => [`%${w}%`, `%${w}%`]))
+          .all<{ english: string; ga: string }>()
+      : Promise.resolve({ results: [] as { english: string; ga: string }[] });
+  const [{ nodes: expandedNodes }, { nodes: curatedNodes }, heritageRecs, corpusRows] = await Promise.all([
     retrieveWithExpansion(env, probe, {
       // Vectorize max — the hit matcher is lexical, so wider recall only
       // adds candidates; a rare-term record ("Osei Tutu…") sitting at
@@ -1628,6 +1640,7 @@ async function* askGeneral(
       allowedCategories: ["heritage", "stories"],
     }),
     browseIntent ? Promise.resolve([]) : readHeritageRecords(),
+    corpusProbe,
   ]);
   {
     const have = new Set(
@@ -1641,6 +1654,9 @@ async function* askGeneral(
     // the English string, so overlap with retrieved nodes costs nothing.
     for (const rec of heritageRecs) {
       expandedNodes.push({ text: "", score: 0, metadata: { category: "heritage", ...rec } });
+    }
+    for (const r of corpusRows.results ?? []) {
+      expandedNodes.push({ text: "", score: 0, metadata: { category: "corpus", english: r.english, ga: r.ga } });
     }
   }
 
