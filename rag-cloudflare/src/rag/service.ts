@@ -543,11 +543,26 @@ async function* askGeneral(
       const docs = await env.DB.prepare(
         "SELECT unique_path FROM documents WHERE category = 'heritage' AND unique_path LIKE '%.jsonl'"
       ).all<{ unique_path: string }>();
+      // Fetch archive files concurrently, but capped: opening every R2 object
+      // at once trips the runtime's connection limit and the whole scan
+      // silently degrades to zero records.
+      const paths = (docs.results ?? []).map((row) => row.unique_path);
+      const texts: (string | null)[] = [];
+      const CHUNK = 6;
+      for (let i = 0; i < paths.length; i += CHUNK) {
+        texts.push(
+          ...(await Promise.all(
+            paths.slice(i, i + CHUNK).map(async (p) => {
+              const obj = await env.DOCS_BUCKET.get(p);
+              return obj ? obj.text() : null;
+            })
+          ))
+        );
+      }
       const out: Record<string, any>[] = [];
-      for (const row of docs.results ?? []) {
-        const obj = await env.DOCS_BUCKET.get(row.unique_path);
-        if (!obj) continue;
-        for (const line of (await obj.text()).split("\n")) {
+      for (const text of texts) {
+        if (!text) continue;
+        for (const line of text.split("\n")) {
           const t = line.trim();
           if (!t.startsWith("{")) continue;
           try {
@@ -1592,11 +1607,39 @@ async function* askGeneral(
     ? `${browseIntent.kind} ${queryWords.filter((w) => !INTENT_WORDS.has(w)).join(" ")}`.trim()
     : query;
 
-  // Use intelligent retrieval with expansion
-  const { nodes: expandedNodes } = await retrieveWithExpansion(env, probe, {
-    topK: dynamicTopK,
-    allowedCategories: ["heritage", "stories", "corpus"],
-  });
+  // Use intelligent retrieval with expansion. Three sources run in parallel:
+  // the full pool, a curated-only vector pass (the bulk corpus must not
+  // crowd the curated archive out — a corpus sentence containing "needle"
+  // can outscore the Abui definition for "needle symbol"), and the curated
+  // JSONL records themselves. The hit matcher below is lexical, so every
+  // curated pair is a candidate: a definitional record whose long gloss
+  // dilutes its own embedding ("needle — a samai symbol warning against
+  // anger…") can fall outside ANY vector top-K and still answer correctly.
+  const [{ nodes: expandedNodes }, { nodes: curatedNodes }, heritageRecs] = await Promise.all([
+    retrieveWithExpansion(env, probe, {
+      topK: dynamicTopK,
+      allowedCategories: ["heritage", "stories", "corpus"],
+    }),
+    retrieveWithExpansion(env, probe, {
+      topK: 50, // Vectorize max — the lexical matcher below decides, not embeddings
+      allowedCategories: ["heritage", "stories"],
+    }),
+    browseIntent ? Promise.resolve([]) : readHeritageRecords(),
+  ]);
+  {
+    const have = new Set(
+      expandedNodes.map((n) => `${n.metadata?.file_path ?? ""}|${String(n.metadata?.text ?? n.text ?? "").slice(0, 80)}`)
+    );
+    for (const m of curatedNodes) {
+      const k = `${m.metadata?.file_path ?? ""}|${String(m.metadata?.text ?? m.text ?? "").slice(0, 80)}`;
+      if (!have.has(k)) expandedNodes.push(m);
+    }
+    // Curated records carry no file_path/vector text; the hit loop dedupes on
+    // the English string, so overlap with retrieved nodes costs nothing.
+    for (const rec of heritageRecs) {
+      expandedNodes.push({ text: "", score: 0, metadata: { category: "heritage", ...rec } });
+    }
+  }
 
   // Semantic retrieval empty (embedding quota blocked, or unindexed file):
   // scan the heritage JSONL archives in R2 directly so phrase/vocab lookups
@@ -1704,7 +1747,7 @@ async function* askGeneral(
   // Scans below-threshold candidates too: Ga-word queries embed poorly with the
   // English embedding model, but an exact folded word match is the stronger signal. ---
 
-  const hits: Array<{ mc: number; score: number; eng: string; ga: string; gaSide: boolean; image: string }> = [];
+  const hits: Array<{ mc: number; extra: number; def: boolean; score: number; eng: string; ga: string; gaSide: boolean; cat: string; image: string }> = [];
   const seen = new Set<string>();
   // The corpus source keeps typographic spacing ("school .", trailing ")
   // — tidy it for display so quoted sentences read naturally.
@@ -1743,6 +1786,18 @@ async function* askGeneral(
       if (matched) matchedCount++;
     }
     const mc = mcEn + mcGa;
+    // The record's own content words beyond what the query asked for — the
+    // "extra meaning" measure. "i am happy" vs "i am happy that i can
+    // encourage others": 3 of 4 record words are extra, so the sentence is a
+    // usage example, not the translation. A record whose words are exactly
+    // the query's is a true rendering.
+    const engContentSet = new Set(
+      [...engWords].filter((w) => w.length > 1 && !stop.has(w) && !nearStop(w))
+    );
+    const covered = [...engContentSet].filter((e) =>
+      queryWords.some((w) => e === w || isInflection(w, e))
+    ).length;
+    const extra = engContentSet.size - covered;
     // A pair answer is only defensible when EVERY content word in the query
     // matched — otherwise one accidental overlap yields a confident non-answer
     // (e.g. "alphabets in Ga" matching the "a" in "I see a rainbow").
@@ -1752,29 +1807,62 @@ async function* askGeneral(
       // ga language" ~ "how old are you?") is a coincidence — drop the hit.
       if (gaSide || coversQuery(eng, ga)) {
         seen.add(key);
-        hits.push({ mc, score: n.score ?? 0, eng, ga, gaSide, image: String(n.metadata?.image ?? "") });
+        // A definitional record leads with the queried concept ("needle — a
+        // samai symbol…", "vigilance and unity…"), unlike a word that merely
+        // appears mid-sentence ("let us move into the shade"). The shortcut
+        // is reserved for the curated archive — a bulk corpus sentence that
+        // happens to lead with the word ("I am happy that…") is NOT a
+        // definition.
+        const cat = String(n.metadata?.category ?? "");
+        const engToks: string[] = foldGa(eng.toLowerCase()).match(/[\p{L}\p{N}'-]+/gu) ?? [];
+        // The record must LEAD with the queried concept: the first query word
+        // appears within the first two tokens ("needle — a samai symbol…"),
+        // and every query word sits inside a tight window. A curated sentence
+        // like "I need a needle and some thread" has "needle" mid-phrase —
+        // close to the front, but it is a sentence, not a definition.
+        const positions = queryWords.map((w) => engToks.indexOf(w));
+        const leadsEng =
+          positions.every((p) => p >= 0 && p <= queryWords.length + 1) &&
+          Math.min(...positions) <= 1;
+        // Or the record's Ga side IS a typed headword and its English leads
+        // with the rest ("abui symbol" -> ga "Abui", eng "needle — a samai
+        // symbol…"). Ga must be headword-length — a sentence containing the
+        // word is not a definition.
+        const leadsGa =
+          gaWords.size <= 3 &&
+          queryWords.some((w) => gaWords.has(w)) &&
+          queryWords
+            .filter((w) => !gaWords.has(w))
+            .every((w) => {
+              const p = engToks.indexOf(w);
+              return p >= 0 && p <= queryWords.length + 2;
+            });
+        const def =
+          cat !== "corpus" &&
+          queryWords.length > 0 &&
+          (leadsEng || leadsGa);
+        hits.push({ mc, extra, def, score: n.score ?? 0, eng, ga, gaSide, cat, image: String(n.metadata?.image ?? "") });
       }
     }
   }
 
   if (hits.length) {
-    // Prefer more query-word matches; break ties with shorter Ga phrase
-    // (the base term like "Otukwajaŋ" wins over "Otukwajaŋ shishijee mli").
-    hits.sort((a, b) => b.mc - a.mc || a.ga.length - b.ga.length || b.score - a.score);
+    // Prefer more query-word matches; a definitional hit outranks loose ones
+    // with equal coverage; then the TIGHTEST record (fewest extra content
+    // words) — a sentence that says more than was asked is usage, not the
+    // translation. Ga length, then score, break the rest.
+    // Every hit matched ALL query content words — mc only differs by words
+    // counted in both fields — so definitional records outrank before mc.
+    hits.sort((a, b) => Number(b.def) - Number(a.def) || b.mc - a.mc || Number(b.gaSide) - Number(a.gaSide) || a.extra - b.extra || a.ga.length - b.ga.length || b.score - a.score);
     const gaShown = modernizeGa(hits[0].ga);
-    // One or two English words asked for, found only inside a whole sentence
-    // ("shade" in "Let us move into the shade"). Answering "In Ga, 'Let us
-    // move into the shade' is …" reads as if the word itself were known.
-    // Say what we have, and ask for the word itself.
+    const definitional = hits[0].def;
     const engToks = foldGa(hits[0].eng.toLowerCase()).match(/[\p{L}\p{N}'-]+/gu) ?? [];
-    const engContent = engToks.filter((w) => w.length > 1 && !stop.has(w) && !nearStop(w)).length;
-    // A definitional record leads with the queried concept ("needle — a
-    // samai symbol…", "vigilance and unity…"), unlike a word that merely
-    // appears mid-sentence ("let us move into the shade"). Leading-position
-    // matches are the answer itself, not a hedge.
-    const leadWindow = engToks.slice(0, queryWords.length + 3);
-    const definitional = queryWords.length > 0 && queryWords.every((w) => leadWindow.includes(w));
-    if (!hits[0].gaSide && queryWords.length <= 2 && engContent > queryWords.length && !definitional) {
+    // When over ~40% of the record's meaning wasn't asked for, answer with
+    // the "it appears in this phrase" hedge — at ANY query length — rather
+    // than presenting the longer sentence as the translation.
+    const engContentTotal = engToks.filter((w) => w.length > 1 && !stop.has(w) && !nearStop(w)).length;
+    const loose = engContentTotal > 0 && hits[0].extra / engContentTotal > 0.4;
+    if (!hits[0].gaSide && loose && !definitional) {
       const word = cleanEnglish(query);
       await logKnowledgeGap(env, query, "general", "Word only found inside a sentence");
       yield `I don't have a Ga word for “${word}” on its own yet — but it appears in this phrase from the archive:\n\n` +
