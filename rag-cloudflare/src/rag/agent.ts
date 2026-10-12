@@ -234,7 +234,7 @@ async function execTool(env: Env, tc: ToolCall): Promise<ToolResult> {
         const scope = a.scope === "bible" ? "bible" : "heritage";
         const nodes = await retrieveContext(env, String(a.query ?? ""), {
           topK: 6,
-          allowedCategories: scope === "bible" ? ["bible"] : ["stories", "heritage"],
+          allowedCategories: scope === "bible" ? ["bible"] : ["stories", "heritage", "corpus"],
         });
         const relevant = nodes.filter((n) => (n.score ?? 0) >= 0.3).slice(0, 4);
         if (!relevant.length) return EMPTY("NO_MATCH");

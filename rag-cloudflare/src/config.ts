@@ -10,9 +10,9 @@ export const MIN_RELEVANCE_SCORE = 0.3;
 export const MEMORY_WINDOW_SIZE = 10;
 
 /** Logical category for a stored chunk. Maps 1:1 to the old Qdrant collections. */
-export type Category = "bible" | "stories" | "heritage";
+export type Category = "bible" | "stories" | "heritage" | "corpus";
 
-export const CATEGORIES: Category[] = ["bible", "stories", "heritage"];
+export const CATEGORIES: Category[] = ["bible", "stories", "heritage", "corpus"];
 
 /** Old collection name -> category, kept so retrieval intent reads naturally. */
 export const COLLECTION_TO_CATEGORY: Record<string, Category> = {
@@ -24,7 +24,7 @@ export const COLLECTION_TO_CATEGORY: Record<string, Category> = {
 export function getCategory(category: string | null | undefined): Category {
   if (!category) return "heritage";
   const c = category.toLowerCase();
-  if (c === "bible" || c === "stories" || c === "heritage") return c;
+  if (c === "bible" || c === "stories" || c === "heritage" || c === "corpus") return c;
   return "heritage";
 }
 

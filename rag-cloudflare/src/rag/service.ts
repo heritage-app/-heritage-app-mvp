@@ -1532,7 +1532,7 @@ async function* askGeneral(
     try {
       const { nodes: moreNodes } = await retrieveWithExpansion(env, `story ${hint}`.trim(), {
         topK: 40,
-        allowedCategories: ["heritage", "stories"],
+        allowedCategories: ["heritage", "stories", "corpus"],
       });
       // Semantic retrieval may be empty (embeddings quota-blocked) — continue
       // straight from the archive instead of giving up on the story.
@@ -1595,7 +1595,7 @@ async function* askGeneral(
   // Use intelligent retrieval with expansion
   const { nodes: expandedNodes } = await retrieveWithExpansion(env, probe, {
     topK: dynamicTopK,
-    allowedCategories: ["heritage", "stories"],
+    allowedCategories: ["heritage", "stories", "corpus"],
   });
 
   // Semantic retrieval empty (embedding quota blocked, or unindexed file):
