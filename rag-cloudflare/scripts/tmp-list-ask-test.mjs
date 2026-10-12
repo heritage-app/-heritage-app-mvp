@@ -14,7 +14,7 @@ const norm = (s) =>
   foldGa(s.toLowerCase()).replace(/['’]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 
 const LIST_TOPIC_WORDS =
-  "months?(?:\\s+of\\s+the\\s+year)?|days?(?:\\s+of\\s+the\\s+week)?|weekdays|colou?rs|numbers?|numerals|animals|birds|insects|fish(?:es)?|body\\s+parts|family(?:\\s+(?:members|words|terms))?|foods?|weather(?:\\s+words)?|greetings|drinks|pronouns|fruits?";
+  "months?(?:\\s+of\\s+the\\s+year)?|days?(?:\\s+of\\s+the\\s+week)?|weekdays|colou?rs|numbers?|numerals|animals|birds|insects|fish(?:es)?|body\\s+parts|family(?:\\s+(?:members|words|terms))?|foods?|weather(?:\\s+words)?|greetings|drinks|pronouns|fruits?|samai|symbols?";
 // Optional fillers allowed between the list verb and the topic.
 const LIST_FILLER = "(?:all|the|names?|of|things\\s+about)\\s+";
 const LIST_TOPIC_RE = new RegExp(
@@ -54,9 +54,25 @@ const twKey = (t) => {
     (/^insect/.test(tw) && "insects") ||
     (/^bird/.test(tw) && "birds") ||
     (/^animal/.test(tw) && "animals") ||
+    (/^samai|^symb/.test(tw) && "samai") ||
     null
   );
 };
+
+// Mirrors of the other askGeneral matchers (service.ts) — kept in sync so this
+// smoke test exercises the same routing decisions.
+const sentenceAsk = (q) =>
+  q.match(/\b(?:use|put|say)\s+(?:it\s+)?["“']?(.+?)["”']?\s+in\s+a\s+sentence\b/i) ||
+  q.match(/^(?:(?:the\s+)?(?:word|phrase|term)\s+)?["“']?(.+?)["”']?\s+in\s+a\s+sentence\b/i) ||
+  q.match(/\b(?:make|give|show|write|compose|form)\b(?:\s+me)?\s+a\s+sentence\s+(?:with|using|for|containing|that\s+uses?)\s+["“']?(.+?)["”']?\s*[?!.]*$/i);
+
+const SELF_RE =
+  /^(?:who are you|what are you|what['’]?s your name|what is your name|who is nii obodai|what can you do|introduce yourself|tell me about yourself)\b/i;
+
+const diffAsk = (q) =>
+  q.match(/(?:difference|distinction|contrast)(?:\s+between)?\s+["“']?(.+?)["”']?\s+(?:and|vs\.?|versus)\s+["“']?(.+?)["”']?\s*(?:in\s+ga)?[?!.\s]*$/i) ||
+  q.match(/^["“']?(.+?)["”']?\s+(?:vs\.?|versus)\s+["“']?(.+?)["”']?\s*(?:in\s+ga)?[?!.\s]*$/i) ||
+  q.match(/^compare\s+["“']?(.+?)["”']?\s+(?:and|with|to|vs\.?|versus)\s+["“']?(.+?)["”']?\s*(?:in\s+ga)?[?!.\s]*$/i);
 
 // The guard the engine applies on top of a match.
 const blocked = (q) =>
@@ -91,6 +107,23 @@ const cases = [
   ["how many months are there", "months"],
   ["what are the names of the months", "months"],
   ["names of the months", "months"],
+  // FIX F — samai list topic
+  ["list the names of the ga samai", "samai"],
+  ["the ga samai", "samai"],
+  ["symbols in ga", "samai"],
+  // must NOT route as lists
+  ["what is homowo", null],
+  ["use efɔŋ in a sentence", null],
+];
+
+// [query, matcher, should-match] — FIX B/C/D/E routing probes.
+const matchCases = [
+  ["form a sentence using hɛloo", sentenceAsk, true],
+  ["use efɔŋ in a sentence", sentenceAsk, true],
+  ["who are you", (q) => q.match(SELF_RE), true],
+  ["difference between efɔŋ and gbonyo", diffAsk, true],
+  ["efɔŋ vs gbonyo", diffAsk, true],
+  ["what is the difference between fɔŋ and efɔŋ", diffAsk, true],
 ];
 
 let pass = 0, fail = 0;
@@ -101,6 +134,13 @@ for (const [q, want] of cases) {
   if (ok) pass++;
   else fail++;
   console.log(`${ok ? "PASS" : "FAIL"}  ${JSON.stringify(q)}  ->  ${JSON.stringify(got)}  (want ${JSON.stringify(want)}, topic=${JSON.stringify(t)})`);
+}
+for (const [q, matcher, want] of matchCases) {
+  const got = !!matcher(q);
+  const ok = got === want;
+  if (ok) pass++;
+  else fail++;
+  console.log(`${ok ? "PASS" : "FAIL"}  ${JSON.stringify(q)}  ->  matched=${got}  (want ${want})`);
 }
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

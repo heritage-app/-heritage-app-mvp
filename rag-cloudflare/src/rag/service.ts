@@ -138,7 +138,7 @@ const norm = (s: string) =>
 // NAMES OF THE months", "what are ALL THE colours", "tell me things ABOUT
 // the animals". ---
 const LIST_TOPIC_WORDS =
-  "months?(?:\\s+of\\s+the\\s+year)?|days?(?:\\s+of\\s+the\\s+week)?|weekdays|colou?rs|numbers?|numerals|animals|birds|insects|fish(?:es)?|body\\s+parts|family(?:\\s+(?:members|words|terms))?|foods?|weather(?:\\s+words)?|greetings|drinks|pronouns|fruits?";
+  "months?(?:\\s+of\\s+the\\s+year)?|days?(?:\\s+of\\s+the\\s+week)?|weekdays|colou?rs|numbers?|numerals|animals|birds|insects|fish(?:es)?|body\\s+parts|family(?:\\s+(?:members|words|terms))?|foods?|weather(?:\\s+words)?|greetings|drinks|pronouns|fruits?|samai|symbols?";
 const LIST_FILLER = "(?:all|the|names?|of|things\\s+about)\\s+";
 const LIST_TOPIC_RE = new RegExp(
   `\\b(?:list|name|enumerate|what\\s+are|which\\s+are|how\\s+many|give\\s+me|show\\s+me|tell\\s+me|all(?:\\s+the)?)\\s+(?:${LIST_FILLER})*(?:\\d+\\s+|ga\\s+)?(?<topic>${LIST_TOPIC_WORDS})\\b`,
@@ -412,6 +412,17 @@ async function* askGeneral(
     }
   }
 
+  // --- Self-referential questions about Nii Obodai: answered directly so
+  // they can never reach retrieval or the knowledge-gap flow. ---
+  if (
+    /^(?:who are you|what are you|what['’]?s your name|what is your name|who is nii obodai|what can you do|introduce yourself|tell me about yourself)\b/i.test(
+      query.trim().replace(/[?!.]+$/, "")
+    )
+  ) {
+    yield "Atsɛɔ mi **Nii Obodai** — your Ga guide. I answer Ga words, phrases, Bible verses, stories and culture from an archive people have checked — and when I don't know something, you can teach me.";
+    return;
+  }
+
   const qLow = query.toLowerCase();
   const singleNums = [...query.matchAll(/\b(\d+)\b/g)].map((m) => m[1]);
 
@@ -520,6 +531,32 @@ async function* askGeneral(
     }
   };
 
+  // Tautology guard: when the best answer's gloss just restates the word
+  // ("homowo" -> "**Homowo** is Ga for 'homowo'"), the heritage records often
+  // carry a real description under the same Ga name — prefer it. Returns the
+  // longest description that is meaningfully longer (>=30 chars) than the
+  // gloss, truncated at ~200 chars on a sentence/semicolon boundary.
+  const longerDescription = async (needleStr: string, gloss: string): Promise<string | null> => {
+    try {
+      const fNeedle = foldGa(needleStr.trim());
+      if (!fNeedle) return null;
+      let best: string | null = null;
+      for (const r of await readHeritageRecords()) {
+        if (foldGa(String(r.ga ?? "").trim()) !== fNeedle) continue;
+        const en = String(r.english ?? "").trim();
+        if (en.length >= gloss.length + 30 && (!best || en.length > best.length)) best = en;
+      }
+      if (best && best.length > 200) {
+        const cut = best.slice(0, 200);
+        const at = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("; "), cut.lastIndexOf(";"));
+        best = (at > 60 ? cut.slice(0, at + 1) : cut.trimEnd() + "…").trim();
+      }
+      return best;
+    } catch {
+      return null;
+    }
+  };
+
   // Is `gloss` another rendering of `needle`, or a different concept that
   // merely contains the word? "good morning" is not a rendering of "good";
   // "bad person", "the good" and "severely bad" are renderings of the word.
@@ -595,7 +632,8 @@ async function* askGeneral(
       /^greet/.test(tw) ? "greetings" :
       /^insect/.test(tw) ? "insects" :
       /^bird/.test(tw) ? "birds" :
-      /^animal/.test(tw) ? "animals" : null;
+      /^animal/.test(tw) ? "animals" :
+      /^samai|^symb/.test(tw) ? "samai" : null;
     const LISTS: Record<string, { title: string; members?: string[]; cats: string[]; htopics: string[] }> = {
       months: { title: "The months of the year in Ga (nyɔji)", cats: ["months"], htopics: ["months"],
         members: ["january","february","march","april","may","june","july","august","september","october","november","december"] },
@@ -616,6 +654,7 @@ async function* askGeneral(
       drinks: { title: "Drinks in Ga", cats: ["food"], htopics: ["drinks"] },
       pronouns: { title: "Pronouns in Ga", cats: [], htopics: ["pronouns"] },
       fruits: { title: "Fruits in Ga", cats: ["food"], htopics: ["fruits","food"] },
+      samai: { title: "Ga samai symbols in the archive", cats: [], htopics: ["samai"] },
     };
     const spec = key ? LISTS[key] : null;
     if (spec) {
@@ -705,6 +744,20 @@ async function* askGeneral(
             }
             items.sort((a, b) => a.en.localeCompare(b.en));
           }
+          if (key === "samai") {
+            // Samai records carry a long description in `english` — truncate
+            // each at the first of ";", " — ", or 80 chars (ellipsis-safe)
+            // and list the symbols by their Ga name.
+            for (const it of items) {
+              let e = it.en;
+              const bounds = [e.indexOf(";"), e.indexOf(" — ")].filter((i) => i > 0);
+              const at = bounds.length ? Math.min(...bounds) : -1;
+              const cut = at > 0 && at <= 80 ? at : e.length > 80 ? 80 : -1;
+              if (cut > 0) e = e.slice(0, cut).trimEnd() + "…";
+              it.en = e;
+            }
+            items.sort((a, b) => a.ga.localeCompare(b.ga));
+          }
           const shown = items.slice(0, 30);
           if (shown.length >= 3) {
             rows = shown.map((it) => `| ${cap(it.en)} | **${it.ga}** |`);
@@ -718,6 +771,61 @@ async function* askGeneral(
       } catch (e) {
         console.warn("[ask] list handler failed, falling through:", e);
       }
+    }
+  }
+
+  // --- "Difference between A and B" / "A vs B" / "compare A and B": resolve
+  // both terms in the verified vocabulary (Ga headword folded, or an exact
+  // English translation) and answer them side by side. If neither term
+  // resolves, fall through to the normal flow. ---
+  const diffMatch =
+    query.match(/(?:difference|distinction|contrast)(?:\s+between)?\s+["“']?(.+?)["”']?\s+(?:and|vs\.?|versus)\s+["“']?(.+?)["”']?\s*(?:in\s+ga)?[?!.\s]*$/i) ||
+    query.match(/^["“']?(.+?)["”']?\s+(?:vs\.?|versus)\s+["“']?(.+?)["”']?\s*(?:in\s+ga)?[?!.\s]*$/i) ||
+    query.match(/^compare\s+["“']?(.+?)["”']?\s+(?:and|with|to|vs\.?|versus)\s+["“']?(.+?)["”']?\s*(?:in\s+ga)?[?!.\s]*$/i);
+  if (diffMatch) {
+    const unquote = (s: string) => (s ?? "").trim().replace(/^["“']+|["”']+$/g, "").trim();
+    const termA = unquote(diffMatch[1]);
+    const termB = unquote(diffMatch[2]);
+    if (termA && termB) {
+      try {
+        const jArr = (s: string): string[] => {
+          try { const v = JSON.parse(s || "[]"); return Array.isArray(v) ? v.map(String) : []; } catch { return []; }
+        };
+        const lookupTerm = async (term: string): Promise<{ ga: string; gloss: string } | null> => {
+          const f = foldGa(norm(term));
+          const n = norm(term);
+          if (!f || !n) return null;
+          const res = await env.DB.prepare(
+            `SELECT headword, headword_normalized, translations, meanings FROM vocabulary
+             WHERE (headword_normalized = ? OR translations LIKE ? OR meanings LIKE ?)
+               AND source IS NOT NULL AND TRIM(source) <> ''
+               AND verified_at IS NOT NULL AND TRIM(verified_at) <> ''
+             ORDER BY LENGTH(translations) ASC LIMIT 20`
+          ).bind(f, `%${n}%`, `%${n}%`).all<{
+            headword: string; headword_normalized: string;
+            translations: string; meanings: string;
+          }>();
+          let byTrans: { ga: string; gloss: string } | null = null;
+          for (const r of res.results ?? []) {
+            const ts = jArr(r.translations);
+            const ms = jArr(r.meanings);
+            if ((r.headword_normalized ?? "").trim() === f) {
+              return { ga: r.headword, gloss: ts.slice(0, 2).join("; ") || ms[0] || term };
+            }
+            const exactT = ts.find((t) => norm(t) === n);
+            if (!byTrans && exactT) byTrans = { ga: r.headword, gloss: exactT };
+          }
+          return byTrans;
+        };
+        const hitA = await lookupTerm(termA);
+        const hitB = await lookupTerm(termB);
+        if (hitA || hitB) {
+          const line = (term: string, hit: { ga: string; gloss: string } | null) =>
+            hit ? `- **${hit.ga}** — “${hit.gloss}”` : `- “${cap(term)}” — not in the archive yet.`;
+          yield `${line(termA, hitA)}\n*vs*\n${line(termB, hitB)}`;
+          return;
+        }
+      } catch (e) { console.warn("[ask] difference lookup failed, falling through:", e); }
     }
   }
 
@@ -836,10 +944,19 @@ async function* askGeneral(
         // that use it: "Misumɔ bo" is stored as "i love you" — the gloss,
         // not the word. Fetch usage phrases by the gloss words too, so a Ga
         // word asked "in a sentence" finds the entries that show it in use.
+        // Collect usage-search keys only from NON-negated gloss clauses:
+        // "bad; not good" offers "bad", never "good" — otherwise "Nyɔŋmɔ hi"
+        // ("god is good") gets listed as a use of Efɔŋ.
+        const NEGATED_CLAUSE = /\b(not|no|never|opposite|opposed)\b/i;
         const glossKeys = [
           ...new Set(
             exacts
-              .flatMap((e) => norm(e.gloss).split(" "))
+              .flatMap((e) =>
+                e.gloss
+                  .split(";")
+                  .filter((c) => !NEGATED_CLAUSE.test(c))
+                  .flatMap((c) => norm(c).split(" "))
+              )
               .filter((w) => w.length >= 4)
           ),
         ].slice(0, 5);
@@ -942,6 +1059,57 @@ async function* askGeneral(
           yield `${parts.join("\n\n")}\n\nI don't have a sentence using it yet. Do you know one? Share the Ga and English version and I'll add it.`;
         }
         return;
+      } else {
+        // No dictionary entry for the term — but a Ga-looking (or short) word
+        // may still be USED in the archive. Scan the heritage sentences and
+        // the Bible verses for the folded needle tokens themselves (the same
+        // containment rule as usesPrimary above, minus the headword).
+        const needleToks = foldedS.match(/[\p{L}\p{N}'-]+/gu) ?? [];
+        const looksGa =
+          /[ɛɔŋ]/.test(sentenceWord) ||
+          /[̀-ͯ]/.test(sentenceWord.normalize("NFD")) ||
+          foldedS.length <= 8;
+        if (needleToks.length > 0 && needleToks.length <= 3 && looksGa) {
+          const usesNeedle = (ga: string) => {
+            const gw = foldGa(ga).match(/[\p{L}\p{N}'-]+/gu) ?? [];
+            return needleToks.every((w) =>
+              gw.some((t) => t === w || (w.length >= 4 && t.length >= 4 && (t.includes(w) || w.includes(t))))
+            );
+          };
+          // A real usage needs at least two Ga tokens — a bare headword is the
+          // entry, not a sentence.
+          const isSent = (ga: string) =>
+            (foldGa(ga).match(/[\p{L}\p{N}'-]+/gu) ?? []).length >= 2;
+          const found: { ga: string; english: string }[] = [];
+          const seenS = new Set<string>();
+          const push = (ga: string, english: string) => {
+            const key = ga.toLowerCase();
+            if (ga && !seenS.has(key)) { seenS.add(key); found.push({ ga, english }); }
+          };
+          for (const rec of await readHeritageRecords()) {
+            const ga = String(rec.ga ?? "").trim();
+            if (isSent(ga) && usesNeedle(ga)) {
+              push(modernizeGa(ga), String(rec.english ?? "").trim());
+            }
+          }
+          try {
+            const bRes = await env.DB.prepare(
+              "SELECT ga, en AS english FROM bible_verses WHERE ga LIKE ? OR ga LIKE ? LIMIT 12"
+            ).bind(`%${needleS}%`, `%${foldedS}%`).all<{ ga: string; english: string }>();
+            for (const r of bRes.results ?? []) {
+              const ga = String(r.ga ?? "").trim();
+              if (isSent(ga) && usesNeedle(ga)) {
+                push(modernizeGa(ga), String(r.english ?? "").trim());
+              }
+            }
+          } catch { /* verse probe is best-effort */ }
+          if (found.length) {
+            found.sort((a, b) => a.ga.length - b.ga.length);
+            yield `**${sentenceWord}** — I couldn't find its dictionary entry, but the archive uses it:\n` +
+              found.slice(0, 3).map((s) => `- **${s.ga}**${s.english ? ` — “${s.english}”` : ""}`).join("\n");
+            return;
+          }
+        }
       }
     } catch (e) { console.error("Sentence example lookup failed", e); }
     // No entry — fall through to the normal lookup/gap flow.
@@ -1110,6 +1278,16 @@ async function* askGeneral(
               if (relatedLines.length) parts.push("", "Other renderings in the archive:", ...relatedLines);
               if (inUseLines.length) parts.push("", "In use:", ...inUseLines);
               yield parts.join("\n");
+              return;
+            }
+          }
+          // Tautology guard: "what is homowo" -> "**Homowo** is Ga for
+          // 'homowo'" tells the asker nothing. Prefer a real description
+          // stored under the same Ga name in the heritage records.
+          if (norm(bestHit.eng) === needle) {
+            const desc = await longerDescription(needle, bestHit.eng);
+            if (desc) {
+              yield `**${bestHit.ga}** — “${desc}”`;
               return;
             }
           }
@@ -1436,6 +1614,18 @@ async function* askGeneral(
         (hits[0].image ? `\n\n![${gaShown}](${hits[0].image})` : "") +
         `\n\nKnow the Ga word? Share it and I'll put it forward for review.`;
       return;
+    }
+    // Same tautology guard as the direct-lookup path: a gloss that merely
+    // restates the asked word ("homowo" -> "homowo") is replaced by a real
+    // description from the heritage records when one exists.
+    const needleH = norm(queryWords.join(" "));
+    if (needleH && norm(hits[0].eng) === needleH) {
+      const desc = await longerDescription(needleH, hits[0].eng);
+      if (desc) {
+        yield `**${gaShown}** — “${desc}”` +
+          (hits[0].image ? `\n\n![${gaShown}](${hits[0].image})` : "");
+        return;
+      }
     }
     yield (
       (hits[0].gaSide
