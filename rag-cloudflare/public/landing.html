@@ -829,6 +829,18 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
    card stays in the page only as the source of the phones' story. */
 #pipe{display:none!important}
 @media (max-width:860px){#cwHost{display:none}}
+
+/* Hero, on wider screens: one box the width of the column; the device inside turns from phone
+   to tablet to laptop and scales to fit, so the phone keeps its full size. */
+@media (min-width:861px){
+.tbox.hbox{zoom:1;width:var(--hbw,560px);height:660px}
+.tbox.hbox .phone{transform:scale(var(--dk,1));transition:width .8s var(--ease),height .8s var(--ease),border-radius .8s var(--ease),padding .8s var(--ease),transform .8s var(--ease)}
+.tbox.hbox .phone.turning{animation:hturn .8s var(--ease)}
+@keyframes hturn{0%{transform:scale(var(--dk,1))}45%{transform:scale(calc(var(--dk,1) * .94)) rotateY(-14deg) rotateX(3deg)}100%{transform:scale(var(--dk,1))}}
+.hdevs{margin-top:-8px}
+}
+@media (max-width:860px){.hdevs{display:none}}
+@media (prefers-reduced-motion:reduce){.tbox.hbox .phone.turning{animation:none}}
 </style>
 
 </head>
@@ -1189,7 +1201,7 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
         <div class="stat"><b data-stat="bible_verses">62,368</b><span>Bible verses in Ga</span><small>Two full translations, all 66 books, with English</small></div>
         <div class="stat"><b>1–<span data-stat="numbers_in_words">999</span></b><span>Numbers in Ga words</span><small>Every number, spelled out</small></div>
         <div class="stat"><b data-stat="stories_poems">9</b><span>Stories, poems and songs</span><small><span data-stat="stories">6</span> stories, <span data-stat="poems_and_songs">3</span> poems and songs</small></div>
-        <div class="stat"><b data-stat="samai">8</b><span>Samai symbols</span><small>Documented with their meanings and proverbs</small></div>
+        <div class="stat"><b data-stat="samai">16</b><span>Samai symbols</span><small>Documented with their meanings, drawings and sources</small></div>
         <div class="stat gap"><b>0 hrs</b><span>Recorded Ga speech</span><small>Not started. This needs funding.</small></div>
       </div>
     </div>
@@ -1420,18 +1432,44 @@ function show(phone, name) {
   setTimeout(() => phone.querySelectorAll(".scr.prev").forEach(s => s.classList.remove("prev")), 650);
 }
 
-/* Hero phone: autoplay with a switcher */
+/* Hero phone: autoplay with a switcher. On wider screens each screen plays on the phone,
+   then the device turns into a tablet and plays it, then a laptop, then the next screen. */
 const hero = document.getElementById("heroPhone");
 const sw = document.getElementById("switch");
 const DUR = 5200;
-let idx = 0, timer = null, visible = true;
+const HKINDS = ["phone", "tablet", "laptop"], HMORPH = 800;
+const heroWide = matchMedia("(min-width: 861px)");
+let idx = 0, timer = null, visible = true, hPhase = 0, hDwell = 0, hSubs = [], heroBox = null;
+const hLater = (fn, ms) => hSubs.push(setTimeout(fn, reduce ? 0 : ms));
+const heroDevices = () => !!heroBox && heroWide.matches;
+const hScreenTime = (name) => heroDevices() ? 3 * DURS[name] + 2 * (HMORPH + 150) : DURS[name];
 function go(i) {
   idx = (i + ORDER.length) % ORDER.length;
-  show(hero, ORDER[idx]);
   sw.querySelectorAll("button").forEach(b => {
     const on = b.dataset.go === ORDER[idx];
     b.setAttribute("aria-pressed", on);
+    b.style.setProperty("--dur", hScreenTime(b.dataset.go) + "ms");
     const bar = b.querySelector(".bar"); bar.style.animation = "none"; void bar.offsetWidth; bar.style.animation = "";
+  });
+  heroDevice(0);
+}
+function heroDevice(ph) {
+  hSubs.forEach(clearTimeout); hSubs = [];
+  hPhase = ph;
+  const name = ORDER[idx];
+  if (!heroDevices()) { show(hero, name); hDwell = DURS[name]; schedule(); return; }
+  const kind = HKINDS[ph], changing = hero.dataset.dev !== kind;
+  if (changing && !reduce) hero.classList.add("morphing", "turning");
+  hLater(() => { hero.dataset.dev = kind; heroBox.dataset.dev = kind; fitHero(); }, changing ? 200 : 0);
+  hLater(() => {
+    hero.classList.remove("morphing", "turning");
+    hero._init = false; hero.dataset.screen = ""; show(hero, name);
+    hero.querySelectorAll(".lapnav span").forEach(x => x.classList.toggle("on", x.dataset.n === name));
+  }, changing ? HMORPH + 150 : 0);
+  hDwell = DURS[name] + (changing ? HMORPH + 150 : 0);
+  document.querySelectorAll("#heroDevs button").forEach(b => {
+    const on = b.dataset.k === kind; b.setAttribute("aria-pressed", on); b.style.setProperty("--dd", hDwell + "ms");
+    if (on) { const bar = b.querySelector("i b"); bar.style.animation = "none"; void bar.offsetWidth; bar.style.animation = ""; }
   });
   schedule();
 }
@@ -1439,7 +1477,7 @@ function schedule() {
   clearTimeout(timer);
   if (reduce || !visible || document.hidden) { sw.classList.add("paused"); return; }
   sw.classList.remove("paused");
-  timer = setTimeout(() => go(idx + 1), DURS[ORDER[idx]]);
+  timer = setTimeout(() => (heroDevices() && hPhase < 2 ? heroDevice(hPhase + 1) : go(idx + 1)), hDwell || DURS[ORDER[idx]]);
 }
 sw.querySelectorAll("button").forEach(b => b.style.setProperty("--dur", DURS[b.dataset.go] + "ms"));
 sw.addEventListener("click", e => { const b = e.target.closest("button"); if (b) go(ORDER.indexOf(b.dataset.go)); });
@@ -1640,6 +1678,35 @@ function fitPhones() {
 fitPhones();
 addEventListener("resize", fitPhones);
 matchMedia("(max-width: 860px)").addEventListener?.("change", fitPhones);
+
+/* Hero device box (wider screens): wraps the hero phone so it can turn into a tablet and a
+   laptop. Each device is scaled to fit the hero column, so the phone keeps its size. */
+function fitHero() {
+  if (!heroBox) return;
+  // The box takes the hero column's width (its wrapper shrinks to fit the phone, so measure the column).
+  const col = heroBox.closest(".stage") || heroBox.parentElement;
+  const w = Math.max(320, Math.min(560, (col && col.clientWidth) || 520)), h = 660, kind = hero.dataset.dev || "phone";
+  heroBox.style.setProperty("--hbw", w + "px");
+  const k = kind === "phone" ? Math.min(1, h / 640) : kind === "tablet" ? Math.min(1, w / 480, h / 640) : Math.min(1, w / 670);
+  hero.style.setProperty("--dk", k.toFixed(3));
+}
+if (heroWide.matches) {
+  heroBox = document.createElement("div");
+  heroBox.className = "tbox hbox"; heroBox.dataset.dev = "phone"; hero.dataset.dev = "phone";
+  hero.querySelector(".bezel").insertAdjacentHTML("afterbegin",
+    '<div class="browser" aria-hidden="true"><span class="dots3"><i></i><i></i><i></i></span><span class="url"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>app.speakga.org</span><span style="width:37px"></span></div>' +
+    '<div class="lapnav" aria-hidden="true"><img src="img/brand/speakga-logo.png" width="515" height="144" alt=""><span data-n="home">Home</span><span data-n="ask">Ask</span><span data-n="learn">Learn</span><span data-n="library">Library</span><span data-n="teach">Teach</span></div>');
+  hero.parentNode.insertBefore(heroBox, hero);
+  heroBox.appendChild(hero);
+  sw.insertAdjacentHTML("afterend",
+    '<div class="devs hdevs" id="heroDevs" role="group" aria-label="Show this screen on">' +
+    '<button type="button" data-k="phone" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg>Phone<i><b></b></i></button>' +
+    '<button type="button" data-k="tablet" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2.5"/><path d="M11 18h2"/></svg>Tablet<i><b></b></i></button>' +
+    '<button type="button" data-k="laptop" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg>Laptop<i><b></b></i></button></div>');
+  document.querySelectorAll("#heroDevs button").forEach(b => b.addEventListener("click", () => heroDevice(HKINDS.indexOf(b.dataset.k))));
+  fitHero(); addEventListener("resize", fitHero);
+}
+/* end hero device box */
 
 go(0);
 show(tourPhone, "home");
