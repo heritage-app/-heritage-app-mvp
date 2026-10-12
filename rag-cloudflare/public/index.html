@@ -77,6 +77,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<!-- Plus Jakarta Sans and Bricolage have no ɛ ɔ: Inter supplies just the Ga letters. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&text=%C9%9B%C9%94%C6%90%C6%86%C5%8B%C5%8A%CC%83%CC%81%CC%80&display=swap" rel="stylesheet" />
 <style>
   :root {
     /* Light theme (default) */
@@ -89,8 +91,8 @@
     --ok:#0f6b46; --bad:#a62d1c;
     --radius:16px; --shadow:0 4px 20px rgba(60,40,10,.08);
     --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-    --sans:"Plus Jakarta Sans",ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    --serif:"Plus Jakarta Sans",ui-sans-serif,Georgia,serif;
+    --sans:"Plus Jakarta Sans","Inter",ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --serif:"Plus Jakarta Sans","Inter",ui-sans-serif,Georgia,serif;
   }
   [data-theme="dark"] {
     /* Dark theme */
@@ -735,7 +737,7 @@
      cards, quiz, contribute and review keep their own styles.
      ==================================================================== */
   :root {
-    --display:"Bricolage Grotesque","Plus Jakarta Sans",ui-sans-serif,sans-serif;
+    --display:"Bricolage Grotesque","Plus Jakarta Sans","Inter",ui-sans-serif,sans-serif;
     --accent:#F2B33D; --accent-ink:#7A5200; --accent-soft:#FBF3E2; --accent-line:#F2D79A;
     --sage:#E3F1E4; --sage-ink:#1F7A4A; --sage-deep:#2E9A5E;
     --sky:#E1ECFA; --sky-ink:#1E5AA8; --sky-deep:#2F6FC6;
@@ -4255,12 +4257,28 @@ function renderFlagCard(bubble, flag) {
   card.innerHTML =
     '<div class="fl-head">' +
     '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
-    `<span>${flag.kind === "wrong" ? "HELP ME FIX IT" : flag.kind === "contribute" ? "SHARE WHAT YOU KNOW" : "NOT IN THE ARCHIVE"}</span></div>` +
+    `<span>${flag.kind === "wrong" ? "HELP ME FIX IT" : flag.kind === "contribute" ? "SHARE WHAT YOU KNOW" : flag.kind === "check" ? "WORKED OUT · NOT VERIFIED" : "NOT IN THE ARCHIVE"}</span></div>` +
     '<div class="fl-body"></div>';
   const body = card.querySelector(".fl-body");
 
   /* Step 1 — the ask. */
   function askStep() {
+    // A worked-out answer: a speaker confirms the guess or corrects it.
+    if (flag.kind === "check" && flag.guess) {
+      body.innerHTML = `<div class="fl-q">Is <b class="ga-word">${escapeHtml(flag.guess)}</b> right for “${escapeHtml(askedFor)}”?</div>`;
+      const row = document.createElement("div");
+      row.className = "fl-row";
+      const yes = document.createElement("button");
+      yes.className = "fl-btn"; yes.type = "button"; yes.textContent = "YES, IT'S RIGHT";
+      yes.onclick = () => formStep(flag.guess);
+      const fix = document.createElement("button");
+      fix.className = "fl-btn ghost"; fix.type = "button"; fix.textContent = "NO, FIX IT";
+      fix.onclick = () => formStep("");
+      row.append(yes, fix);
+      body.appendChild(row);
+      scrollDown();
+      return;
+    }
     body.innerHTML = `<div class="fl-q">${
       flag.kind === "wrong"
         ? "Do you know what it should say?"
@@ -4283,12 +4301,13 @@ function renderFlagCard(bubble, flag) {
   }
 
   /* Step 2 — the pair. English is prefilled from what they actually asked. */
-  function formStep() {
+  function formStep(gaPrefill) {
+    const confirming = flag.kind === "check" && typeof gaPrefill === "string" && !!gaPrefill;
     body.innerHTML =
       `<div><label for="flEn-${uid}">ENGLISH</label>` +
       `<input class="en" id="flEn-${uid}" type="text" placeholder="e.g. let's eat" value="${escapeHtml(askedFor).replace(/"/g, "&quot;")}" /></div>` +
-      `<div><label for="flGa-${uid}">${flag.kind === "wrong" ? "WHAT IT SHOULD SAY IN GA" : "GA"}</label>` +
-      `<input class="ga-key" id="flGa-${uid}" type="text" placeholder="Type the Ga here" /></div>` +
+      `<div><label for="flGa-${uid}">${flag.kind === "wrong" || (flag.kind === "check" && !confirming) ? "WHAT IT SHOULD SAY IN GA" : "GA"}</label>` +
+      `<input class="ga-key" id="flGa-${uid}" type="text" placeholder="Type the Ga here" value="${escapeHtml(typeof gaPrefill === "string" ? gaPrefill : "").replace(/"/g, "&quot;")}" /></div>` +
       '<div class="fl-hint">Ga keys work here: 3→ɛ · )→ɔ · nn→ŋ</div>' +
       // Guests identify themselves — the server requires all three for a guest
       // contribution. Prefilled if they already typed them in Contribute.
@@ -4351,7 +4370,11 @@ function renderFlagCard(bubble, flag) {
         name: who.name.value.trim(), location: who.loc.value.trim(), email: who.mail.value.trim(),
       };
       ga.value = normalizeGaCase(ga.value);
-      const ok = await submitFlagPair(en.value.trim(), ga.value.trim(), ident);
+      // A worked-out answer: say whether the speaker confirmed it or corrected it.
+      const notes = flag.kind !== "check" ? undefined
+        : ga.value.trim() === flag.guess ? "confirmed a worked-out answer"
+        : `corrected a worked-out answer (was ${flag.guess})`;
+      const ok = await submitFlagPair(en.value.trim(), ga.value.trim(), ident, notes);
       if (ok) doneStep(en.value.trim(), ga.value.trim());
       else { send.disabled = false; send.textContent = "SEND IT"; }
     };
@@ -4373,6 +4396,11 @@ function renderFlagCard(bubble, flag) {
   /* Step 3b — declined. The flag is already recorded server-side, so we only
      say what is actually true: it is on the list, and it is counted. */
   function declineStep() {
+    if (flag.kind === "check") {
+      body.innerHTML = "<div class=\"fl-q\">No problem — it stays marked as not verified until a speaker checks it.</div>";
+      scrollDown();
+      return;
+    }
     if (flag.kind === "contribute") {
       body.innerHTML = "<div class=\"fl-q\">No problem — the Contribute button is there whenever you're ready.</div>";
       scrollDown();
@@ -4394,8 +4422,8 @@ function renderFlagCard(bubble, flag) {
 }
 
 /** Post a flagged correction as a normal contribution. `ident` is a guest's. */
-async function submitFlagPair(english, ga, ident) {
-  const body = { type: "correction", english, ga: normalizeGaCase(ga), notes: "flagged in chat" };
+async function submitFlagPair(english, ga, ident, notes) {
+  const body = { type: "correction", english, ga: normalizeGaCase(ga), notes: notes ? `flagged in chat: ${notes}` : "flagged in chat" };
   if (!me) {
     if (!ident || !ident.name || !ident.email || !ident.location) {
       toast("Add your name, email and location so we can credit you");

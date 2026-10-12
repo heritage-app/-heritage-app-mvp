@@ -18,8 +18,12 @@ export interface TurnFlag {
   /**
    * `wrong` — the user said so. `not_found` — the archive had nothing.
    * `contribute` — the user offered to teach, unprompted.
+   * `check` — the answer was worked out from corpus sentences, not verified:
+   * ask a speaker to confirm `guess` or correct it.
    */
-  kind: "wrong" | "not_found" | "contribute";
+  kind: "wrong" | "not_found" | "contribute" | "check";
+  /** The worked-out Ga, for a `check` card. */
+  guess?: string;
   /** Prefill for the English side of the contribution. */
   english: string;
   /** Set when the asked-about term is itself Ga (e.g. a missing-sentence ask
@@ -44,7 +48,19 @@ const NOT_FOUND_MARKERS = [
   "Know the Ga word? Share",
 ];
 
+/**
+ * A worked-out (deduced, unverified) answer ends with this line, and names
+ * its Ga as "is most likely **X**". It still counts as not found: nothing in
+ * the archive is verified for it.
+ */
+export const DEDUCED_MARKER = "Not a checked entry yet";
+export function deducedGuess(text: string): string | null {
+  if (!text.includes(DEDUCED_MARKER)) return null;
+  return text.match(/is most likely \*\*([^*]+)\*\*/)?.[1] ?? null;
+}
+
 export function isNotFoundResponse(text: string): boolean {
+  if (text.includes(DEDUCED_MARKER)) return true;
   return NOT_FOUND_MARKERS.some((m) => text.includes(m));
 }
 

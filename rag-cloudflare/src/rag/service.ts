@@ -28,6 +28,8 @@ import {
   parseEqualsPair,
   isContributeIntent,
   isNotFoundResponse,
+  DEDUCED_MARKER,
+  deducedGuess,
   previousUserQuery,
   previousAssistantAnswer,
   recordNotHelpful,
@@ -410,16 +412,20 @@ async function deducedAnswer(env: Env, query: string): Promise<string | null> {
   // A one-word core for a multi-word phrase is only part of the answer
   // ("come here" → "biɛ", here) — say so rather than claim the whole.
   const whole = !!d.phraseGa || contentWords <= 1;
+  // Lead with the answer; the evidence follows, then the "not checked" line
+  // (DEDUCED_MARKER) the chat turns into a confirm-or-correct card.
+  const core = modernizeGa(d.ga), phraseGa = d.phraseGa ? modernizeGa(d.phraseGa) : "";
+  const low = (s: string) => s.charAt(0).toLowerCase() + s.slice(1); // mid-sentence
+  const evidence = phraseGa
+    ? `${d.support} of the ${d.total} archive sentences with “${word}” use *${low(core)}*, often as *${low(phraseGa)}*:`
+    : `${d.support} of the ${d.total} archive sentences with “${word}” use *${low(core)}*:`;
   return (
-    `I don't have “${word}” as a checked entry yet, but I worked it out from the archive. ` +
-    `In ${d.support} of the ${d.total} sentences with “${word}”, the Ga has **${modernizeGa(d.ga)}**` +
-    (d.phraseGa ? `, often as **${modernizeGa(d.phraseGa)}**` : "") +
     (whole
-      ? `. So in Ga, “${word}” is most likely **${modernizeGa(best)}**.`
-      : `. That's likely part of how “${word}” is said in Ga.`) +
+      ? `In Ga, “${word}” is most likely **${modernizeGa(best)}**.\n\nI worked this out from the archive — ${evidence}`
+      : `I don't have “${word}” yet, but **${core}** is likely part of it — ${evidence}`) +
     `\n\n` +
     d.examples.map((e) => `- “${e.english}” → *${modernizeGa(e.ga)}*`).join("\n") +
-    `\n\nWorked out from these sentences, not verified yet. Know the Ga word? Share it and I'll put it forward for review.`
+    `\n\n${DEDUCED_MARKER} — a Ga speaker can confirm or correct it.`
   );
 }
 
@@ -1709,14 +1715,27 @@ async function* askGeneral(
   // reaches it even when it ranks below every vector top-K — embeddings
   // are weak on proper nouns and Ga-side queries.
   const probeWords = queryWords.slice(0, 6);
+  // LIKE needs the queried form AND its singular: "pests" won't substring-
+  // match a record saying "pest", but "%pest%" covers both directions.
+  const probeForms = (w: string) =>
+    w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? [w, w.slice(0, -1)] : [w];
   const corpusProbe =
     !browseIntent && probeWords.length
       ? env.DB.prepare(
           `SELECT english, ga FROM corpus_pairs WHERE ${probeWords
-            .map(() => "(en_norm LIKE ? OR ga_norm LIKE ?)")
+            .map(
+              (w) =>
+                `(${probeForms(w)
+                  .map(() => "(en_norm LIKE ? OR ga_norm LIKE ?)")
+                  .join(" OR ")})`
+            )
             .join(" AND ")} LIMIT 40`
         )
-          .bind(...probeWords.flatMap((w) => [`%${w}%`, `%${w}%`]))
+          .bind(
+            ...probeWords.flatMap((w) =>
+              probeForms(w).flatMap((f) => [`%${f}%`, `%${f}%`])
+            )
+          )
           .all<{ english: string; ga: string }>()
       : Promise.resolve({ results: [] as { english: string; ga: string }[] });
   const [{ nodes: expandedNodes }, { nodes: curatedNodes }, heritageRecs, corpusRows] = await Promise.all([
@@ -2309,15 +2328,19 @@ export async function* ask(
   // the Ga for "months"?'). The same matcher the list handler uses extracts
   // it — a match that produced no rows still names the gap correctly.
   const flagTopic = listTopicOf(query);
-  let notFoundFlag: TurnFlag | undefined = isNotFoundResponse(full)
-    ? { kind: "not_found", english: flagTopic ?? cleanEnglish(query) }
-    : undefined;
+  // A worked-out answer asks a speaker to confirm or correct its guess.
+  const guess = deducedGuess(full);
+  let notFoundFlag: TurnFlag | undefined = guess
+    ? { kind: "check", english: cleanEnglish(query).replace(/\bi\b/g, "I"), guess }
+    : isNotFoundResponse(full)
+      ? { kind: "not_found", english: flagTopic ?? cleanEnglish(query) }
+      : undefined;
 
   // "Suɔmɔ in a sentence" produced a not-found flag whose `english` is the Ga
   // word itself — the card would ask "Do you know the Ga for 'Suɔmɔ'?", which
   // is backwards. When the subject is a known Ga headword, carry it in `ga`
   // and prefill `english` with its gloss so the contribution has a direction.
-  if (notFoundFlag?.english) {
+  if (notFoundFlag?.kind === "not_found" && notFoundFlag.english) {
     try {
       const hw = await env.DB.prepare(
         `SELECT headword, translations FROM vocabulary
