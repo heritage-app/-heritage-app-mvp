@@ -1617,7 +1617,10 @@ async function* askGeneral(
   // anger…") can fall outside ANY vector top-K and still answer correctly.
   const [{ nodes: expandedNodes }, { nodes: curatedNodes }, heritageRecs] = await Promise.all([
     retrieveWithExpansion(env, probe, {
-      topK: dynamicTopK,
+      // Vectorize max — the hit matcher is lexical, so wider recall only
+      // adds candidates; a rare-term record ("Osei Tutu…") sitting at
+      // rank 30 still reaches it.
+      topK: Math.max(dynamicTopK, 50),
       allowedCategories: ["heritage", "stories", "corpus"],
     }),
     retrieveWithExpansion(env, probe, {
