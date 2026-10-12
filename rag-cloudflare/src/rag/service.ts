@@ -45,6 +45,7 @@ import { initializeSession, updateActivity } from "../db/sessions";
 import { saveInteraction } from "../db/messages";
 import { isGuestId } from "../auth/jwt";
 import { runAgent, stepTerm } from "./agent";
+import { deducePhrase } from "./deduce";
 
 /** How a turn was answered — returned to the client for the "how I found this" line. */
 export interface TurnTrace {
@@ -386,6 +387,52 @@ async function* askBible(
   // Every bible answer is grounded/deterministic — never routed through the
   // creative persona LLM, which could otherwise introduce outside knowledge.
   yield grounded;
+}
+
+/**
+ * The asked phrase only appears inside longer archive sentences. When enough
+ * of those sentences agree on its Ga, answer with that — labelled as worked
+ * out and not verified, with the sentences shown. Otherwise say it appears
+ * in this phrase. Either way the answer asks for the Ga word (the share card).
+ */
+async function insideAPhraseAnswer(
+  env: Env,
+  query: string,
+  hit: { ga: string; eng: string; image?: string },
+  reason: string
+): Promise<string> {
+  let word = cleanEnglish(query);
+  const d = await deducePhrase(env, word).catch(() => null);
+  if (d) {
+    word = word.replace(/\bi\b/g, "I");
+    const best = d.phraseGa ?? d.ga;
+    await logKnowledgeGap(env, query, "general", `Deduced from corpus, unverified: ${best}`);
+    const contentWords = (word.toLowerCase().match(/[\p{L}\p{N}'-]+/gu) ?? []).filter(
+      (w) => w.length > 1 && !["the", "an", "am", "is", "are", "you", "my", "your", "to", "of"].includes(w)
+    ).length;
+    // A one-word core for a multi-word phrase is only part of the answer
+    // ("come here" → "biɛ", here) — say so rather than claim the whole.
+    const whole = !!d.phraseGa || contentWords <= 1;
+    return (
+      `I don't have “${word}” as a checked entry yet, but I worked it out from the archive. ` +
+      `In ${d.support} of the ${d.total} sentences with “${word}”, the Ga has **${modernizeGa(d.ga)}**` +
+      (d.phraseGa ? `, often as **${modernizeGa(d.phraseGa)}**` : "") +
+      (whole
+        ? `. So in Ga, “${word}” is most likely **${modernizeGa(best)}**.`
+        : `. That's likely part of how “${word}” is said in Ga.`) +
+      `\n\n` +
+      d.examples.map((e) => `- “${e.english}” → *${modernizeGa(e.ga)}*`).join("\n") +
+      `\n\nWorked out from these sentences, not verified yet. Know the Ga word? Share it and I'll put it forward for review.`
+    );
+  }
+  await logKnowledgeGap(env, query, "general", reason);
+  const gaShown = modernizeGa(hit.ga);
+  return (
+    `I don't have a Ga word for “${word}” on its own yet — but it appears in this phrase from the archive:\n\n` +
+    `**${gaShown}** — “${hit.eng}”` +
+    (hit.image ? `\n\n![${gaShown}](${hit.image})` : "") +
+    `\n\nKnow the Ga word? Share it and I'll put it forward for review.`
+  );
 }
 
 /** General-knowledge engine for history, stories, phrases, numerics. */
@@ -1350,10 +1397,7 @@ async function* askGeneral(
             !bestHit.gaSide &&
             contentWords(bestHit.eng) > Math.max(contentWords(needle), 1)
           ) {
-            const word = cleanEnglish(query);
-            await logKnowledgeGap(env, query, "general", "Word only found inside a phrase");
-            yield `I don't have a Ga word for “${word}” on its own yet — but it appears in this phrase from the archive:\n\n` +
-              `**${modernizeGa(bestHit.ga)}** — “${bestHit.eng}”\n\nKnow the Ga word? Share it and I'll put it forward for review.`;
+            yield await insideAPhraseAnswer(env, query, bestHit, "Word only found inside a phrase");
             return;
           }
           if (!bestHit.gaSide) {
@@ -1882,12 +1926,7 @@ async function* askGeneral(
     const engContentTotal = engToks.filter((w) => w.length > 1 && !stop.has(w) && !nearStop(w)).length;
     const loose = engContentTotal > 0 && hits[0].extra / engContentTotal > 0.4;
     if (!hits[0].gaSide && loose && !definitional) {
-      const word = cleanEnglish(query);
-      await logKnowledgeGap(env, query, "general", "Word only found inside a sentence");
-      yield `I don't have a Ga word for “${word}” on its own yet — but it appears in this phrase from the archive:\n\n` +
-        `**${gaShown}** — “${hits[0].eng}”` +
-        (hits[0].image ? `\n\n![${gaShown}](${hits[0].image})` : "") +
-        `\n\nKnow the Ga word? Share it and I'll put it forward for review.`;
+      yield await insideAPhraseAnswer(env, query, hits[0], "Word only found inside a sentence");
       return;
     }
     // Same tautology guard as the direct-lookup path: a gloss that merely
