@@ -6,7 +6,7 @@
 import type { Env } from "../types";
 import { embedOne } from "./embeddings";
 import { retrieveContext, type RetrieveOptions } from "./retriever";
-import { BIBLE_BOOK_TOKENS, BOOK_MAP } from "../config";
+import { BIBLE_BOOK_TOKENS, BOOK_MAP, BIBLE_BOOK_RE, mentionsBibleBook } from "../config";
 
 /**
  * Query expansion with related terms and synonyms
@@ -16,9 +16,9 @@ export async function expandQuery(query: string, env: Env): Promise<string[]> {
   const lowerQuery = query.toLowerCase();
 
   // Bible citation expansions
-  if (BIBLE_BOOK_TOKENS.some(token => lowerQuery.includes(token))) {
+  if (mentionsBibleBook(lowerQuery)) {
     for (const token of BIBLE_BOOK_TOKENS) {
-      if (lowerQuery.includes(token)) {
+      if (new RegExp(`\\b${token}\\b`).test(lowerQuery)) {
         const canonicalBook = BOOK_MAP[token] || token.charAt(0).toUpperCase() + token.slice(1);
         expansions.push(query.replace(token, canonicalBook));
         
@@ -90,7 +90,7 @@ export function classifyQuery(query: string): QueryType {
   const lower = query.toLowerCase();
 
   // Bible citation (e.g., "Genesis 1:1", "Yitso ekome")
-  if (BIBLE_BOOK_TOKENS.some(token => lower.includes(token)) && /\d/.test(lower)) {
+  if (BIBLE_BOOK_RE.test(lower) && /\d/.test(lower)) {
     return 'bible_citation';
   }
 

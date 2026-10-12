@@ -24,7 +24,13 @@ const MAX_ROWS = 300, MAX_CHECKS = 6;
 // Same folding as corpus_pairs.en_norm/ga_norm (scripts/backfill-corpus-d1.mjs).
 const fold = (s: string) =>
   s.toLowerCase().replace(/ŋ/g, "n").replace(/ɛ/g, "e").replace(/ɔ/g, "o").normalize("NFD").replace(/\p{M}/gu, "");
-const toks = (s: string) => s.normalize("NFC").match(/[\p{L}\p{N}'’-]+/gu) ?? [];
+// The source splits some words around a spaced hyphen ("Wɔ - tsɛ" for Wɔtsɛ):
+// rejoin those; a bare "-" is never a word.
+const toks = (s: string): string[] =>
+  s.normalize("NFC").replace(/(\p{L}) - (\p{L})/gu, "$1$2").match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu) ?? [];
+// Ga function words that only frame a phrase: "lɛ" (the), "he" (about), …
+// A candidate that just adds these to the core isn't a fuller phrase.
+const GA_FRAME = new Set(["le", "he", "mli", "no", "ni", "ke", "ake", "ye"]);
 
 const FILLER = new Set(
   "the a an of to and or but in on at by for with from as is are was were be been am i you he she it we they me him her us them my your his its our their this that these those do does did not no so if".split(" ")
@@ -120,7 +126,17 @@ export async function deducePhrase(env: Env, english: string): Promise<Deduction
   if (!cands.length) return null;
   cands.sort((a, b) => b.share - a.share || b.n - a.n);
   let best = cands[0];
-  for (const c of cands) if (c.n > best.n && c.share >= best.share * 0.85 && ` ${c.k} `.includes(` ${best.k} `)) best = c;
+  const framingOnly = (longer: string, core: string) =>
+    ` ${longer} `.replace(` ${core} `, " ").trim().split(" ").every((w) => GA_FRAME.has(w));
+  for (const c of cands) {
+    if (c.n > best.n && c.share >= best.share * 0.85 && ` ${c.k} `.includes(` ${best.k} `) && !framingOnly(c.k, best.k)) best = c;
+  }
+  // "Wɔshia lɛ" is "the house of ours": without "the" in the question, drop
+  // the trailing "lɛ" — the shorter form is in at least as many sentences.
+  if (!q.includes("the")) {
+    const stem = best.k.replace(/( (le|he))+$/, "");
+    if (stem && stem !== best.k && count.has(stem)) best = { ...best, k: stem, c: count.get(stem)! };
+  }
 
   const display = (k: string) => {
     const s = [...(surface.get(k) ?? new Map<string, number>())].sort((a, b) => b[1] - a[1])[0]?.[0] ?? k;
@@ -131,7 +147,7 @@ export async function deducePhrase(env: Env, english: string): Promise<Deduction
   let phraseKey: string | null = null, phraseSupport = 0;
   if (q.length > 1) {
     for (const [k, c] of count) {
-      if (k === best.k || !` ${k} `.includes(` ${best.k} `) || c < MIN_SUPPORT || c / N < 0.3) continue;
+      if (k === best.k || !` ${k} `.includes(` ${best.k} `) || framingOnly(k, best.k) || c < MIN_SUPPORT || c / N < 0.3) continue;
       if (c > phraseSupport || (c === phraseSupport && k.length > (phraseKey ?? "").length)) { phraseKey = k; phraseSupport = c; }
     }
   }
@@ -141,7 +157,7 @@ export async function deducePhrase(env: Env, english: string): Promise<Deduction
     .filter((_, i) => gaKeys[i].has(shown))
     .sort((a, b) => a.english.length - b.english.length)
     .slice(0, 3)
-    .map((s) => ({ english: s.english, ga: s.ga }));
+    .map((s) => ({ english: s.english, ga: s.ga.replace(/(\p{L}) - (\p{L})/gu, "$1$2") }));
 
   return {
     english,

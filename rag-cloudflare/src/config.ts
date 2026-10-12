@@ -54,3 +54,22 @@ export const BOOK_MAP: Record<string, string> = {
 
 // Longest-first so multi-word tokens ("1 kings") match before single words ("kings").
 export const BIBLE_BOOK_TOKENS = Object.keys(BOOK_MAP).sort((a, b) => b.length - a.length);
+
+// Whole-word book names only: a substring test read "market" as Mark,
+// "truth" as Ruth and "most" as Mose, and sent "how do you say I am going to
+// the market" to a Bible verse.
+export const BIBLE_BOOK_RE = new RegExp(`\b(${BIBLE_BOOK_TOKENS.join("|")})\b`);
+// Books whose names are also everyday words or first names ("numbers",
+// "judges", "my name is john") mean the Bible only with a chapter number or
+// "book of".
+const COMMON_WORD_BOOKS = new Set([
+  "numbers", "judges", "ruth", "job", "proverbs", "lamentations", "daniel", "joel", "amos",
+  "jonah", "joshua", "esther", "matthew", "mark", "luke", "john", "acts", "james", "jude",
+  "titus", "revelation", "mose",
+]);
+export function mentionsBibleBook(q: string): boolean {
+  const m = q.toLowerCase().match(BIBLE_BOOK_RE);
+  if (!m) return false;
+  if (!COMMON_WORD_BOOKS.has(m[1])) return true;
+  return new RegExp(`\b${m[1]}\s+\d`).test(q.toLowerCase()) || /\bbook\s+of\b/i.test(q);
+}

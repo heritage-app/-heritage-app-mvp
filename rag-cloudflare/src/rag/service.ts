@@ -4,7 +4,7 @@
  * it through the Nii Obodai persona. Persistence + background summary/title after.
  */
 import type { Env, ChatMessage, RagMode, VerseRecord } from "../types";
-import { DEFAULT_TOP_K, MIN_RELEVANCE_SCORE, BOOK_MAP, BIBLE_BOOK_TOKENS } from "../config";
+import { DEFAULT_TOP_K, MIN_RELEVANCE_SCORE, BOOK_MAP, BIBLE_BOOK_TOKENS, mentionsBibleBook } from "../config";
 import { numToGa, foldGa, resolveGaCitation, parseEnglishNumber } from "./ga";
 import { modernizeGa } from "./orthography";
 import { isFormattableBibleRecord, formatBibleQuote } from "./validator";
@@ -389,6 +389,40 @@ async function* askBible(
   yield grounded;
 }
 
+/** Possessives change the Ga ("house" Shia, "our house" Wɔshia). */
+const POSSESSIVE_WORDS = ["my", "your", "his", "her", "its", "our", "their"];
+
+/**
+ * The asked phrase's Ga worked out from the corpus sentences that contain it
+ * (see deduce.ts), as a labelled, unverified answer with its evidence — or
+ * null when the sentences don't agree.
+ */
+async function deducedAnswer(env: Env, query: string): Promise<string | null> {
+  const word = cleanEnglish(query).replace(/\bi\b/g, "I");
+  const d = await deducePhrase(env, word).catch(() => null);
+  if (!d) return null;
+  const best = d.phraseGa ?? d.ga;
+  await logKnowledgeGap(env, query, "general", `Deduced from corpus, unverified: ${best}`);
+  // Possessives fold into the Ga word (mi-, o-, wɔ-…), so they don't count.
+  const contentWords = (word.toLowerCase().match(/[\p{L}\p{N}'-]+/gu) ?? []).filter(
+    (w) => w.length > 1 && !["the", "an", "am", "is", "are", "you", "to", "of", ...POSSESSIVE_WORDS].includes(w)
+  ).length;
+  // A one-word core for a multi-word phrase is only part of the answer
+  // ("come here" → "biɛ", here) — say so rather than claim the whole.
+  const whole = !!d.phraseGa || contentWords <= 1;
+  return (
+    `I don't have “${word}” as a checked entry yet, but I worked it out from the archive. ` +
+    `In ${d.support} of the ${d.total} sentences with “${word}”, the Ga has **${modernizeGa(d.ga)}**` +
+    (d.phraseGa ? `, often as **${modernizeGa(d.phraseGa)}**` : "") +
+    (whole
+      ? `. So in Ga, “${word}” is most likely **${modernizeGa(best)}**.`
+      : `. That's likely part of how “${word}” is said in Ga.`) +
+    `\n\n` +
+    d.examples.map((e) => `- “${e.english}” → *${modernizeGa(e.ga)}*`).join("\n") +
+    `\n\nWorked out from these sentences, not verified yet. Know the Ga word? Share it and I'll put it forward for review.`
+  );
+}
+
 /**
  * The asked phrase only appears inside longer archive sentences. When enough
  * of those sentences agree on its Ga, answer with that — labelled as worked
@@ -401,34 +435,26 @@ async function insideAPhraseAnswer(
   hit: { ga: string; eng: string; image?: string },
   reason: string
 ): Promise<string> {
-  let word = cleanEnglish(query);
-  const d = await deducePhrase(env, word).catch(() => null);
-  if (d) {
-    word = word.replace(/\bi\b/g, "I");
-    const best = d.phraseGa ?? d.ga;
-    await logKnowledgeGap(env, query, "general", `Deduced from corpus, unverified: ${best}`);
-    const contentWords = (word.toLowerCase().match(/[\p{L}\p{N}'-]+/gu) ?? []).filter(
-      (w) => w.length > 1 && !["the", "an", "am", "is", "are", "you", "my", "your", "to", "of"].includes(w)
-    ).length;
-    // A one-word core for a multi-word phrase is only part of the answer
-    // ("come here" → "biɛ", here) — say so rather than claim the whole.
-    const whole = !!d.phraseGa || contentWords <= 1;
-    return (
-      `I don't have “${word}” as a checked entry yet, but I worked it out from the archive. ` +
-      `In ${d.support} of the ${d.total} sentences with “${word}”, the Ga has **${modernizeGa(d.ga)}**` +
-      (d.phraseGa ? `, often as **${modernizeGa(d.phraseGa)}**` : "") +
-      (whole
-        ? `. So in Ga, “${word}” is most likely **${modernizeGa(best)}**.`
-        : `. That's likely part of how “${word}” is said in Ga.`) +
-      `\n\n` +
-      d.examples.map((e) => `- “${e.english}” → *${modernizeGa(e.ga)}*`).join("\n") +
-      `\n\nWorked out from these sentences, not verified yet. Know the Ga word? Share it and I'll put it forward for review.`
-    );
-  }
+  const deduced = await deducedAnswer(env, query);
+  if (deduced) return deduced;
+  const word = cleanEnglish(query);
   await logKnowledgeGap(env, query, "general", reason);
-  const gaShown = modernizeGa(hit.ga);
+  const gaShown = modernizeGa(hit.ga).replace(/(\p{L}) - (\p{L})/gu, "$1$2");
+  // "his car" matched "Your car?": the phrase doesn't contain what was asked,
+  // so it's only the closest thing the archive has.
+  const toksOf = (s: string) => foldGa(s.toLowerCase()).match(/[\p{L}\p{N}'-]+/gu) ?? [];
+  const hitToks = new Set(toksOf(hit.eng));
+  const contains = toksOf(word).filter((w) => !["the", "a", "an"].includes(w)).every((w) => hitToks.has(w));
+  // A long sentence ("How do I know if a crop I want to plant needs a lot of
+  // water…" for "i want water") teaches nothing about the phrase: only quote
+  // short ones.
+  if (hitToks.size > (contains ? 14 : 8)) {
+    return `I don't have “${word}” in the archive yet. Know the Ga word? Share it and I'll put it forward for review.`;
+  }
   return (
-    `I don't have a Ga word for “${word}” on its own yet — but it appears in this phrase from the archive:\n\n` +
+    (contains
+      ? `I don't have a Ga word for “${word}” on its own yet — but it appears in this phrase from the archive:\n\n`
+      : `I don't have “${word}” yet. The closest the archive has is:\n\n`) +
     `**${gaShown}** — “${hit.eng}”` +
     (hit.image ? `\n\n![${gaShown}](${hit.image})` : "") +
     `\n\nKnow the Ga word? Share it and I'll put it forward for review.`
@@ -1386,6 +1412,21 @@ async function* askGeneral(
           if (hit && (!bestHit || hit.rank < bestHit.rank)) bestHit = hit;
           if (bestHit?.rank === 0) break;
         }
+        // The entry covers only part of what was asked: "my house" matched
+        // "house" (the possessive changes the Ga: wɔshia), "can you help me"
+        // matched "help". Work the whole phrase out from the corpus when it
+        // can be; otherwise say the answer is for the word alone.
+        let partNote = "";
+        if (bestHit && !bestHit.gaSide) {
+          const hitW = new Set(norm(bestHit.eng).split(" "));
+          const missing = phrase.split(" ").filter((w) => w && !["the", "a", "an"].includes(w) && !hitW.has(w));
+          if (missing.length) {
+            const deduced = await deducedAnswer(env, query);
+            if (deduced) { yield deduced; return; }
+            partNote = `I don't have “${cleanEnglish(query)}” itself yet; here is “${bestHit.eng}”.\n\n`;
+          }
+        }
+        if (partNote) yield partNote;
         if (bestHit) {
           // A whole-word hit inside a LONGER phrase isn't the word itself:
           // "good" must not be claimed as "good night". Report the phrase it
@@ -1401,6 +1442,11 @@ async function* askGeneral(
             return;
           }
           if (!bestHit.gaSide) {
+            // A whole-phrase entry ("what is your name") is matched on the
+            // whole phrase, and entries that merely mention one of its words
+            // ("name") are noise beside it.
+            const wholeHit = bestHit.rank < 1;
+            const target = wholeHit ? norm(bestHit.eng) : needle;
             // Every entry that translates the term EXACTLY is an accepted
             // rendering — "bad man" is both **Nuu gbonyo** and **Nuu efɔŋ**.
             // Single-word rows containing the term in a longer translation or
@@ -1408,6 +1454,8 @@ async function* askGeneral(
             // multi-word rows are the word in use. Previously only the first
             // row survived the ranking; the rest of the archive's knowledge
             // about the word was thrown away.
+            // Some rows are stored lowercase ("niyeenii"); list them like the rest.
+            const capGa = (g: string) => g.replace(/^\p{Ll}/u, (ch) => ch.toUpperCase());
             const exacts: Array<{ ga: string; meaning?: string; spellings: string[] }> = [];
             const related: Array<{ ga: string; gloss: string }> = [];
             const inUse = new Map<string, string[]>();
@@ -1419,21 +1467,21 @@ async function* askGeneral(
               try { vArr = JSON.parse(row.variants || "[]"); } catch {}
               const hwKey = row.headword.toLowerCase();
               if (seenV.has(hwKey)) continue;
-              const exactT = tArr.find((t) => norm(t) === needle);
+              const exactT = tArr.find((t) => norm(t) === target);
               const inside = [...tArr, ...mArr].find(hasPhrase);
               const single = !/\s/.test((row.headword_normalized ?? "").trim());
               if (exactT) {
                 seenV.add(hwKey);
                 const meaning = mArr.find((m) => norm(m) !== norm(exactT));
-                exacts.push({ ga: row.headword, meaning, spellings: vArr });
+                exacts.push({ ga: capGa(row.headword), meaning, spellings: vArr });
               } else if (inside) {
                 seenV.add(hwKey);
                 if (single) {
                   // Skip glosses naming a different concept or the opposite.
-                  if (isOtherRendering(inside, needle)) related.push({ ga: row.headword, gloss: inside });
+                  if (isOtherRendering(inside, needle)) related.push({ ga: capGa(row.headword), gloss: inside });
                 } else {
                   const g = inUse.get(inside) ?? [];
-                  g.push(row.headword);
+                  g.push(capGa(row.headword));
                   inUse.set(inside, g);
                 }
               }
@@ -1450,14 +1498,14 @@ async function* askGeneral(
             // Groups that show the variation itself ("bad man" -> Nuu gbonyo
             // AND Nuu efɔŋ) lead the In-use list.
             const inUseGroups = [...inUse.entries()].sort((a, b) => b[1].length - a[1].length);
-            const inUseLines = inUseGroups.slice(0, 4).map(
+            const inUseLines = (wholeHit ? [] : inUseGroups).slice(0, 4).map(
               ([eng, gas]) => `- “${eng}” → ${gas.slice(0, 3).map((g) => `**${g}**`).join(" or ")}`
             );
-            const relatedLines = related.slice(0, 4).map((r) => `- **${r.ga}** — “${r.gloss}”`);
+            const relatedLines = (wholeHit ? [] : related).slice(0, 4).map((r) => `- **${r.ga}** — “${r.gloss}”`);
 
             if (exacts.length > 1) {
               const parts = [
-                `In Ga, “${needle}” can be:`,
+                `In Ga, “${target}” can be:`,
                 ...exacts.slice(0, 4).map((e) => `- **${e.ga}**${e.meaning ? ` — “${e.meaning}”` : ""}`),
               ];
               if (relatedLines.length) parts.push("", "Other renderings in the archive:", ...relatedLines);
@@ -1465,7 +1513,7 @@ async function* askGeneral(
               yield parts.join("\n");
               return;
             }
-            if (queryWords.length === 1 && (related.length || inUse.size)) {
+            if (!wholeHit && queryWords.length === 1 && (related.length || inUse.size)) {
               const parts = [`In Ga, “${bestHit.eng}” is **${bestHit.ga}**.`];
               if (relatedLines.length) parts.push("", "Other renderings in the archive:", ...relatedLines);
               if (inUseLines.length) parts.push("", "In use:", ...inUseLines);
@@ -1810,7 +1858,7 @@ async function* askGeneral(
   // Scans below-threshold candidates too: Ga-word queries embed poorly with the
   // English embedding model, but an exact folded word match is the stronger signal. ---
 
-  const hits: Array<{ mc: number; extra: number; def: boolean; score: number; eng: string; ga: string; gaSide: boolean; cat: string; image: string }> = [];
+  const hits: Array<{ mc: number; extra: number; content: number; def: boolean; score: number; eng: string; ga: string; gaSide: boolean; cat: string; image: string }> = [];
   const seen = new Set<string>();
   // The corpus source keeps typographic spacing ("school .", trailing ")
   // — tidy it for display so quoted sentences read naturally.
@@ -1821,9 +1869,21 @@ async function* askGeneral(
       .replace(/\s+([)\]}])/g, "$1")
       .replace(/([(\[{])\s+/g, "$1")
       .trim();
+  // Headings in the source are often in capitals ("PEACE!" → "TOIŊJƆLƐ!"):
+  // show a shouted record in sentence case.
+  const unshout = (s: string) => {
+    const letters = s.replace(/[^\p{L}]/gu, "");
+    return letters.length >= 4 && letters === letters.toUpperCase() && letters !== letters.toLowerCase()
+      ? s.toLowerCase().replace(/^(\P{L}*)(\p{L})/u, (_m, a: string, b: string) => a + b.toUpperCase())
+      : s;
+  };
+  // A possessive the question didn't ask for changes the Ga ("your computer"
+  // → "okɔmpiuta", not "kɔmpiuta"), so it counts as an extra word.
+  const POSSESSIVES = POSSESSIVE_WORDS;
+  const askedToks = new Set(qLow.match(/[\p{L}\p{N}'-]+/gu) ?? []);
   for (const n of expandedNodes) {
-    const eng = tidy(String(n.metadata?.english ?? ""));
-    const ga = tidy(String(n.metadata?.ga ?? ""));
+    const eng = unshout(tidy(String(n.metadata?.english ?? "")));
+    const ga = unshout(tidy(String(n.metadata?.ga ?? "")));
     if (!eng || !ga) continue;
     const key = eng.toLowerCase();
     if (seen.has(key)) continue;
@@ -1860,7 +1920,9 @@ async function* askGeneral(
     const covered = [...engContentSet].filter((e) =>
       queryWords.some((w) => e === w || isInflection(w, e))
     ).length;
-    const extra = engContentSet.size - covered;
+    const possExtra = POSSESSIVES.some((p) => engWords.has(p) && !askedToks.has(p)) ? 1 : 0;
+    const extra = engContentSet.size - covered + possExtra;
+    const content = engContentSet.size + possExtra;
     // A pair answer is only defensible when EVERY content word in the query
     // matched — otherwise one accidental overlap yields a confident non-answer
     // (e.g. "alphabets in Ga" matching the "a" in "I see a rainbow").
@@ -1904,7 +1966,7 @@ async function* askGeneral(
           cat !== "corpus" &&
           queryWords.length > 0 &&
           (leadsEng || leadsGa);
-        hits.push({ mc, extra, def, score: n.score ?? 0, eng, ga, gaSide, cat, image: String(n.metadata?.image ?? "") });
+        hits.push({ mc, extra, content, def, score: n.score ?? 0, eng, ga, gaSide, cat, image: String(n.metadata?.image ?? "") });
       }
     }
   }
@@ -1919,12 +1981,10 @@ async function* askGeneral(
     hits.sort((a, b) => Number(b.def) - Number(a.def) || b.mc - a.mc || Number(b.gaSide) - Number(a.gaSide) || a.extra - b.extra || a.ga.length - b.ga.length || b.score - a.score);
     const gaShown = modernizeGa(hits[0].ga);
     const definitional = hits[0].def;
-    const engToks = foldGa(hits[0].eng.toLowerCase()).match(/[\p{L}\p{N}'-]+/gu) ?? [];
     // When over ~40% of the record's meaning wasn't asked for, answer with
     // the "it appears in this phrase" hedge — at ANY query length — rather
     // than presenting the longer sentence as the translation.
-    const engContentTotal = engToks.filter((w) => w.length > 1 && !stop.has(w) && !nearStop(w)).length;
-    const loose = engContentTotal > 0 && hits[0].extra / engContentTotal > 0.4;
+    const loose = hits[0].content > 0 && hits[0].extra / hits[0].content > 0.4;
     if (!hits[0].gaSide && loose && !definitional) {
       yield await insideAPhraseAnswer(env, query, hits[0], "Word only found inside a sentence");
       return;
@@ -2021,7 +2081,7 @@ export async function* ask(
   }
 
   const citationMatch = new RegExp(
-    `(${BIBLE_BOOK_TOKENS.join("|")})\\s+\\d+(?:[\\s:.]+\\d+)?`
+    `\\b(${BIBLE_BOOK_TOKENS.join("|")})\\s+\\d+(?:[\\s:.]+\\d+)?`
   ).test(qLow);
   if (citationMatch) mode = "bible";
 
@@ -2180,7 +2240,7 @@ export async function* ask(
   if (targetMode === "auto" || targetMode === "agent") {
     const isBible =
       ["bible", "bibele", "verse", "chapter", "scripture"].some((b) => qLow.includes(b)) ||
-      BIBLE_BOOK_TOKENS.some((b) => qLow.includes(b)) ||
+      mentionsBibleBook(qLow) ||
       (qLow.includes(":") && /\d/.test(qLow));
     targetMode = isBible ? "bible" : "general";
   }

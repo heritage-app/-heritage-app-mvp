@@ -184,7 +184,13 @@ export function cleanEnglish(question: string): string {
   // Framing can stack — "what is | the ga word for | quantum physics" — so
   // strip until nothing more comes off (bounded; each pass removes a prefix).
   const FRAME = /^(please\s+)?(how\s+(do\s+(you|i|we)\s+|to\s+|can\s+i\s+)?(say|write|spell)|what\s+(is|do\s+you\s+call)|what'?s|translate|(the\s+)?ga\s+(word\s+)?for)\s+/i;
-  for (let i = 0; i < 3 && FRAME.test(out); i++) out = out.replace(FRAME, "");
+  // After "how do you say / translate", the rest IS the phrase asked about:
+  // "how do you say | what is your name" must keep "what is".
+  for (let i = 0; i < 3 && FRAME.test(out); i++) {
+    const said = /^(please\s+)?(how\s+(do\s+(you|i|we)\s+|to\s+|can\s+i\s+)?(say|write|spell)|translate)\s+/i.test(out);
+    out = out.replace(FRAME, "");
+    if (said) break;
+  }
   out = out
     .replace(/\s+(in|into)\s+ga(\s+language)?$/i, "")
     .replace(/\s+in\s+a\s+sentence$/i, "")
