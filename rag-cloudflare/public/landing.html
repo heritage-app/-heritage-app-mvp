@@ -811,19 +811,18 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
 .tbox .phone[data-dev="laptop"] .tabbar{display:none}
 .tbox .phone[data-dev="laptop"] .scr{padding-bottom:16px}
 .tbox .phone[data-dev="laptop"] .composer{left:50%;right:auto;width:420px;translate:-50% 0;bottom:12px}
-.devs{display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--paper);box-shadow:var(--shadow);margin-top:6px}
-.devs button{all:unset;cursor:pointer;position:relative;overflow:hidden;display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:999px;font:700 12.5px var(--sans);color:var(--muted);transition:background .3s,color .3s}
-.devs button svg{width:15px;height:15px}
-.devs button[aria-pressed="true"]{background:var(--ink);color:#fff}
-.devs button i{position:absolute;left:12px;right:12px;bottom:3px;height:2px;border-radius:2px;background:rgba(255,255,255,.18);overflow:hidden;opacity:0}
-.devs button[aria-pressed="true"] i{opacity:1}
-.devs button i b{display:block;height:100%;width:0;background:var(--gold)}
-.devs button[aria-pressed="true"] i b{animation:tfill var(--dd,6s) linear forwards}
-.devs button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-@keyframes tfill{to{width:100%}}
+/* Real app screenshots on the tablet and laptop phases; the phone keeps the mock screens. */
+.tbox .shot{position:absolute;inset:0;overflow:hidden;opacity:0;transition:opacity .35s;pointer-events:none;background:var(--app);z-index:4}
+.tbox .shot img{display:block;width:100%;height:auto}
+.tbox .phone[data-dev="tablet"] .shot{inset:28px 0 0}
+.tbox .phone[data-dev="laptop"] .shot{inset:36px 0 0}
+.tbox .phone[data-dev="laptop"] .lapnav{display:none}
+.tbox .phone:not([data-dev="phone"]):not(.morphing) .shot{opacity:1}
+.tbox .phone:not([data-dev="phone"]) .screens,.tbox .phone:not([data-dev="phone"]) .composer,.tbox .phone:not([data-dev="phone"]) .tabbar{opacity:0}
+.tbox .phone:not([data-dev="phone"]) .shot img.pan{animation:shotpan var(--pan,7s) ease-in-out forwards}
+@keyframes shotpan{0%,18%{transform:none}100%{transform:translateY(calc(-1 * var(--over,0px)))}}
 }
-@media (max-width:860px){.devs{display:none}}
-@media (prefers-reduced-motion:reduce){.tbox .phone,.tbox .bezel,.tbox .browser{transition:none}.tbox .phone.turning{animation:none}.devs i b{animation:none!important}}
+@media (prefers-reduced-motion:reduce){.tbox .phone,.tbox .bezel,.tbox .browser{transition:none}.tbox .phone.turning{animation:none}}
 
 /* Community, on wider screens: the walkthrough lives in #cwHost (its own Shadow DOM). The old
    card stays in the page only as the source of the phones' story. */
@@ -837,9 +836,7 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
 .tbox.hbox .phone{transform:scale(var(--dk,1));transition:width .8s var(--ease),height .8s var(--ease),border-radius .8s var(--ease),padding .8s var(--ease),transform .8s var(--ease)}
 .tbox.hbox .phone.turning{animation:hturn .8s var(--ease)}
 @keyframes hturn{0%{transform:scale(var(--dk,1))}45%{transform:scale(calc(var(--dk,1) * .94)) rotateY(-14deg) rotateX(3deg)}100%{transform:scale(var(--dk,1))}}
-.hdevs{margin-top:-8px}
 }
-@media (max-width:860px){.hdevs{display:none}}
 @media (prefers-reduced-motion:reduce){.tbox.hbox .phone.turning{animation:none}}
 </style>
 
@@ -1432,6 +1429,23 @@ function show(phone, name) {
   setTimeout(() => phone.querySelectorAll(".scr.prev").forEach(s => s.classList.remove("prev")), 650);
 }
 
+/* Tablet and laptop phases show a real screenshot of the app at that size, panning gently
+   when it is taller than the frame. The phone phase keeps the mock screens. */
+function setShot(phone, kind, name) {
+  const img = phone.querySelector(".shot img");
+  if (!img) return;
+  if (kind === "phone") { img.classList.remove("pan"); return; }
+  const src = "img/tour/" + kind + "-" + name + ".webp";
+  const apply = () => {
+    const over = Math.max(0, img.offsetHeight - img.parentElement.clientHeight);
+    phone.style.setProperty("--over", over.toFixed(0) + "px");
+    phone.style.setProperty("--pan", DURS[name] + "ms");
+    img.classList.remove("pan"); void img.offsetWidth;
+    if (!reduce && over > 0) img.classList.add("pan");
+  };
+  if (img.getAttribute("src") !== src) { img.onload = apply; img.src = src; } else apply();
+}
+
 /* Hero phone: autoplay with a switcher. On wider screens each screen plays on the phone,
    then the device turns into a tablet and plays it, then a laptop, then the next screen. */
 const hero = document.getElementById("heroPhone");
@@ -1465,12 +1479,9 @@ function heroDevice(ph) {
     hero.classList.remove("morphing", "turning");
     hero._init = false; hero.dataset.screen = ""; show(hero, name);
     hero.querySelectorAll(".lapnav span").forEach(x => x.classList.toggle("on", x.dataset.n === name));
+    setShot(hero, kind, name);
   }, changing ? HMORPH + 150 : 0);
   hDwell = DURS[name] + (changing ? HMORPH + 150 : 0);
-  document.querySelectorAll("#heroDevs button").forEach(b => {
-    const on = b.dataset.k === kind; b.setAttribute("aria-pressed", on); b.style.setProperty("--dd", hDwell + "ms");
-    if (on) { const bar = b.querySelector("i b"); bar.style.animation = "none"; void bar.offsetWidth; bar.style.animation = ""; }
-  });
   schedule();
 }
 function schedule() {
@@ -1493,14 +1504,10 @@ tourBox.className = "tbox"; tourBox.dataset.dev = "phone"; tourPhone.dataset.dev
 tourPhone.querySelector(".bezel").insertAdjacentHTML("afterbegin",
   '<div class="browser" aria-hidden="true"><span class="dots3"><i></i><i></i><i></i></span><span class="url"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>app.speakga.org</span><span style="width:37px"></span></div>' +
   '<div class="lapnav" aria-hidden="true"><img src="img/brand/speakga-logo.png" width="515" height="144" alt=""><span data-n="home">Home</span><span data-n="ask">Ask</span><span data-n="learn">Learn</span><span data-n="library">Library</span><span data-n="teach">Teach</span></div>');
+tourPhone.querySelector(".bezel").insertAdjacentHTML("beforeend", '<div class="shot" aria-hidden="true"><img alt="" loading="lazy" decoding="async"></div>');
 tourBox.appendChild(tourPhone);
 const tourMount = document.getElementById("tourMount");
 tourMount.appendChild(tourBox);
-tourMount.insertAdjacentHTML("beforeend",
-  '<div class="devs" role="group" aria-label="Show this screen on">' +
-  '<button type="button" data-k="phone" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg>Phone<i><b></b></i></button>' +
-  '<button type="button" data-k="tablet" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2.5"/><path d="M11 18h2"/></svg>Tablet<i><b></b></i></button>' +
-  '<button type="button" data-k="laptop" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg>Laptop<i><b></b></i></button></div>');
 tourPhone._init = false;
 
 /* While a step is on screen, its screen plays on the phone, then the device turns into a
@@ -1512,6 +1519,7 @@ const tLater = (fn, ms) => tSubs.push(setTimeout(fn, reduce ? 0 : ms));
 function tPlay(name) {
   tourPhone._init = false; tourPhone.dataset.screen = ""; show(tourPhone, name);
   tourPhone.querySelectorAll(".lapnav span").forEach(x => x.classList.toggle("on", x.dataset.n === name));
+  setShot(tourPhone, tourPhone.dataset.dev, name);
 }
 function tourDevice(ph) {
   tSubs.forEach(clearTimeout); tSubs = []; clearTimeout(tTimer);
@@ -1521,13 +1529,8 @@ function tourDevice(ph) {
   tLater(() => { tourPhone.dataset.dev = kind; tourBox.dataset.dev = kind; }, changing ? 200 : 0);
   tLater(() => { tourPhone.classList.remove("morphing", "turning"); tPlay(tScreen); }, changing ? TMORPH + 150 : 0);
   const dwell = DURS[tScreen] + (changing ? TMORPH + 150 : 0);
-  tourMount.querySelectorAll(".devs button").forEach(b => {
-    const on = b.dataset.k === kind; b.setAttribute("aria-pressed", on); b.style.setProperty("--dd", dwell + "ms");
-    if (on) { const bar = b.querySelector("i b"); bar.style.animation = "none"; void bar.offsetWidth; bar.style.animation = ""; }
-  });
   if (!reduce && wide.matches && tourOn) tTimer = setTimeout(() => tourDevice((ph + 1) % 3), dwell);
 }
-tourMount.querySelectorAll(".devs button").forEach(b => b.addEventListener("click", () => tourDevice(TKINDS.indexOf(b.dataset.k))));
 function fitTour() { tourBox.style.setProperty("--tk", Math.min(1, (tourMount.clientWidth || 560) / 690, (innerHeight - 170) / 660).toFixed(3)); }
 fitTour(); addEventListener("resize", fitTour);
 
@@ -1696,14 +1699,9 @@ if (heroWide.matches) {
   hero.querySelector(".bezel").insertAdjacentHTML("afterbegin",
     '<div class="browser" aria-hidden="true"><span class="dots3"><i></i><i></i><i></i></span><span class="url"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>app.speakga.org</span><span style="width:37px"></span></div>' +
     '<div class="lapnav" aria-hidden="true"><img src="img/brand/speakga-logo.png" width="515" height="144" alt=""><span data-n="home">Home</span><span data-n="ask">Ask</span><span data-n="learn">Learn</span><span data-n="library">Library</span><span data-n="teach">Teach</span></div>');
+  hero.querySelector(".bezel").insertAdjacentHTML("beforeend", '<div class="shot" aria-hidden="true"><img alt="" loading="lazy" decoding="async"></div>');
   hero.parentNode.insertBefore(heroBox, hero);
   heroBox.appendChild(hero);
-  sw.insertAdjacentHTML("afterend",
-    '<div class="devs hdevs" id="heroDevs" role="group" aria-label="Show this screen on">' +
-    '<button type="button" data-k="phone" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg>Phone<i><b></b></i></button>' +
-    '<button type="button" data-k="tablet" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2.5"/><path d="M11 18h2"/></svg>Tablet<i><b></b></i></button>' +
-    '<button type="button" data-k="laptop" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg>Laptop<i><b></b></i></button></div>');
-  document.querySelectorAll("#heroDevs button").forEach(b => b.addEventListener("click", () => heroDevice(HKINDS.indexOf(b.dataset.k))));
   fitHero(); addEventListener("resize", fitHero);
 }
 /* end hero device box */
@@ -2223,18 +2221,6 @@ p{margin:0}
 .rev.other{opacity:.6}
 .dev[data-dev="laptop"] .rev.other{display:none}
 
-/* device switcher under the device: which screen is playing, with its own progress */
-.devs{display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--paper);box-shadow:var(--shadow)}
-.devs button{all:unset;cursor:pointer;position:relative;overflow:hidden;display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:999px;font:700 12.5px var(--sans);color:var(--muted);transition:background .3s,color .3s}
-.devs button svg{width:15px;height:15px}
-.devs button[aria-pressed="true"]{background:var(--ink);color:#fff}
-.devs button i{position:absolute;left:12px;right:12px;bottom:3px;height:2px;border-radius:2px;background:rgba(255,255,255,.18);overflow:hidden;opacity:0}
-.devs button[aria-pressed="true"] i{opacity:1}
-.devs button i b{display:block;height:100%;width:0;background:var(--gold)}
-.devs button[aria-pressed="true"] i b{animation:fill var(--dd,4s) linear forwards}
-.paused .devs button i b{animation-play-state:paused}
-.devs button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-
 
 .now{display:none;text-align:center;max-width:360px}
 .now b{display:block;font:800 20px/1.2 var(--display);letter-spacing:-.02em}
@@ -2345,11 +2331,6 @@ p{margin:0}
           </div></template>
         </div>
 
-        <div class="devs" role="group" aria-label="Show this step on">
-          <button type="button" data-k="phone" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg>Phone<i><b></b></i></button>
-          <button type="button" data-k="tablet" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2.5"/><path d="M11 18h2"/></svg>Tablet<i><b></b></i></button>
-          <button type="button" data-k="laptop" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg>Laptop<i><b></b></i></button>
-        </div>
         <div class="now" aria-live="polite"><b id="nowT">Nii Obodai asks</b><p id="nowP">When the archive has no answer, he says so instead of guessing, and asks if you know.</p></div>
         <div class="dots"><button type="button" class="on" aria-label="Step 1"><i></i></button><button type="button" aria-label="Step 2"><i></i></button><button type="button" aria-label="Step 3"><i></i></button><button type="button" aria-label="Step 4"><i></i></button></div>
       </div>
@@ -2375,7 +2356,7 @@ const KINDS = ["phone", "tablet", "laptop"];
 const PLAY = [5200, 6200, 5600, 4200];   // each device plays the whole step
 const MORPH = 800;
 const CHAT = [0, 1, 1, 3];               // chat screen under each step (the review sits over the staged chat)
-const steps = $$(".steps button"), dots = $$(".dots button"), rail = $$(".rail span"), devBtns = $$(".devs button");
+const steps = $$(".steps button"), dots = $$(".dots button"), rail = $$(".rail span");
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const stageTime = (s) => 3 * PLAY[s] + 2 * (MORPH + 150);
 let cur = 0, phase = 0, timer = null, subs = [];
@@ -2428,13 +2409,11 @@ function show(st, ph) {
     $("nowP").textContent = steps[cur].querySelector("p").textContent;
   }
   const dwell = PLAY[cur] + (changing ? MORPH + 150 : 0);
-  devBtns.forEach((b) => { const on = b.dataset.k === kind; b.setAttribute("aria-pressed", String(on)); b.style.setProperty("--dd", dwell + "ms"); if (on) restart(b.querySelector("i b")); });
   if (!reduce) timer = setTimeout(() => (ph < 2 ? show(cur, ph + 1) : show(cur + 1, 0)), dwell);
 }
 
 steps.forEach((b, k) => b.addEventListener("click", () => show(k, 0)));
 dots.forEach((b, k) => b.addEventListener("click", () => show(k, 0)));
-devBtns.forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); show(cur, KINDS.indexOf(b.dataset.k)); }));
 // Tap the device: right half forward, left half back, one screen at a time.
 box.addEventListener("click", (e) => {
   const r = box.getBoundingClientRect(), fwd = e.clientX - r.left > r.width / 2;
