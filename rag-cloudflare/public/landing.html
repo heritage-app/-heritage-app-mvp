@@ -136,6 +136,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:co
 .note{font-size:14px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 14px}
 .note span{display:inline-flex;align-items:center;gap:6px}
 .note span::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ok)}
+.note a{color:inherit;text-decoration:none}.note a:hover{text-decoration:underline}
 
 .stage{position:relative;display:grid;justify-items:center;gap:22px;min-width:0}
 .glyphs{position:absolute;inset:-4% -10%;z-index:-1;font-family:var(--display);font-weight:800;color:var(--gold-soft);pointer-events:none;user-select:none}
@@ -723,6 +724,25 @@ section.sec{padding-block:clamp(72px,10vw,128px)}
 .stat.gap{background:transparent;box-shadow:inset 0 0 0 2px var(--gold)}
 .stat.gap b{color:var(--gold-ink)}
 .stat.gap small{color:var(--gold-ink);font-weight:700}
+
+/* Install the app: per-platform steps on the left, a QR and CTAs on the right. */
+.inst-cols{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,.85fr);gap:18px;margin-top:44px;align-items:start}
+.inst-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;list-style:none;margin:0;padding:0}
+.inst-card{padding:22px;border-radius:24px;background:var(--paper-2);display:grid;gap:12px;align-content:start;min-width:0}
+.inst-card.mine{box-shadow:inset 0 0 0 2px var(--gold)}
+.inst-card>svg{width:26px;height:26px;color:var(--ink-2)}
+.inst-card>b{font:800 17px var(--display);letter-spacing:-.01em}
+.inst-card ol{list-style:none;margin:0;padding:0;display:grid;gap:10px;font-size:13.5px;line-height:1.5;color:var(--ink-2)}
+.inst-card li{display:flex;gap:9px;align-items:flex-start}
+.inst-card li i{font:800 10px/22px var(--sans);font-style:normal;flex:none;width:22px;height:22px;border-radius:50%;background:var(--gold);color:#1a1205;text-align:center}
+.inst-side{display:grid;gap:18px}
+.inst-qr{padding:26px;border-radius:24px;background:var(--paper-2);display:grid;gap:14px;justify-items:center;text-align:center}
+.inst-qr img{display:block;width:180px;height:180px}
+.inst-qr p{font-size:14px;line-height:1.55;color:var(--muted);margin:0}
+.inst-side .cta-row{justify-content:center}
+@media (max-width:900px){.inst-cols{grid-template-columns:1fr}}
+@media (max-width:700px){.inst-grid{grid-template-columns:1fr}}
+@media (pointer:coarse){.inst-qr{display:none}}
 .streams{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .stream{padding:24px;border-radius:24px;box-shadow:inset 0 0 0 1px var(--line);display:flex;flex-direction:column;gap:10px;min-width:0}
 .stream .ic{width:42px;height:42px;border-radius:14px;display:grid;place-items:center}
@@ -849,6 +869,7 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
       <li><a href="#tour">See the app</a></li>
       <li><a href="/learn-ga">Learn Ga</a></li>
       <li><a href="/samai">Samai</a></li>
+      <li><a href="#install">Install</a></li>
       <li><a href="#give">Contribute</a></li>
       <li><a href="#partner">Support</a></li>
     </ul>
@@ -868,7 +889,7 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
         <a class="btn btn-ink" href="https://app.speakga.org/">Try SpeakGa <span class="arr" aria-hidden="true">→</span></a>
         <a class="btn btn-line" href="#tour">See it in action</a>
       </div>
-      <p class="note"><span>Free</span><span>Works in your browser</span><span>Installs on your phone</span></p>
+      <p class="note"><span>Free</span><span>Works in your browser</span><span><a href="#install">Installs on your phone</a></span></p>
     </div>
 
     <div class="stage">
@@ -1112,6 +1133,66 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
   </div>
 </section>
 
+<section class="sec" id="install">
+  <div class="wrap">
+    <div class="head"><p class="eyebrow">Install the app</p><h2>SpeakGa on your home screen.</h2><p class="lede">Free, no app store. It opens full-screen, loads fast on a weak connection, and keeps working where the signal is poor.</p></div>
+    <div class="inst-cols">
+      <ol class="inst-grid">
+        <li class="inst-card">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg>
+          <b>iPhone / iPad</b>
+          <ol>
+            <li><i>1</i><span>Open <b>app.speakga.org</b> in Safari</span></li>
+            <li><i>2</i><span>Tap <b>Share</b></span></li>
+            <li><i>3</i><span>Tap <b>Add to Home Screen</b>, then Add</span></li>
+          </ol>
+        </li>
+        <li class="inst-card">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2.5"/><path d="M11 18h2"/></svg>
+          <b>Android</b>
+          <ol>
+            <li><i>1</i><span>Open <b>app.speakga.org</b> in Chrome</span></li>
+            <li><i>2</i><span>Tap <b>Install SpeakGa</b> when it appears, or ⋮ menu → <b>Add to Home screen</b></span></li>
+            <li><i>3</i><span>Tap <b>Install</b></span></li>
+          </ol>
+        </li>
+        <li class="inst-card">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg>
+          <b>Laptop / desktop</b>
+          <ol>
+            <li><i>1</i><span>Open <b>app.speakga.org</b> in Chrome or Edge</span></li>
+            <li><i>2</i><span>Click the install icon at the right of the address bar</span></li>
+            <li><i>3</i><span>Click <b>Install</b>. It opens in its own window</span></li>
+          </ol>
+        </li>
+      </ol>
+      <div class="inst-side">
+        <div class="inst-qr">
+          <img src="img/install-qr.svg" width="180" height="180" alt="QR code that opens SpeakGa on your phone">
+          <p>On a laptop? Point your phone's camera here to open SpeakGa, then add it to your home screen.</p>
+        </div>
+        <div class="cta-row">
+          <a class="btn btn-ink" href="https://app.speakga.org/?install=1">Install SpeakGa <span class="arr" aria-hidden="true">→</span></a>
+          <a class="btn btn-line" href="https://app.speakga.org/">Just open it in the browser</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<script>
+/* Install section: mark the card for the visitor's own platform; on touch
+   screens the QR is useless (you can't scan your own screen), so it stays hidden. */
+(function () {
+  var cards = document.querySelectorAll(".inst-card");
+  if (!cards.length) return;
+  var ua = navigator.userAgent;
+  var ios = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  var and = /android/i.test(ua);
+  var k = ios ? 0 : and ? 1 : 2;
+  if (cards[k]) cards[k].classList.add("mine");
+})();
+</script>
+
 <section class="sec contrib" id="contribute">
   <div class="wrap">
     <div class="head"><p class="eyebrow">Community</p><h2>Help us teach technology our language.</h2><p class="lede">Most Ga lives with its speakers, not in books. When Nii Obodai doesn't know something, anyone can teach it, on whatever screen they have. Here is how one word gets in.</p></div>
@@ -1253,7 +1334,7 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
     <p class="eyebrow">Miifala means welcome</p>
     <h2>Miifala<span>.</span></h2>
     <p class="lede">Open SpeakGa in your browser and say your first word in Ga.</p>
-    <a class="btn btn-ink" href="https://app.speakga.org/">Start exploring <span class="arr" aria-hidden="true">→</span></a>
+    <div class="cta-row"><a class="btn btn-ink" href="https://app.speakga.org/">Start exploring <span class="arr" aria-hidden="true">→</span></a><a class="btn btn-line" href="https://app.speakga.org/?install=1">Install the app</a></div>
   </div>
 </section>
 </main>
@@ -1365,7 +1446,7 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
 <footer>
   <div class="wrap f-row">
     <a class="brand brand-sm" href="#top"><img src="img/brand/speakga-logo.png" width="515" height="144" alt="SpeakGa"></a>
-    <ul class="f-links"><li><a href="https://app.speakga.org/">Open the app</a></li><li><a href="/learn-ga">Learn Ga</a></li><li><a href="/samai">Ga samai</a></li><li><a href="/about">About</a></li><li><a href="#tour">See the app</a></li><li><a href="#give">Contribute</a></li><li><a href="#roadmap">Roadmap</a></li><li><a href="/support">Support</a></li></ul>
+    <ul class="f-links"><li><a href="https://app.speakga.org/">Open the app</a></li><li><a href="#install">Install the app</a></li><li><a href="/learn-ga">Learn Ga</a></li><li><a href="/samai">Ga samai</a></li><li><a href="/about">About</a></li><li><a href="#tour">See the app</a></li><li><a href="#give">Contribute</a></li><li><a href="#roadmap">Roadmap</a></li><li><a href="/support">Support</a></li></ul>
     <span>© 2026 Codetrain Foundation</span>
   </div>
 </footer>
@@ -1982,7 +2063,7 @@ document.getElementById("copyBtn").addEventListener("click", () => {
 </script>
 <script>
 /* Cookie-free visit counter: page, referring site, device. No names or IP addresses (src/routes/traffic.ts). */
-(function(){function t(e){try{var d=JSON.stringify({e:e,p:location.pathname+(location.hash||""),r:document.referrer});if(!(navigator.sendBeacon&&navigator.sendBeacon("/api/v1/e",d)))fetch("/api/v1/e",{method:"POST",body:d,keepalive:true})}catch(_){}}window.sgTrack=t;t("pageview");document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("a,button");if(!a)return;var h=a.getAttribute("href")||"";if(h.indexOf("https://app.speakga.org")===0)t("start");else if(a.closest("#partner"))t("support")},true);})();
+(function(){function t(e){try{var d=JSON.stringify({e:e,p:location.pathname+(location.hash||""),r:document.referrer});if(!(navigator.sendBeacon&&navigator.sendBeacon("/api/v1/e",d)))fetch("/api/v1/e",{method:"POST",body:d,keepalive:true})}catch(_){}}window.sgTrack=t;t("pageview");document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("a,button");if(!a)return;var h=a.getAttribute("href")||"";if(h.indexOf("install=1")!==-1)t("install_click");if(h.indexOf("https://app.speakga.org")===0)t("start");else if(a.closest("#partner"))t("support")},true);})();
 </script>
 <script>
 /* Research figures: live from the archive (GET /api/v1/archive-stats), counted up when the

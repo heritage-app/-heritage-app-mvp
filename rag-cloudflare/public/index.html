@@ -4992,6 +4992,26 @@ $("bibleFind").onsubmit = async (e) => {
     setTimeout(() => send(q), 0);
   }
 }
+// Install links from the landing page carry ?install: open the install panel
+// directly (an explicit ask, so the once-per-device offer gating doesn't apply).
+{
+  let inst = false;
+  try { inst = new URLSearchParams(location.search).has("install"); } catch {}
+  if (inst) {
+    try { history.replaceState(null, "", location.pathname + location.hash); } catch {}
+    if (!isStandalone()) {
+      const openInstallNow = () => {
+        openInstall();
+        if (!installPrompt && !isIOS) $("instTitle").textContent = "Install SpeakGa from your browser menu";
+      };
+      if (installPrompt || isIOS) setTimeout(openInstallNow, 600);
+      else {
+        const t = setTimeout(openInstallNow, 2500);
+        window.addEventListener("beforeinstallprompt", () => { clearTimeout(t); openInstallNow(); }, { once: true });
+      }
+    }
+  }
+}
 
 /* ====================================================================
    Mock-fidelity pass: progress (kept on this device), Learn topics,
