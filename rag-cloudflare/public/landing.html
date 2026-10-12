@@ -500,7 +500,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:co
 }
 
 /* ===== Contribute page (opens over the landing page at #give) ===== */
-.give{position:fixed;inset:0;z-index:60;overflow-y:auto;background:var(--bg);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);animation:givein .4s var(--ease)}
+.give{position:fixed;inset:0;z-index:60;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;background:var(--bg);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);animation:givein .4s var(--ease)}
 @keyframes givein{from{opacity:0;transform:translateY(16px)}}
 .give-bar{position:sticky;top:0;z-index:3;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
 .give-bar .wrap{display:flex;align-items:center;gap:16px;height:68px}
