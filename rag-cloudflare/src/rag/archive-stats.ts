@@ -2,7 +2,7 @@
  * What the archive holds, counted one way everywhere: the landing page, the
  * About and Support pages, and the admin console.
  *
- *   GET /api/v1/archive-stats   public, cached for an hour
+ *   GET /api/v1/archive-stats   public, cached for five minutes
  */
 import { Hono } from "hono";
 import type { Env, Variables } from "../types";
@@ -58,6 +58,6 @@ export async function archiveStats(env: Env): Promise<ArchiveStats> {
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.get("/archive-stats", async (c) => {
   const s = await archiveStats(c.env);
-  return c.json(s, 200, { "Cache-Control": "public, max-age=3600", "Access-Control-Allow-Origin": "*" });
+  return c.json(s, 200, { "Cache-Control": "public, max-age=300", "Access-Control-Allow-Origin": "*" });
 });
 export default app;

@@ -2017,7 +2017,7 @@ document.getElementById("copyBtn").addEventListener("click", () => {
     });
     if (played && !reduce) els.forEach((el) => { el.textContent = fmt(+el.dataset.to); });
   }
-  const get = (u) => fetch(u).then((r) => (r.ok ? r.json() : Promise.reject(r.status)));
+  const get = (u) => fetch(u, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : Promise.reject(r.status)));
   get("/api/v1/archive-stats").catch(() => get("https://speakga.org/api/v1/archive-stats")).then(apply).catch(() => {});
   const box = els[0].closest(".stats") || els[0];
   if ("IntersectionObserver" in window) {
