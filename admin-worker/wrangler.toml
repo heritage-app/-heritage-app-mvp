@@ -4,6 +4,11 @@ main = "src/index.ts"
 compatibility_date = "2024-12-18"
 compatibility_flags = ["nodejs_compat"]
 
+# admin.speakga.org is the admin console only — the public app is never served
+# here. heritage-admin.heritage-app.workers.dev keeps working.
+routes = [{ pattern = "admin.speakga.org", custom_domain = true }]
+workers_dev = true
+
 # Standalone admin console: serves admin.html/auth.html as static assets and
 # proxies /api/* to the main API worker so cookie auth stays same-origin.
 [assets]

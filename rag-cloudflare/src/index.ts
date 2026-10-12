@@ -140,7 +140,7 @@ app.route("/api/v1", api);
 
 // The admin console moved to its own worker (heritage-admin). Old links and
 // bookmarks to /admin here go there instead of a 404.
-const ADMIN_CONSOLE = "https://heritage-admin.heritage-app.workers.dev";
+const ADMIN_CONSOLE = "https://admin.speakga.org";
 app.get("/admin", (c) => c.redirect(`${ADMIN_CONSOLE}/admin.html`, 302));
 app.get("/admin.html", (c) => c.redirect(`${ADMIN_CONSOLE}/admin.html`, 302));
 

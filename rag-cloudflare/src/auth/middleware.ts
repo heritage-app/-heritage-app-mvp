@@ -11,13 +11,17 @@ import { getUserById } from "../db/users";
 
 type AppEnv = { Bindings: Env; Variables: Variables };
 
-export const ADMIN_CONSOLE_URL = "https://heritage-admin.heritage-app.workers.dev";
+export const ADMIN_CONSOLE_URL = "https://admin.speakga.org";
 
 /** The admin console is its own site; it reaches this worker through a
  *  service binding and its requests keep the console's host name
  *  (heritage-admin…, or <version>-heritage-admin… for previews). */
 export function fromAdminConsole(c: Context): boolean {
-  try { return /(^|[.-])heritage-admin\./.test(new URL(c.req.url).hostname); } catch { return false; }
+  // admin.speakga.org, or the console's workers.dev address.
+  try {
+    const host = new URL(c.req.url).hostname;
+    return host === "admin.speakga.org" || /(^|[.-])heritage-admin\./.test(host);
+  } catch { return false; }
 }
 
 /** Admin accounts belong to the console, not the app. A browser session
