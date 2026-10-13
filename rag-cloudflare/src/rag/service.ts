@@ -526,6 +526,26 @@ function askFrameToSay(q: string): string {
   );
 }
 
+/**
+ * Spell out English contractions the archive writes in full ("it is" 8 times,
+ * "it's" never; "i am" 23, "i'm" once), with or without the apostrophe:
+ * "its raining" found nothing while "it is raining" found Nugbɔ miinɛ.
+ * A bare "its" is also the possessive ("its name"), so it's read as "it is"
+ * only before an -ing word or a state. "let's" stays: the archive keeps it.
+ */
+const ITS_STATES = new Set(["okay", "ok", "fine", "good", "bad", "hot", "cold", "warm", "late", "early", "over", "done",
+  "finished", "true", "enough", "expensive", "cheap", "dark", "sunny", "windy", "time", "far", "near", "here", "there", "me", "you"]);
+export function expandContractions(q: string): string {
+  return q
+    .replace(/\bit['’]s\b/gi, "it is")
+    .replace(/\bits\s+(\w+)/gi, (m, next: string) => (/ing$/i.test(next) || ITS_STATES.has(next.toLowerCase()) ? `it is ${next}` : m))
+    .replace(/\bi['’]?m\b/gi, "i am")
+    .replace(/\b(you|we|they)['’]re\b|\b(you|they)re\b/gi, (_m, a?: string, b?: string) => `${a || b} are`)
+    .replace(/\b(he|she|that|there|what|where|who|how)['’]s\b/gi, "$1 is")
+    .replace(/\b(is|are|was|were|does|do|did|has|have|ca|wo)n['’]?t\b/gi, (_m, v: string) =>
+      v.toLowerCase() === "ca" ? "cannot" : v.toLowerCase() === "wo" ? "will not" : `${v} not`);
+}
+
 /** General-knowledge engine for history, stories, phrases, numerics. */
 async function* askGeneral(
   env: Env,
@@ -540,7 +560,7 @@ async function* askGeneral(
   // "how do I ask (someone) what is your name" is "how do you say what is your
   // name": otherwise "ask" counts as a word to translate, and "Just why should
   // you ask about my name?" matched.
-  query = askFrameToSay(query);
+  query = expandContractions(askFrameToSay(query));
   // Numeric range table: "count from 1 to 10"
   const rangeMatch = query.match(/(\d+)\s+to\s+(\d+)/i);
   if (rangeMatch) {

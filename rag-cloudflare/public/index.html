@@ -601,6 +601,9 @@
   .nv.big .nv-play { width:52px; height:52px; }
   .nv.big .nv-play svg { width:19px; height:19px; }
   .nv.big .nv-wave { height:38px; }
+  .nv-also { margin-top:10px; }
+  .nv-also-h { font:500 13px var(--sans); color:var(--ink-2); }
+  .nv-also .nv { margin-top:6px; }
   /* "Be the first to record" — an invitation, never a player. */
   .nv-first { display:inline-flex; align-items:center; gap:6px; margin-top:8px; border:0; background:none; padding:0;
     color:var(--accent-ink); font:700 12.5px var(--sans); cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
@@ -3248,7 +3251,29 @@ function addVoice(bubble) {
     if (anchor && anchor.parentNode === bubble) anchor.after(p); else bubble.appendChild(p);
     return;
   }
+  addAlsoSaid(bubble);
   addFirstToRecord(bubble);
+}
+
+/* The answer's Ga has no recording, but another recorded phrase means the same
+   thing (its confirmed English matches what was asked): "It is raining" →
+   Nugbɔ miinɛ, also said nyɔŋmɔ nɛ — offer that real voice. */
+const englishKey = (s) => String(s || "").toLowerCase().replace(/['’]/g, "").replace(/\bits\b/g, "it is")
+  .replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+function addAlsoSaid(bubble) {
+  const text = bubble.textContent || "";
+  if (/Not a checked entry yet/.test(text) || !/^In Ga, “|is Ga for “/.test(text.trim())) return;
+  const english = englishKey((text.match(/“([^”]{1,80})”/) || [])[1]);
+  if (!english || !VOICES) return;
+  const shownGa = voiceKey(bubble.querySelector("strong, b")?.textContent || "");
+  const v = [...VOICES.values()].find((x) => x.english && voiceKey(x.ga) !== shownGa &&
+    x.english.split(/;|,| or /).some((e) => englishKey(e) === english));
+  if (!v) return;
+  const wrap = document.createElement("div");
+  wrap.className = "nv-also";
+  wrap.innerHTML = `<div class="nv-also-h">Also said: <b>${escapeHtml(v.ga)}</b></div>`;
+  wrap.appendChild(voicePlayer(v));
+  bubble.appendChild(wrap);
 }
 
 /* A checked answer whose Ga has no recording: no player, only an invitation to
