@@ -846,6 +846,10 @@
   .x-sec-h h3 { margin:0; font:800 24px/1.2 var(--display); letter-spacing:-.4px; }
   .x-link { border:0; background:transparent; color:var(--muted); font:600 14px var(--sans); cursor:pointer; min-height:44px; }
   .x-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:14px; }
+  /* The listening tile spans the row, so the other four stay a full row. */
+  .x-tile-wide { grid-column:1 / -1; }
+  .x-new { display:inline-block; vertical-align:2px; margin-left:6px; padding:2px 7px; border-radius:999px;
+    font:800 9.5px var(--sans); letter-spacing:.08em; text-transform:uppercase; background:var(--ink); color:var(--bg); }
   .x-tile { display:flex; align-items:center; gap:12px; padding:16px 14px; min-height:92px; border:0; text-align:left; border-radius:20px; cursor:pointer; color:var(--ink); font-family:var(--sans); }
   .x-tile .ic { width:52px; height:52px; flex:none; display:grid; place-items:center; color:#fff; border-radius:16px; }
   .x-tile b { display:block; font:800 15.5px/1.2 var(--sans); }
@@ -1654,6 +1658,7 @@
         <div>
           <div class="x-sec-h"><h3>Ways to practise</h3></div>
           <div class="x-tiles">
+            <button type="button" class="x-tile t-sand x-tile-wide" data-quiz="listen"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg></span><span class="tx"><b>Listen <span class="x-new">New</span></b><span class="s">hear a Ga speaker, pick the phrase</span></span><span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></button>
             <button type="button" class="x-tile t-sage" data-quiz="choice"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><span class="tx"><b>Choose</b><span class="s">pick the right word</span></span><span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></button>
             <button type="button" class="x-tile t-sky" data-quiz="match"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><path d="M10 6.5h4a3 3 0 0 1 3 3V14"/></svg></span><span class="tx"><b>Match</b><span class="s">pair Ga &amp; English</span></span><span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></button>
             <button type="button" class="x-tile t-blush" data-quiz="blank"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h6M14 12h6M4 17h16"/><rect x="10" y="10" width="4" height="4" rx="1"/></svg></span><span class="tx"><b>Fill the blank</b><span class="s">finish the phrase</span></span><span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></button>
@@ -3942,7 +3947,7 @@ function startQuiz() {
   const card = qCard(bubble, "PRACTICE", "pick a game");
   const grid = document.createElement("div");
   grid.className = "q-modes";
-  for (const key of ["choice", "scramble", "match", "blank", "mixed"]) {
+  for (const key of ["listen", "choice", "scramble", "match", "blank", "mixed"]) {
     const b = document.createElement("button");
     b.className = "q-mode"; b.type = "button";
     b.innerHTML = `<b>${escapeHtml(MODES[key].label)}</b><i>${escapeHtml(MODES[key].blurb)}</i>`;
