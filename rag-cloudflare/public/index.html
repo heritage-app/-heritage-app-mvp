@@ -612,6 +612,8 @@
   .rec-mic:focus-visible, .rec-again:focus-visible, .vc-vote:focus-visible, .vc-del:focus-visible, .nv-first:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
   .rec-hint { font:500 13px var(--sans); color:var(--muted); }
   .rec-hint.warn { color:var(--blush-ink); }
+  .rec { flex-wrap:wrap; }
+  .rec-note { flex-basis:100%; font-size:12.5px; }
   .rec-time { flex:none; font:700 12.5px var(--sans); color:#C0473D; font-variant-numeric:tabular-nums; }
   .rec-live i { height:14%; }
   .rec-take { flex:1; min-width:0; margin:0; padding:0; background:none; border:0; }
@@ -3300,7 +3302,12 @@ async function processPcm(pcm, rate) {
   if (rms.length < 10) throw new Error("short");
   const sorted = [...rms].sort((x, y) => x - y);
   const noise = sorted[Math.floor(sorted.length * 0.1)], speech = sorted[Math.floor(sorted.length * 0.95)];
-  if (speech < 0.003) throw new Error("quiet");
+  // Only true silence is refused (a muted or wrong microphone). A quiet take is
+  // levelled up below and kept, with a note to listen back before sending.
+  let peakAll = 0; for (const v of s) if (Math.abs(v) > peakAll) peakAll = Math.abs(v);
+  console.info("recording level: speech rms", speech.toFixed(4), "peak", peakAll.toFixed(4));
+  if (peakAll < 0.0008) throw new Error("nothing");
+  const quiet = speech < 0.01;
   const gate = noise + (speech - noise) * 0.15;
   let a = rms.findIndex((v) => v > gate), z = rms.length - 1 - [...rms].reverse().findIndex((v) => v > gate);
   a = Math.max(0, a * fr - 1920); z = Math.min(s.length, (z + 1) * fr + 1920);
@@ -3316,7 +3323,7 @@ async function processPcm(pcm, rate) {
     wav.setInt16(44 + i * 2, Math.round(v * 32767), true);
     const k = Math.floor((i / n) * 32); peaks[k] = Math.max(peaks[k], Math.abs(v));
   }
-  return { blob: new Blob([wav.buffer], { type: "audio/wav" }), secs: +(n / 16000).toFixed(1), peaks: peaks.map((p) => +p.toFixed(2)) };
+  return { blob: new Blob([wav.buffer], { type: "audio/wav" }), secs: +(n / 16000).toFixed(1), peaks: peaks.map((p) => +p.toFixed(2)), quiet };
 }
 /** A record → listen back → re-record control. take() is the finished WAV, or null. */
 function recorderWidget(hint) {
@@ -3349,6 +3356,7 @@ function recorderWidget(hint) {
       again.type = "button"; again.className = "rec-again"; again.textContent = "Re-record";
       again.onclick = () => { reset(); box.dispatchEvent(new Event("change")); };
       box.appendChild(again);
+      if (take.quiet) box.insertAdjacentHTML("beforeend", '<span class="rec-hint warn rec-note">It was quiet, so we turned it up. Listen back before you send it.</span>');
     }
   }
   function fail(why, detail) {
@@ -3361,7 +3369,7 @@ function recorderWidget(hint) {
     const AC = window.AudioContext || window.webkitAudioContext;
     try { ac = new AC(); ac.resume?.(); } catch (e) { return fail("failed", e); }
     state = "asking"; draw();
-    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } })
       .then(begin)
       .catch((e) => fail(e && (e.name === "NotAllowedError" || e.name === "SecurityError") ? "denied" : "nothing", e));
   }
@@ -3410,7 +3418,7 @@ function recorderWidget(hint) {
       take = { ...t, url: URL.createObjectURL(t.blob) };
       state = "done"; draw();
       box.dispatchEvent(new Event("change"));
-    } catch (e) { fail(["quiet", "short"].includes(e?.message) ? e.message : "failed", e); }
+    } catch (e) { fail(["quiet", "short", "nothing"].includes(e?.message) ? e.message : "failed", e); }
   }
   function reset() { stopAll(); if (take?.url) URL.revokeObjectURL(take.url); take = null; state = "idle"; draw(); }
   draw();
