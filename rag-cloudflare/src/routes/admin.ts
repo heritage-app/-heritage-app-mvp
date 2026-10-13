@@ -554,6 +554,15 @@ app.get("/contributions", async (c) => {
     .bind(status)
     .first<{ count: number }>();
 
+  // Recordings that came with these contributions (reviewed on the Voices page).
+  const ids = (rows.results || []).map((r) => r.id);
+  const recs = ids.length
+    ? await c.env.DB.prepare(
+        `SELECT contribution_id, id, status FROM voice_recordings WHERE contribution_id IN (${ids.map(() => "?").join(",")})`
+      ).bind(...ids).all<{ contribution_id: string; id: string; status: string }>().catch(() => ({ results: [] as { contribution_id: string; id: string; status: string }[] }))
+    : { results: [] as { contribution_id: string; id: string; status: string }[] };
+  const recBy = new Map((recs.results || []).map((x) => [x.contribution_id, x]));
+
   return c.json({
     contributions: (rows.results || []).map((r) => {
       let meta: Record<string, any> = {};
@@ -574,6 +583,11 @@ app.get("/contributions", async (c) => {
         contributor_email: meta.contributor_email || null,
         contributor_location: meta.contributor_location || null,
         created_at: humanizeTimestamp(r.timestamp),
+        // Evidence files (names only; bytes via /contributions/:id/attachments/:i).
+        attachments: (Array.isArray(meta.attachments) ? meta.attachments : []).map(
+          (a: { name?: string; type?: string; size?: number }, i: number) => ({ index: i, name: a.name || `file-${i + 1}`, type: a.type || "", size: a.size || 0 })
+        ),
+        recording: recBy.has(r.id) ? { id: recBy.get(r.id)!.id, status: recBy.get(r.id)!.status } : null,
       };
     }),
     total: total?.count ?? 0,

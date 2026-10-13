@@ -8,6 +8,8 @@
 <link rel="icon" type="image/png" href="/img/favicon-32.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- Plus Jakarta Sans and Bricolage have no ɛ ɔ: Inter supplies just the Ga letters. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&text=%C9%9B%C9%94%C6%90%C6%86%C5%8B%C5%8A%CC%83%CC%81%CC%80&display=swap" rel="stylesheet">
 <style>
 /* Admin sign-in. Left: the form. Right: the Ga samai, animated as on the app's sign-in
    (rag-cloudflare/public/auth.html), with live archive figures. Phones: a slim samai band above the form. */
@@ -16,8 +18,8 @@
   --ink:#16130F; --ink-2:rgba(22,19,15,.74); --muted:rgba(22,19,15,.6); --faint:rgba(22,19,15,.4);
   --gold:#F2B33D; --gold-ink:#7A5200; --bad:#A3312A; --bad-soft:#FBE4E3; --ok:#1F7A4A;
   --band:#16130F; --band-ink:#F5F2EC; --band-muted:rgba(245,242,236,.62); --band-line:rgba(245,242,236,.14);
-  --display:"Bricolage Grotesque","Plus Jakarta Sans",ui-sans-serif,system-ui,sans-serif;
-  --sans:"Plus Jakarta Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --display:"Bricolage Grotesque","Plus Jakarta Sans","Inter",ui-sans-serif,system-ui,sans-serif;
+  --sans:"Plus Jakarta Sans","Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 @media not all{:root:not([data-theme="light"]){
   --bg:#121212; --panel:#1B1B1B; --line:rgba(255,255,255,.12); --sunk:#232323;

@@ -20,6 +20,8 @@ import { ask } from "../rag/service";
 import { isNotFoundResponse } from "../rag/flagging";
 import admin from "./admin";
 import { archiveStats } from "../rag/archive-stats";
+import { NATIVE_VOICES } from "../data/voices";
+import { voiceKey, safePeaks, deleteRecording, DATASET_CREDIT } from "./voices";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use("*", requireAdmin);
@@ -185,7 +187,7 @@ app.get("/overview", async (c) => {
   const since14 = new Date(Date.now() - 13 * 86400000).toISOString().slice(0, 10);
   const since7 = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
 
-  const [q, daily, gaps, flagged, contrib, vocab, bible, docs, users, sessions, feedback, samaiDocs, archive, failed, searchPending] = await Promise.all([
+  const [q, daily, gaps, flagged, contrib, vocab, bible, docs, users, sessions, feedback, samaiDocs, archive, failed, searchPending, voices] = await Promise.all([
     one<{ total: number; week: number }>(`SELECT COUNT(*) total, SUM(date(created_at) >= ?) week FROM interactions`, since7),
     all<{ day: string; n: number }>(`SELECT date(created_at) day, COUNT(*) n FROM interactions WHERE date(created_at) >= ? GROUP BY 1 ORDER BY 1`, since14),
     one<{ open: number; asks: number; total: number }>(`SELECT SUM(status='pending') open, SUM(CASE WHEN status='pending' THEN frequency ELSE 0 END) asks, COUNT(*) total FROM knowledge_gaps`),
@@ -202,6 +204,7 @@ app.get("/overview", async (c) => {
     archiveStats(c.env).catch(() => null),
     one<{ n: number }>(`SELECT COUNT(*) n FROM documents WHERE ${FAILED}`),
     one<{ n: number }>(`SELECT COUNT(*) n FROM documents WHERE json_extract(metadata, '$.vector_pending') = 1 AND status = 'indexed'`),
+    one<{ pending: number; approved: number }>(`SELECT SUM(status='pending') pending, SUM(status='approved') approved FROM voice_recordings`),
   ]);
 
   // Distinct symbols each samai dataset adds (datasets/ga-samai*.jsonl; the
@@ -227,6 +230,7 @@ app.get("/overview", async (c) => {
     archive,
     failed_uploads: failed?.n ?? 0,
     search_index_pending: searchPending?.n ?? 0,
+    voices: { pending: voices?.pending ?? 0, approved: voices?.approved ?? 0 },
   });
 });
 
@@ -394,6 +398,125 @@ app.get("/activity", async (c) => {
      FROM admin_actions a LEFT JOIN users u ON u.id = a.admin_id ORDER BY a.at DESC LIMIT 50`
   ).all().catch(() => ({ results: [] }));
   return c.json({ items: rows.results || [] });
+});
+
+/* ---- Voices: recordings waiting, every phrase with a voice, and what to record next ---- */
+app.get("/voices", async (c) => {
+  const db = c.env.DB;
+  const [pendingRes, communityRes, hiddenRes, recent] = await Promise.all([
+    db.prepare(
+      `SELECT r.id, r.ga, r.english, r.secs, r.peaks, r.votes_right, r.votes_wrong, r.votes_poor, r.created_at,
+              r.contributor_name, r.consent_at, u.email AS contributor_email
+         FROM voice_recordings r LEFT JOIN users u ON u.id = r.contributor_id
+        WHERE r.status = 'pending' ORDER BY r.created_at LIMIT 100`
+    ).all<any>(),
+    db.prepare(
+      `SELECT id, ga, ga_key, secs, peaks, contributor_name, reviewed_at FROM voice_recordings
+        WHERE status = 'approved' ORDER BY reviewed_at DESC`
+    ).all<any>(),
+    db.prepare("SELECT path FROM voice_hidden").all<{ path: string }>(),
+    // Answers from the last 30 days: the Ga each one led with.
+    db.prepare("SELECT response FROM interactions WHERE created_at > ? ORDER BY created_at DESC LIMIT 4000")
+      .bind(new Date(Date.now() - 30 * 86400000).toISOString()).all<{ response: string }>().catch(() => ({ results: [] as { response: string }[] })),
+  ]);
+  const hidden = new Set((hiddenRes.results ?? []).map((r) => r.path));
+  const phrases = new Map<string, { ga: string; clips: { kind: "dataset" | "community"; ref: string; url: string; secs: number; peaks: number[]; by: string; hidden?: boolean }[] }>();
+  for (const v of NATIVE_VOICES) {
+    phrases.set(voiceKey(v.ga), {
+      ga: v.ga,
+      clips: v.clips.map((k) => ({ kind: "dataset" as const, ref: k.path, url: `/api/v1/media/${k.path}`, secs: k.secs, peaks: k.peaks, by: DATASET_CREDIT, hidden: hidden.has(k.path) })),
+    });
+  }
+  for (const r of communityRes.results ?? []) {
+    const clip = { kind: "community" as const, ref: r.id, url: `/api/v1/media/voices/user/${r.id}.wav`, secs: r.secs, peaks: safePeaks(r.peaks), by: r.contributor_name || "A SpeakGa speaker" };
+    const e = phrases.get(r.ga_key);
+    if (e) e.clips.push(clip); else phrases.set(r.ga_key, { ga: r.ga, clips: [clip] });
+  }
+  // Most-given answers that still have no voice.
+  const asks = new Map<string, { ga: string; n: number }>();
+  for (const { response } of recent.results ?? []) {
+    // Word answers only ("In Ga, “X” is **Y**", "**Y** is Ga for “X”") — the
+    // same answers the app invites a recording for. Not numbers, lists, labels.
+    const r = (response || "").trim();
+    if (!/^In Ga, “|is Ga for “/.test(r) || /Not a checked entry yet/.test(r)) continue;
+    const m = /\*\*([^*\n]{2,40})\*\*/.exec(r);
+    if (!m || !/\p{L}{2}/u.test(m[1]) || /[:\d]/.test(m[1]) || m[1].trim().split(/\s+/).length > 5) continue;
+    const k = voiceKey(m[1]);
+    if (!k || phrases.has(k)) continue;
+    const e = asks.get(k) ?? { ga: m[1].trim(), n: 0 };
+    e.n++; asks.set(k, e);
+  }
+  const list = [...phrases.values()];
+  return c.json({
+    stats: {
+      phrases: list.filter((p) => p.clips.some((k) => !k.hidden)).length,
+      clips: list.reduce((n, p) => n + p.clips.filter((k) => !k.hidden).length, 0),
+      community: (communityRes.results ?? []).length,
+      pending: (pendingRes.results ?? []).length,
+    },
+    pending: (pendingRes.results ?? []).map((r: any) => ({
+      id: r.id, ga: r.ga, english: r.english, secs: r.secs, peaks: safePeaks(r.peaks), created_at: r.created_at,
+      contributor: [r.contributor_name, r.contributor_email].filter(Boolean).join(" · "), consent_at: r.consent_at,
+      votes: { right: r.votes_right, wrong: r.votes_wrong, poor: r.votes_poor },
+      url: `/api/v1/voices/pending/${r.id}/audio`,
+      has_voice: phrases.has(voiceKey(r.ga)),
+    })),
+    phrases: list.sort((a, b) => a.ga.localeCompare(b.ga)),
+    missing: [...asks.values()].sort((a, b) => b.n - a.n).slice(0, 12),
+  });
+});
+
+app.post("/voices/:id/approve", async (c) => {
+  const id = c.req.param("id"), adminId = c.get("adminId")!;
+  const r = await c.env.DB.prepare("SELECT ga, r2_key, status FROM voice_recordings WHERE id = ?").bind(id).first<{ ga: string; r2_key: string; status: string }>();
+  if (!r || r.status !== "pending") return c.json({ detail: "This recording isn't waiting for review." }, 404);
+  const obj = await c.env.DOCS_BUCKET.get(r.r2_key);
+  if (!obj) return c.json({ detail: "The audio file is missing." }, 404);
+  const publicKey = `media/voices/user/${id}.wav`;
+  await c.env.DOCS_BUCKET.put(publicKey, await obj.arrayBuffer(), { httpMetadata: { contentType: "audio/wav" } });
+  await c.env.DB.prepare("UPDATE voice_recordings SET status = 'approved', r2_key = ?, reviewed_at = ?, reviewed_by = ? WHERE id = ?")
+    .bind(publicKey, new Date().toISOString(), adminId, id).run();
+  await c.env.DOCS_BUCKET.delete(r.r2_key).catch(() => {});
+  await logAction(c.env, adminId, "voice_approved", "voice", id, r.ga);
+  return c.json({ ok: true, message: `“${r.ga}” now plays this voice in the app.` });
+});
+
+app.post("/voices/:id/reject", async (c) => {
+  const id = c.req.param("id"), adminId = c.get("adminId")!;
+  const { reason } = await c.req.json<{ reason?: string }>().catch(() => ({ reason: "" }));
+  const r = await c.env.DB.prepare("SELECT ga, r2_key, status FROM voice_recordings WHERE id = ?").bind(id).first<{ ga: string; r2_key: string; status: string }>();
+  if (!r || r.status !== "pending") return c.json({ detail: "This recording isn't waiting for review." }, 404);
+  const why = String(reason || "").trim().slice(0, 120) || "not suitable";
+  await deleteRecording(c.env, id, r.r2_key, "rejected", why, adminId);
+  await logAction(c.env, adminId, "voice_rejected", "voice", id, `${r.ga}: ${why}`);
+  return c.json({ ok: true, message: "Rejected. The speaker sees the reason in Me." });
+});
+
+// Take a published clip down: a community recording is deleted; a dataset clip is hidden.
+app.post("/voices/remove", async (c) => {
+  const adminId = c.get("adminId")!;
+  const { kind, ref } = await c.req.json<{ kind?: string; ref?: string }>().catch(() => ({} as { kind?: string; ref?: string }));
+  if (kind === "community" && ref) {
+    const r = await c.env.DB.prepare("SELECT ga, r2_key FROM voice_recordings WHERE id = ? AND status = 'approved'").bind(ref).first<{ ga: string; r2_key: string }>();
+    if (!r) return c.json({ detail: "Not found" }, 404);
+    await deleteRecording(c.env, ref, r.r2_key, "removed", "taken down by an admin", adminId);
+    await logAction(c.env, adminId, "voice_removed", "voice", ref, r.ga);
+    return c.json({ ok: true });
+  }
+  if (kind === "dataset" && ref && NATIVE_VOICES.some((v) => v.clips.some((k) => k.path === ref))) {
+    await c.env.DB.prepare("INSERT OR IGNORE INTO voice_hidden (path, hidden_by, hidden_at) VALUES (?, ?, ?)").bind(ref, adminId, new Date().toISOString()).run();
+    await logAction(c.env, adminId, "voice_hidden", "voice", ref, ref);
+    return c.json({ ok: true });
+  }
+  return c.json({ detail: "Say which clip to remove." }, 400);
+});
+
+app.post("/voices/restore", async (c) => {
+  const { ref } = await c.req.json<{ ref?: string }>().catch(() => ({} as { ref?: string }));
+  if (!ref) return c.json({ detail: "Say which clip to restore." }, 400);
+  await c.env.DB.prepare("DELETE FROM voice_hidden WHERE path = ?").bind(ref).run();
+  await logAction(c.env, c.get("adminId")!, "voice_restored", "voice", ref, ref);
+  return c.json({ ok: true });
 });
 
 export default app;

@@ -860,6 +860,36 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
 @keyframes hturn{0%{transform:scale(var(--dk,1))}45%{transform:scale(calc(var(--dk,1) * .94)) rotateY(-14deg) rotateX(3deg)}100%{transform:scale(var(--dk,1))}}
 }
 @media (prefers-reduced-motion:reduce){.tbox.hbox .phone.turning{animation:none}}
+
+/* Voices: the app's native-speaker feature, shown as a picture (playback is the app's). */
+#voices .vx{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:clamp(28px,5vw,64px);align-items:center}
+@media (max-width:860px){#voices .vx{grid-template-columns:minmax(0,1fr)}}
+.vx-tx{display:grid;gap:18px;justify-items:start}
+.vx-tx h2{font-size:clamp(34px,4.6vw,56px)}
+.vx-new{font:800 12px var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--sage-ink);background:var(--sage);border-radius:999px;padding:6px 12px}
+.vx-facts{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.vx-facts li{background:var(--app);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:14px;color:var(--ink-2)}
+.vx-facts b{color:var(--ink);font-variant-numeric:tabular-nums}
+.vx-shot{display:grid;gap:12px;background:var(--sand);border-radius:28px;padding:clamp(16px,3vw,26px);transform:rotate(-1.4deg);box-shadow:var(--shadow-lg)}
+.vx-bub{background:var(--paper);border-radius:20px;padding:16px 18px;display:grid;gap:11px;box-shadow:var(--shadow)}
+.vx-bub p{font-size:16px}
+.vx-player{display:flex;align-items:center;gap:10px;min-width:0;background:var(--sand);border-radius:14px;padding:9px 11px}
+.vx-play{flex:none;width:36px;height:36px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center}
+.vx-play svg{width:14px;height:14px}
+.vx-wave{flex:1;min-width:0;height:28px;display:flex;align-items:center;gap:2px}
+.vx-wave i{flex:1;min-width:2px;border-radius:2px;background:#E2D6C3}
+.vx-wave i.on{background:var(--gold-ink)}
+.vx-secs{flex:none;font-size:12px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+.vx-foot{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.vx-chip{border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700}
+.vx-chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.vx-badge{margin-left:auto;font:800 10px var(--sans);letter-spacing:.08em;text-transform:uppercase;background:var(--sage);color:var(--sage-ink);border-radius:999px;padding:3px 9px}
+.vx-tile{display:flex;gap:12px;align-items:center;background:var(--paper);border-radius:16px;padding:12px 14px;font-size:15px;box-shadow:var(--shadow)}
+.vx-tile small{color:var(--muted);font-size:13px}
+.vx-tile em{font-style:normal;font:800 9.5px var(--sans);letter-spacing:.08em;text-transform:uppercase;background:var(--ink);color:#fff;border-radius:999px;padding:2px 7px;vertical-align:2px}
+.vx-ic{flex:none;width:38px;height:38px;border-radius:11px;background:#D9922A;color:#fff;display:grid;place-items:center}
+.vx-ic.rec{background:#C0473D}
+@media (prefers-reduced-motion:reduce){.vx-shot{transform:none}}
 </style>
 
 </head>
@@ -1137,6 +1167,27 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
   </div>
 </section>
 
+<section class="sec" id="voices">
+  <div class="wrap vx">
+    <div class="vx-tx">
+      <p class="vx-new">New in the app</p>
+      <h2>Hear Ga from real speakers.</h2>
+      <p class="lede">Everyday phrases recorded by Ga speakers, three voices each. Hear them under Nii Obodai's answers, practise with Listen &amp; pick in Learn, and record the phrases you know.</p>
+      <ul class="vx-facts"><li><b>93</b> phrases</li><li><b>3</b> voices each</li><li>Recorded by Ga speakers</li></ul>
+      <a class="btn btn-ink" href="https://app.speakga.org/#/learn">Open the app to listen <span class="arr" aria-hidden="true">→</span></a>
+    </div>
+    <!-- A picture of the app's player and Listen tile: nothing plays on this page. -->
+    <div class="vx-shot" aria-hidden="true">
+      <div class="vx-bub"><p>In Ga, “thank you” is <b>Oyiwaladɔŋŋ</b>.</p>
+        <div class="vx-player"><span class="vx-play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg></span><span class="vx-wave"><i class="on" style="height:14%"></i><i class="on" style="height:19%"></i><i class="on" style="height:86%"></i><i class="on" style="height:89%"></i><i class="on" style="height:66%"></i><i class="on" style="height:52%"></i><i class="on" style="height:60%"></i><i class="on" style="height:71%"></i><i class="on" style="height:55%"></i><i class="on" style="height:40%"></i><i class="on" style="height:62%"></i><i style="height:70%"></i><i style="height:50%"></i><i style="height:33%"></i><i style="height:45%"></i><i style="height:58%"></i><i style="height:47%"></i><i style="height:36%"></i><i style="height:30%"></i><i style="height:42%"></i><i style="height:35%"></i><i style="height:24%"></i><i style="height:18%"></i><i style="height:27%"></i><i style="height:22%"></i><i style="height:15%"></i><i style="height:14%"></i><i style="height:16%"></i><i style="height:14%"></i><i style="height:14%"></i><i style="height:14%"></i><i style="height:14%"></i></span><span class="vx-secs">1.8s</span></div>
+        <div class="vx-foot"><span class="vx-chip on">Voice 1</span><span class="vx-chip">Voice 2</span><span class="vx-chip">Voice 3</span><span class="vx-badge">Native speaker</span></div>
+      </div>
+      <div class="vx-tile"><span class="vx-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></span><span><b>Listen</b> <em>New</em><br><small>hear a Ga speaker, pick the phrase</small></span></div>
+      <div class="vx-tile"><span class="vx-ic rec"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span><span><b>Say it in Ga</b><br><small>record a phrase when you teach a word</small></span></div>
+    </div>
+  </div>
+</section>
+
 <section class="sec" id="install">
   <div class="wrap">
     <div class="head"><p class="eyebrow">Install the app</p><h2>SpeakGa on your home screen.</h2><p class="lede">Free, no app store. It opens full-screen, loads fast on a weak connection, and keeps working where the signal is poor.</p></div>
@@ -1262,7 +1313,7 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
     <div class="road">
       <div class="phase now"><span class="pn">Phase 1</span><h3>Build and show</h3><p>Text conversations, cultural content and quizzes, live today.</p><span class="st">Live now</span></div>
       <div class="phase"><span class="pn">Phase 2</span><h3>Research and improve</h3><p>Human-reviewed datasets, expert input and accuracy benchmarks.</p><span class="st">Next</span></div>
-      <div class="phase"><span class="pn">Phase 3</span><h3>Voice</h3><p>Research into Ga speech recognition and natural-sounding audio.</p><span class="st">Planned</span></div>
+      <div class="phase now"><span class="pn">Phase 3</span><h3>Voice</h3><p>93 everyday phrases from native speakers, and Ga speakers adding their own. Speech recognition comes next.</p><span class="st">Under way</span></div>
       <div class="phase"><span class="pn">Phase 4</span><h3>Wider reach</h3><p>Partnerships with schools, researchers and cultural institutions.</p><span class="st">Long term</span></div>
     </div>
   </div>

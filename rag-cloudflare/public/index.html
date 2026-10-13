@@ -598,6 +598,46 @@
   .nv.big .nv-play { width:52px; height:52px; }
   .nv.big .nv-play svg { width:19px; height:19px; }
   .nv.big .nv-wave { height:38px; }
+  /* "Be the first to record" — an invitation, never a player. */
+  .nv-first { display:inline-flex; align-items:center; gap:6px; margin-top:8px; border:0; background:none; padding:0;
+    color:var(--accent-ink); font:700 12.5px var(--sans); cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+  .nv-first:hover { color:var(--ink); }
+  /* Recorder (Contribute → Say it in Ga) */
+  .rec { display:flex; align-items:center; gap:11px; min-width:0; padding:11px 12px; border:1.5px dashed var(--line-2); border-radius:14px; }
+  .rec-mic { flex:none; width:44px; height:44px; border-radius:50%; border:0; cursor:pointer; background:#C0473D; color:#fff;
+    display:grid; place-items:center; }
+  .rec-mic svg { width:18px; height:18px; }
+  .rec-mic.live { animation:recPulse 1.2s ease-in-out infinite; }
+  @keyframes recPulse { 0%,100% { box-shadow:0 0 0 0 rgba(192,71,61,.45); } 50% { box-shadow:0 0 0 9px rgba(192,71,61,0); } }
+  .rec-mic:focus-visible, .rec-again:focus-visible, .vc-vote:focus-visible, .vc-del:focus-visible, .nv-first:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  .rec-hint { font:500 13px var(--sans); color:var(--muted); }
+  .rec-time { flex:none; font:700 12.5px var(--sans); color:#C0473D; font-variant-numeric:tabular-nums; }
+  .rec-live i { height:14%; }
+  .rec-take { flex:1; min-width:0; margin:0; padding:0; background:none; border:0; }
+  .rec-again { flex:none; border:1.5px solid var(--line-2); background:transparent; color:var(--ink); border-radius:999px;
+    padding:7px 12px; font:700 12px var(--sans); cursor:pointer; }
+  .rec-consent { display:flex; gap:9px; align-items:flex-start; margin-top:9px; font:500 12.5px/1.5 var(--sans); color:var(--ink-2); text-transform:none; letter-spacing:0; }
+  .rec-consent input { margin-top:2px; width:16px; height:16px; accent-color:var(--ink); flex:none; }
+  /* Review → recordings to check; Me → your recordings */
+  .vc-sec { display:flex; flex-direction:column; gap:10px; padding-bottom:6px; border-bottom:1px solid var(--line); margin-bottom:4px; }
+  .vc-h { font:800 11px var(--sans); letter-spacing:.1em; text-transform:uppercase; color:var(--muted); display:flex; gap:8px; align-items:center; }
+  .vc-h span { background:var(--ink); color:var(--bg); border-radius:999px; padding:0 7px; font-size:10.5px; }
+  .vc-card { display:flex; flex-direction:column; gap:10px; }
+  .vc-card .nv { margin:0; }
+  .vc-q { font:500 14px var(--sans); display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; }
+  .vc-q span { color:var(--muted); font-size:13px; }
+  .vc-votes { display:flex; flex-wrap:wrap; gap:6px; }
+  .vc-vote { border:1.5px solid var(--line-2); background:transparent; color:var(--ink); border-radius:999px; padding:6px 12px; font:700 12px var(--sans); cursor:pointer; }
+  .vc-vote[aria-pressed="true"] { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+  .vc-vote:disabled:not([aria-pressed="true"]) { opacity:.45; cursor:default; }
+  .vc-thanks { font:500 12.5px var(--sans); color:var(--muted); }
+  .vc-st { margin-left:auto; font:800 10px var(--sans); letter-spacing:.08em; text-transform:uppercase; border-radius:999px; padding:3px 9px;
+    background:var(--line); color:var(--muted); }
+  .vc-st.ok { background:var(--sage); color:var(--sage-ink); }
+  .vc-st.pend { background:var(--accent-soft); color:var(--accent-ink); }
+  .vc-st.no { background:var(--blush); color:var(--blush-ink); }
+  .vc-del { align-self:flex-start; border:0; background:none; padding:0; color:var(--blush-ink); font:700 12px var(--sans); cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+  @media (prefers-reduced-motion:reduce) { .rec-mic.live { animation:none; } }
 
   /* Mode picker */
   .quiz .q-modes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; padding:13px; }
@@ -1503,6 +1543,10 @@
         <span class="sb-ic" style="background:var(--sage);color:var(--sage-ink)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
         Review queue <span class="sb-badge" id="reviewCount" hidden>0</span>
       </button>
+      <button class="sb-item" id="myVoicesBtn" type="button">
+        <span class="sb-ic" style="background:var(--accent-soft);color:var(--accent-ink)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span>
+        Your recordings
+      </button>
       <a class="sb-item hidden" id="adminLink" href="https://admin.speakga.org/admin.html" target="_blank" rel="noopener">Admin console</a>
     </div>
     <div class="sb-foot">
@@ -1839,6 +1883,8 @@
           <div class="f-row">
             <label class="f-lab">Ga <input id="cfGa" type="text" placeholder="Ojekoo" /></label>
           </div>
+          <!-- Say it in Ga: a speaker's recording, reviewed before anyone hears it. -->
+          <div class="f-row hidden" id="cfVoiceRow"></div>
           <div class="f-row">
             <label class="f-lab">Note <span class="f-opt">source or context, optional</span> <input id="cfNote" type="text" placeholder="e.g. heard from grandmother, Nii 1959" /></label>
           </div>
@@ -1942,6 +1988,17 @@
       <p class="ovl-sub" id="revSub">Community corrections awaiting verification. Confirm a proposal to add your speaker vote — admins can approve straight into the knowledge base.</p>
       <div id="reviewList" class="rev-list"><div class="rev-empty">Loading…</div></div>
       <div id="sugList" class="rev-list hidden"></div>
+    </div>
+  </div>
+
+  <div class="ovl" id="myVoicesOvl" role="dialog" aria-modal="true" aria-label="Your recordings">
+    <div class="ovl-panel">
+      <div class="ovl-head">
+        <span>Your recordings</span>
+        <button class="ovl-x" data-close type="button" aria-label="Close">✕</button>
+      </div>
+      <p class="ovl-sub">Phrases you've recorded. An admin listens to each one before anyone else hears it. Delete any of them at any time.</p>
+      <div id="myVoicesList" class="rev-list"><div class="rev-empty">Loading…</div></div>
     </div>
   </div>
 
@@ -3135,13 +3192,18 @@ function voicePlayer(v, opts = {}) {
       `<div class="nv-bot">${many ? `<div class="nv-chips" role="group" aria-label="Choose a voice">${v.clips.map((_, i) =>
         `<button class="nv-chip" type="button" aria-pressed="${i === 0}">Voice ${i + 1}</button>`).join("")}</div>` : "<span></span>"}` +
       `<span class="nv-badge">Native speaker</span></div>` +
-      `<div class="nv-src">Recorded by Ga speakers · Ashesi / GhanaNLP speech dataset, CC BY-NC 4.0</div>`);
+      `<div class="nv-src"></div>`);
   const btn = box.querySelector(".nv-play"), wave = box.querySelector(".nv-wave"), secs = box.querySelector(".nv-secs");
   let pick = opts.pick ?? 0, raf = 0, audio = null;
   const draw = () => {
     const c = v.clips[pick];
-    wave.innerHTML = c.peaks.map((p) => `<i style="height:${Math.max(14, p * 100)}%"></i>`).join("");
+    wave.innerHTML = (c.peaks || []).map((p) => `<i style="height:${Math.max(14, p * 100)}%"></i>`).join("");
     secs.textContent = c.secs.toFixed(1) + "s";
+    // Credit whoever recorded this voice: the dataset, or a SpeakGa speaker.
+    const src = box.querySelector(".nv-src");
+    if (src) src.textContent = !c.by || /dataset/i.test(c.by)
+      ? "Recorded by Ga speakers · Ashesi / GhanaNLP speech dataset, CC BY-NC 4.0"
+      : `Recorded by ${c.by}`;
   };
   const idle = () => { cancelAnimationFrame(raf); btn.innerHTML = NV_PLAY; btn.classList.remove("on"); wave.querySelectorAll("i").forEach((i) => i.classList.remove("on")); };
   const tick = () => {
@@ -3175,6 +3237,250 @@ function addVoice(bubble) {
     const anchor = block?.closest("ul, ol") || block;
     if (anchor && anchor.parentNode === bubble) anchor.after(p); else bubble.appendChild(p);
     return;
+  }
+  addFirstToRecord(bubble);
+}
+
+/* A checked answer whose Ga has no recording: no player, only an invitation to
+   record it. Worked-out ("not a checked entry yet") answers don't get one. */
+function addFirstToRecord(bubble) {
+  if (!canRecord() || bubble.querySelector(".nv-first")) return;
+  const text = bubble.textContent || "";
+  if (/Not a checked entry yet/.test(text) || !/^In Ga, “|is Ga for “/.test(text.trim())) return;
+  // "Wɔ jogbaŋŋ (or Okɛ wɔ jurɔ)" is two phrases: invite a recording of the first.
+  const ga = bubble.querySelector("strong, b")?.textContent.replace(/\s*\(.*$/, "").trim().replace(/[.!?]+$/, "");
+  const english = (text.match(/“([^”]{1,60})”/) || [])[1];
+  if (!ga || ga.length > 40 || !english) return;
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "nv-first";
+  b.innerHTML = `${MIC_ICON}Be the first to record “${escapeHtml(ga)}”`;
+  b.onclick = () => openRecordFor(english, ga);
+  bubble.appendChild(b);
+}
+function openRecordFor(english, ga) {
+  if ($("cfGuestRow")) $("cfGuestRow").classList.toggle("hidden", !!me);
+  setCfTab("text");
+  $("cfType").value = "translation"; $("cfBibleRow").classList.add("hidden");
+  $("cfEnglish").value = english; $("cfGa").value = ga;
+  openOverlay("contribOvl");
+  setTimeout(() => $("cfVoiceRow").scrollIntoView({ block: "center", behavior: "smooth" }), 80);
+}
+
+/* ---- Recording a phrase ----
+   MediaRecorder captures; the browser then decodes, resamples to 16 kHz mono,
+   trims the silence, levels the volume and writes WAV — the same preparation
+   as the dataset clips, so every voice sounds alike. */
+const MIC_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+const REC_MAX_SECS = 10;
+function canRecord() {
+  return !!(navigator.mediaDevices?.getUserMedia && window.MediaRecorder && (window.AudioContext || window.webkitAudioContext) && window.OfflineAudioContext);
+}
+async function processTake(blob) {
+  const AC = window.AudioContext || window.webkitAudioContext, ac = new AC();
+  let buf;
+  try { buf = await ac.decodeAudioData(await blob.arrayBuffer()); } finally { ac.close?.(); }
+  const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(buf.duration * 16000)), 16000);
+  const src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start();
+  const s = (await off.startRendering()).getChannelData(0);
+  // Trim: frames of 20 ms; speech is well above the quietest frames.
+  const fr = 320, rms = [];
+  for (let i = 0; i + fr <= s.length; i += fr) { let e = 0; for (let j = i; j < i + fr; j++) e += s[j] * s[j]; rms.push(Math.sqrt(e / fr)); }
+  if (rms.length < 5) throw new Error("short");
+  const sorted = [...rms].sort((x, y) => x - y);
+  const noise = sorted[Math.floor(sorted.length * 0.1)], speech = sorted[Math.floor(sorted.length * 0.95)];
+  if (speech < 0.01) throw new Error("silent");
+  const gate = noise + (speech - noise) * 0.15;
+  let a = rms.findIndex((v) => v > gate), z = rms.length - 1 - [...rms].reverse().findIndex((v) => v > gate);
+  a = Math.max(0, a * fr - 1920); z = Math.min(s.length, (z + 1) * fr + 1920);
+  let max = 1e-4; for (let i = a; i < z; i++) max = Math.max(max, Math.abs(s[i]));
+  const n = z - a, g = 0.89 / max, wav = new DataView(new ArrayBuffer(44 + n * 2)), peaks = new Array(32).fill(0);
+  const str = (o, t) => [...t].forEach((ch, k) => wav.setUint8(o + k, ch.charCodeAt(0)));
+  str(0, "RIFF"); wav.setUint32(4, 36 + n * 2, true); str(8, "WAVE"); str(12, "fmt ");
+  wav.setUint32(16, 16, true); wav.setUint16(20, 1, true); wav.setUint16(22, 1, true); wav.setUint32(24, 16000, true);
+  wav.setUint32(28, 32000, true); wav.setUint16(32, 2, true); wav.setUint16(34, 16, true); str(36, "data"); wav.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) {
+    const v = Math.max(-1, Math.min(1, s[a + i] * g));
+    wav.setInt16(44 + i * 2, Math.round(v * 32767), true);
+    const k = Math.floor((i / n) * 32); peaks[k] = Math.max(peaks[k], Math.abs(v));
+  }
+  return { blob: new Blob([wav.buffer], { type: "audio/wav" }), secs: +(n / 16000).toFixed(1), peaks: peaks.map((p) => +p.toFixed(2)) };
+}
+/** A record → listen back → re-record control. take() is the finished WAV, or null. */
+function recorderWidget(hint) {
+  const box = document.createElement("div");
+  box.className = "rec";
+  let state = "idle", take = null, stream = null, mr = null, timer = 0, raf = 0, ac = null;
+  const stopAll = () => { clearInterval(timer); cancelAnimationFrame(raf); stream?.getTracks().forEach((t) => t.stop()); stream = null; ac?.close?.(); ac = null; };
+  function draw(msg) {
+    box.innerHTML = "";
+    if (state === "idle") {
+      box.innerHTML = `<button type="button" class="rec-mic" aria-label="Start recording">${MIC_ICON}</button><span class="rec-hint">${escapeHtml(msg || hint())}</span>`;
+      box.querySelector(".rec-mic").onclick = start;
+    } else if (state === "rec") {
+      box.innerHTML = '<button type="button" class="rec-mic live" aria-label="Stop recording"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button><div class="nv-wave rec-live" aria-hidden="true"></div><span class="rec-time">0:00</span>';
+      box.querySelector(".rec-mic").onclick = stop;
+    } else if (state === "busy") {
+      box.innerHTML = '<span class="rec-hint">Preparing your recording…</span>';
+    } else {
+      const p = voicePlayer({ ga: "your recording", clips: [{ url: take.url, secs: take.secs, peaks: take.peaks }] }, { bare: true, label: "your recording" });
+      p.classList.add("rec-take");
+      box.appendChild(p);
+      const again = document.createElement("button");
+      again.type = "button"; again.className = "rec-again"; again.textContent = "Re-record";
+      again.onclick = () => { reset(); box.dispatchEvent(new Event("change")); };
+      box.appendChild(again);
+    }
+  }
+  async function start() {
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
+    catch { draw("Allow the microphone in your browser to record."); return; }
+    const chunks = [];
+    mr = new MediaRecorder(stream);
+    mr.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    mr.onstop = async () => {
+      stopAll();
+      state = "busy"; draw();
+      try {
+        const t = await processTake(new Blob(chunks, { type: mr.mimeType || "audio/webm" }));
+        take = { ...t, url: URL.createObjectURL(t.blob) };
+        state = "done"; draw();
+      } catch { state = "idle"; draw("We didn't catch that. Try again, a little closer to the microphone."); }
+      box.dispatchEvent(new Event("change"));
+    };
+    mr.start();
+    state = "rec"; draw();
+    // Live level bars while recording.
+    const AC = window.AudioContext || window.webkitAudioContext; ac = new AC();
+    const an = ac.createAnalyser(); an.fftSize = 512; ac.createMediaStreamSource(stream).connect(an);
+    const data = new Uint8Array(an.fftSize), wave = box.querySelector(".rec-live"), t0 = Date.now();
+    wave.innerHTML = "<i></i>".repeat(32);
+    const bars = wave.querySelectorAll("i");
+    const loop = () => {
+      an.getByteTimeDomainData(data);
+      let m = 0; for (const v of data) m = Math.max(m, Math.abs(v - 128) / 128);
+      const k = Math.min(31, Math.floor(((Date.now() - t0) / 1000 / REC_MAX_SECS) * 32));
+      bars[k].style.height = Math.max(14, Math.min(100, m * 160)) + "%"; bars[k].classList.add("on");
+      raf = requestAnimationFrame(loop);
+    };
+    loop();
+    timer = setInterval(() => {
+      const secs = (Date.now() - t0) / 1000;
+      const el = box.querySelector(".rec-time"); if (el) el.textContent = "0:" + String(Math.floor(secs)).padStart(2, "0");
+      if (secs >= REC_MAX_SECS) stop();
+    }, 200);
+  }
+  function stop() { if (mr && mr.state !== "inactive") mr.stop(); }
+  function reset() { stopAll(); if (mr && mr.state !== "inactive") { mr.onstop = null; mr.stop(); } if (take?.url) URL.revokeObjectURL(take.url); take = null; state = "idle"; draw(); }
+  draw();
+  return { el: box, take: () => take, reset };
+}
+
+/* Contribute → "Say it in Ga". Signed-in speakers only; consent is required. */
+let cfRec = null;
+function renderCfVoice() {
+  const row = $("cfVoiceRow");
+  if (!canRecord()) { row.classList.add("hidden"); return; }
+  row.classList.remove("hidden");
+  if (!me) {
+    cfRec = null;
+    row.innerHTML = '<div class="f-lab">Say it in Ga <span class="f-opt">optional</span></div><div class="f-note"><a href="/auth">Sign in</a> to add your voice. Recordings are tied to an account so they can be credited and deleted.</div>';
+    return;
+  }
+  if (cfRec) return; // keep a take while the form is open
+  row.innerHTML = '<div class="f-lab">Say it in Ga <span class="f-opt">optional</span></div>';
+  cfRec = recorderWidget(() => `Tap and say “${$("cfGa").value.trim() || "the Ga"}”. Up to ${REC_MAX_SECS} seconds.`);
+  row.appendChild(cfRec.el);
+  row.insertAdjacentHTML("beforeend",
+    '<label class="rec-consent hidden" id="cfVoiceConsentRow"><input type="checkbox" id="cfVoiceConsent"> <span>My recording may be played publicly in SpeakGa, credited with my first name. I can delete it from <b>Your recordings</b> at any time.</span></label>');
+  cfRec.el.addEventListener("change", () => {
+    $("cfVoiceConsentRow").classList.toggle("hidden", !cfRec.take());
+    if (!cfRec.take()) $("cfVoiceConsent").checked = false;
+  });
+}
+function resetCfVoice() { cfRec?.reset(); cfRec = null; $("cfVoiceRow").innerHTML = ""; }
+async function uploadVoice(take, ga, english, contributionId) {
+  const fd = new FormData();
+  fd.append("audio", new File([take.blob], "recording.wav", { type: "audio/wav" }));
+  fd.append("ga", ga); fd.append("english", english); fd.append("consent", "1");
+  if (contributionId) fd.append("contribution_id", contributionId);
+  const h = headers(); delete h["Content-Type"];
+  const r = await fetch(`${API}/voices/record`, { method: "POST", headers: h, credentials: "include", body: fd });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || "Couldn't upload the recording");
+  return d;
+}
+
+/* Review → listen to other speakers' recordings and say if they're right. */
+async function addVoiceChecks(list) {
+  if (!me || !list) return;
+  let recs = [];
+  try { const r = await fetch(`${API}/voices/check`, { credentials: "include" }); if (r.ok) recs = (await r.json()).recordings || []; } catch {}
+  if (!recs.length) return;
+  const sec = document.createElement("div");
+  sec.className = "vc-sec";
+  sec.innerHTML = `<div class="vc-h">Recordings to check <span>${recs.length}</span></div>`;
+  for (const rec of recs) {
+    const card = document.createElement("div");
+    card.className = "rev-card vc-card";
+    card.innerHTML = `<div class="vc-q">Does this say <b>${escapeHtml(rec.ga)}</b>?${rec.english ? ` <span>“${escapeHtml(rec.english)}”</span>` : ""}</div>`;
+    card.appendChild(voicePlayer({ ga: rec.ga, clips: [{ url: rec.url, secs: rec.secs, peaks: rec.peaks }] }, { bare: true, label: rec.ga }));
+    const row = document.createElement("div");
+    row.className = "vc-votes"; row.setAttribute("role", "group"); row.setAttribute("aria-label", "Your verdict");
+    for (const [v, label] of [["right", "Sounds right"], ["wrong", "Wrong phrase"], ["poor", "Poor audio"]]) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "vc-vote"; b.textContent = label;
+      b.onclick = async () => {
+        row.querySelectorAll("button").forEach((x) => (x.disabled = true));
+        try {
+          const r = await fetch(`${API}/voices/${encodeURIComponent(rec.id)}/vote`, { method: "POST", headers: headers(), credentials: "include", body: JSON.stringify({ verdict: v }) });
+          if (!r.ok) throw 0;
+          b.setAttribute("aria-pressed", "true");
+          row.insertAdjacentHTML("afterend", '<div class="vc-thanks">Thanks — an admin sees your check.</div>');
+        } catch { row.querySelectorAll("button").forEach((x) => (x.disabled = false)); toast("Couldn't save that — try again"); }
+      };
+      row.appendChild(b);
+    }
+    card.appendChild(row);
+    sec.appendChild(card);
+  }
+  list.prepend(sec);
+}
+
+/* Me → Your recordings: status of each, and delete. */
+async function loadMyVoices() {
+  const list = $("myVoicesList");
+  list.innerHTML = '<div class="rev-empty">Loading…</div>';
+  let recs = [];
+  try { const r = await fetch(`${API}/voices/mine`, { credentials: "include" }); if (!r.ok) throw 0; recs = (await r.json()).recordings || []; }
+  catch { list.innerHTML = '<div class="rev-empty">Couldn\'t load your recordings.</div>'; return; }
+  if (!recs.length) {
+    list.innerHTML = '<div class="rev-empty">No recordings yet. In <b>Teach a word</b>, use “Say it in Ga” to add your voice.</div>';
+    return;
+  }
+  list.innerHTML = "";
+  const LABEL = { pending: ["Waiting for review", "pend"], approved: ["Published", "ok"], rejected: ["Not published", "no"] };
+  for (const rec of recs) {
+    const card = document.createElement("div");
+    card.className = "rev-card vc-card";
+    const [lab, cls] = LABEL[rec.status] || [rec.status, ""];
+    card.innerHTML = `<div class="vc-q"><b>${escapeHtml(rec.ga)}</b>${rec.english ? ` <span>“${escapeHtml(rec.english)}”</span>` : ""}<span class="vc-st ${cls}">${lab}</span></div>` +
+      (rec.status === "rejected" && rec.reason ? `<div class="vc-thanks">Reason: ${escapeHtml(rec.reason)}</div>` : "");
+    if (rec.url) card.appendChild(voicePlayer({ ga: rec.ga, clips: [{ url: rec.url, secs: rec.secs, peaks: rec.peaks }] }, { bare: true, label: rec.ga }));
+    const del = document.createElement("button");
+    del.type = "button"; del.className = "vc-del"; del.textContent = "Delete";
+    del.onclick = async () => {
+      if (del.dataset.sure !== "1") { del.dataset.sure = "1"; del.textContent = "Tap again to delete"; return; }
+      del.disabled = true;
+      try {
+        const r = await fetch(`${API}/voices/mine/${encodeURIComponent(rec.id)}`, { method: "DELETE", headers: headers(), credentials: "include" });
+        if (!r.ok) throw 0;
+        card.remove(); toast("Recording deleted");
+        voicesReq = null; VOICES = null; loadVoices();
+        if (!list.children.length) loadMyVoices();
+      } catch { del.disabled = false; toast("Couldn't delete — try again"); }
+    };
+    card.appendChild(del);
+    list.appendChild(card);
   }
 }
 
@@ -3542,7 +3848,9 @@ function openOverlay(id) {
   if (id === "contribOvl") {
     const fr = $("cfDrop") && $("cfDrop").closest(".f-row");
     if (fr) fr.classList.toggle("hidden", !me);
+    renderCfVoice();
   }
+  if (id === "myVoicesOvl") loadMyVoices();
   $(id).classList.add("show");
   document.body.classList.add("ovl-open");
   if (id === "reviewOvl") {
@@ -4663,6 +4971,9 @@ $("contribForm").addEventListener("submit", async (e) => {
     if (!english || !ga) { toast("Both English and Ga are needed"); return; }
     body = { type, english, ga, notes: $("cfNote").value.trim() || undefined };
   }
+  // A recording goes with the text, but only with the speaker's consent.
+  const take = !isDoc && cfRec?.take();
+  if (take && !$("cfVoiceConsent").checked) { toast("Tick the box to agree your recording can be played, or re-record to remove it"); return; }
 
   if (!me) {
     body.contributor_name = $("cfName").value.trim();
@@ -4700,14 +5011,22 @@ $("contribForm").addEventListener("submit", async (e) => {
     const r = await fetch(`${API}/contribute`, init);
     const d = await r.json().catch(() => ({}));
     if (!r.ok) { toast(d.error || "Failed to submit — try again"); return; }
+    let voiceNote = "";
+    if (take) {
+      submitBtn.textContent = "UPLOADING VOICE…";
+      try { await uploadVoice(take, body.ga, body.english, d.contribution_id); voiceNote = " Your recording is waiting for review too."; }
+      // The text is already in; don't leave the form open to be sent twice.
+      catch (err) { voiceNote = ` The recording didn't upload (${err.message}) — record it again from Teach a word.`; }
+    }
     closeOverlays();
     $("contribForm").reset();
     $("cfBibleRow").classList.add("hidden");
     cfFiles = []; renderCfFiles();
+    resetCfVoice();
     setCfTab("text");
     toast(isDoc ? "Document submitted — a reviewer will transcribe it"
-        : d.has_conflict ? "Recorded — conflicts with an existing entry, queued for admin review"
-        : "Submitted — staged for review");
+        : (d.has_conflict ? "Recorded — conflicts with an existing entry, queued for admin review"
+        : "Submitted — staged for review") + voiceNote);
     refreshReviewCount();
   } catch { toast("Failed to submit — try again"); }
   finally { submitBtn.disabled = false; submitBtn.textContent = label; }
@@ -4779,6 +5098,7 @@ $("cfDrop").addEventListener("drop", (e) => {
 
 /* ---- Review queue ---- */
 $("reviewBtn").onclick = () => { closeDrawer(); openOverlay("reviewOvl"); };
+$("myVoicesBtn").onclick = () => { closeDrawer(); openOverlay("myVoicesOvl"); };
 
 async function refreshReviewCount() {
   try {
@@ -4807,7 +5127,7 @@ function setRevTab(which) {
   $("reviewList").classList.toggle("hidden", sug);
   $("sugList").classList.toggle("hidden", !sug);
   $("revSub").textContent = REV_SUB[sug ? "sug" : "queue"];
-  if (sug) loadSuggestions(); else loadReviewQueue();
+  if (sug) loadSuggestions(); else loadReviewQueue().then(() => addVoiceChecks($("reviewList")));
 }
 $("revTabQueue").onclick = () => setRevTab("queue");
 $("revTabSug").onclick = () => setRevTab("sug");

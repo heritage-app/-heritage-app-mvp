@@ -9,6 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<!-- Plus Jakarta Sans and Bricolage have no ɛ ɔ: Inter supplies just the Ga letters. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&text=%C9%9B%C9%94%C6%90%C6%86%C5%8B%C5%8A%CC%83%CC%81%CC%80&display=swap" rel="stylesheet" />
 <style>
 /* SpeakGa admin console. Warm tokens shared with the app (heritage-rag public/index.html). */
 :root{
@@ -16,8 +18,8 @@
   --ink:#16130F; --ink-2:rgba(22,19,15,.74); --muted:rgba(22,19,15,.6); --faint:rgba(22,19,15,.42);
   --gold:#F2B33D; --gold-ink:#7A5200; --gold-soft:#FBEFD6;
   --ok:#1F7A4A; --ok-soft:#E3F1E4; --warn:#9A5B00; --warn-soft:#FDEFD3; --bad:#A3312A; --bad-soft:#FBE4E3; --info:#1E5AA8; --info-soft:#E1ECFA;
-  --display:"Bricolage Grotesque","Plus Jakarta Sans",ui-sans-serif,system-ui,sans-serif;
-  --sans:"Plus Jakarta Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --display:"Bricolage Grotesque","Plus Jakarta Sans","Inter",ui-sans-serif,system-ui,sans-serif;
+  --sans:"Plus Jakarta Sans","Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 }
 :root[data-theme="dark"]{
@@ -98,6 +100,31 @@ button.kpi{cursor:pointer}button.kpi:hover{box-shadow:inset 0 0 0 1px var(--fain
 .kpi b{font:800 30px/1.05 var(--display);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
 .kpi span{font-size:12px;color:var(--muted)}
 .kpi.alert{box-shadow:inset 0 0 0 1.5px var(--bad)}.kpi.alert b{color:var(--bad)}
+
+/* voices */
+.atts{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-top:10px}
+.vp{display:flex;align-items:center;gap:10px;min-width:0}
+.vp-play{flex:none;width:36px;height:36px;border-radius:50%;border:0;background:var(--ink);color:var(--bg);display:grid;place-items:center;cursor:pointer}
+.vp-play.sm{width:28px;height:28px}
+.vp-play svg{width:14px;height:14px}.vp-play.sm svg{width:11px;height:11px}
+.vp-play:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.vp-wave{flex:1;min-width:0;height:28px;display:flex;align-items:center;gap:2px}
+.vp-wave i{flex:1;min-width:2px;border-radius:2px;background:var(--line)}
+.vp-wave i.on{background:var(--gold-ink)}
+.vp-secs{flex:none;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.vcard{padding:14px 0;border-top:1px solid var(--line);display:grid;gap:10px}
+.vcard:first-child{border-top:0}
+.vcard .ph{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}
+.vcard .ph b{font-size:17px}
+.vreasons{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.vsearch{width:100%;margin:0 0 10px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:500 14px var(--sans)}
+.vclips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.vclip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 2px}
+.vclip.off{opacity:.55;border-style:dashed}
+.vclip .vn{font:700 11.5px var(--sans);color:var(--muted);min-width:8px}
+.vx{border:0;background:none;cursor:pointer;font:700 11.5px var(--sans);color:var(--ink-2);padding:3px 6px;border-radius:999px}
+.vx.bad{color:var(--bad)}.vx:hover{background:var(--sunk)}
+.vx:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
 
 /* lists */
 .att{list-style:none;margin:0;padding:0;display:grid}
@@ -231,6 +258,7 @@ input.gaip{font:700 16px var(--display)}
     </div>
     <div class="grp"><span>Archive</span>
       <button class="nav" data-v="archive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg>Documents</button>
+      <button class="nav" data-v="voices"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Voices<span class="ct num" id="ctVoices"></span></button>
       <button class="nav" data-v="import"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></svg>Scan import</button>
     </div>
     <div class="grp"><span>Insights</span>
@@ -295,6 +323,17 @@ input.gaip{font:700 16px var(--display)}
       <div class="hd"><h1>Review queue</h1><div class="sp"><div class="tabs" role="tablist" id="rTabs"><button role="tab" aria-selected="true" data-s="pending_review">Waiting</button><button role="tab" aria-selected="false" data-s="approved">Approved</button><button role="tab" aria-selected="false" data-s="rejected">Rejected</button></div></div><p>What people taught or corrected. Approving adds it to the verified archive straight away.</p></div>
       <div id="rList" class="view"></div>
       <div class="pager" id="rPager"></div>
+    </section>
+
+    <!-- ============ VOICES ============ -->
+    <section class="view hidden" data-view="voices">
+      <div class="hd"><h1>Voices</h1><p>Real speakers saying Ga phrases. The app plays these and nothing else: a phrase without a recording has no voice. Recordings people add wait here until you approve them.</p></div>
+      <div class="kpis" id="vKpis"><div class="loading">Loading…</div></div>
+      <div class="panel"><h2>Waiting for review <small>listen before you approve</small></h2><div id="vPending"></div></div>
+      <div class="grid2">
+        <div class="panel"><h2>Phrases with a voice <small id="vPhraseCount"></small></h2><input class="vsearch" id="vSearch" type="search" placeholder="Find a phrase" aria-label="Find a phrase"><div class="tbl-wrap"><table><thead><tr><th>Phrase</th><th>Voices <small class="muted">play · remove</small></th><th>Source</th></tr></thead><tbody id="vPhrases"></tbody></table></div></div>
+        <div class="panel"><h2>Given often, no voice yet <small>answers from the last 30 days</small></h2><ul class="att" id="vMissing"></ul><p class="muted" style="font-size:12.5px;margin-top:10px">Ask Ga speakers to record these. In the app, these answers show “Be the first to record”.</p></div>
+      </div>
     </section>
 
     <!-- ============ DOCUMENTS ============ -->
@@ -510,6 +549,7 @@ async function refreshCounts() {
     $("ctQuestions").textContent = OV.gaps.open || "";
     $("ctFlagged").textContent = OV.flagged_open || "";
     $("ctReview").textContent = OV.contributions.pending || "";
+    $("ctVoices").textContent = OV.voices?.pending || "";
   } catch {}
   return OV;
 }
@@ -722,6 +762,8 @@ async function loadReview() {
       return `<div class="panel" id="rc-${esc(c.id)}">
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px"><span class="pill">${esc((c.type || "translation").replace(/_/g, " "))}</span><span class="pill">${esc(c.category)}</span>${c.has_conflict ? '<span class="pill warn">Conflicting answers exist</span>' : ""}${c.agreement_score > 0 ? `<span class="pill ok">+${c.agreement_score} agree</span>` : ""}<span class="muted" style="margin-left:auto;font-size:12.5px">${esc(c.created_at)}${who ? ` · by ${esc(who)}` : ""}</span></div>
         <div class="compare"><div class="side"><small>English</small><b class="big">${esc(c.query)}</b></div><div class="side"><small>Ga</small><b class="big">${esc(c.answer || "—")}</b>${c.notes ? `<p class="muted" style="font-size:13px">${esc(c.notes)}</p>` : ""}</div></div>
+        ${(c.attachments || []).length ? `<div class="atts"><small class="muted">Attached:</small>${c.attachments.map((a) => `<a class="pill info" href="${API}/contributions/${encodeURIComponent(c.id)}/attachments/${a.index}" target="_blank" rel="noopener">${esc(a.name)}</a>`).join("")}</div>` : ""}
+        ${c.recording ? `<div class="atts"><span class="pill warn">Came with a recording</span><button class="link" data-go="voices">${c.recording.status === "pending" ? "Listen and review it in Voices →" : "See it in Voices →"}</button></div>` : ""}
         ${R.status === "pending_review" ? `<div class="row-actions" style="margin-top:12px"><button class="btn ok" data-rv="approve" data-id="${esc(c.id)}">Approve</button><button class="btn bad" data-rv="reject" data-id="${esc(c.id)}">Reject</button><span class="status" data-st></span></div>` : `<div style="margin-top:10px"><span class="pill ${R.status === "approved" ? "ok" : "bad"}">${R.status === "approved" ? "Approved" : "Rejected"}</span></div>`}
       </div>`;
     }).join("") : `<div class="panel empty">${R.status === "pending_review" ? "Nothing waiting for review." : "Nothing here yet."}</div>`;
@@ -739,6 +781,97 @@ document.addEventListener("click", async (e) => {
   $$("button", card).forEach((x) => (x.disabled = true));
   try { const r = await api(`/admin/contributions/${encodeURIComponent(b.dataset.id)}/${b.dataset.rv}`, { method: "POST" }); toast(r.message || (approve ? "Approved." : "Rejected.")); card.remove(); refreshCounts(); if (!$("rList").children.length) loadReview(); }
   catch (err) { st.textContent = err.message; $$("button", card).forEach((x) => (x.disabled = false)); }
+});
+
+/* ================= VOICES ================= */
+const VP_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>';
+const VP_STOP = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+let vpAudio = null, vpBtn = null;
+const vpBlobs = new Map();
+/** Play/stop one clip. Fetched whole (cookies included for pending audio). */
+async function vpToggle(btn) {
+  const was = vpBtn === btn && vpAudio && !vpAudio.paused;
+  if (vpAudio) { vpAudio.pause(); vpAudio = null; }
+  if (vpBtn) { vpBtn.innerHTML = VP_PLAY; vpBtn.closest(".vp")?.querySelectorAll(".vp-wave i").forEach((i) => i.classList.remove("on")); vpBtn = null; }
+  if (was) return;
+  const url = btn.dataset.url;
+  try {
+    let src = vpBlobs.get(url);
+    if (!src) { const r = await fetch(url, { credentials: "include" }); if (!r.ok) throw 0; src = URL.createObjectURL(await r.blob()); vpBlobs.set(url, src); }
+    const a = new Audio(src), bars = btn.closest(".vp")?.querySelectorAll(".vp-wave i") || [];
+    vpAudio = a; vpBtn = btn; btn.innerHTML = VP_STOP;
+    const tick = () => { if (vpAudio !== a || a.paused) return; const f = a.duration ? a.currentTime / a.duration : 0; bars.forEach((b, k) => b.classList.toggle("on", k / bars.length <= f)); requestAnimationFrame(tick); };
+    a.onended = () => { if (vpBtn === btn) { btn.innerHTML = VP_PLAY; bars.forEach((b) => b.classList.remove("on")); vpBtn = null; vpAudio = null; } };
+    await a.play(); tick();
+  } catch { btn.innerHTML = VP_PLAY; toast("Couldn't play that recording."); }
+}
+document.addEventListener("click", (e) => { const b = e.target.closest(".vp-play"); if (b) vpToggle(b); });
+const vpHtml = (url, secs, peaks, label, small) => small
+  ? `<button class="vp-play sm" type="button" data-url="${esc(url)}" aria-label="Play ${esc(label)}">${VP_PLAY}</button>`
+  : `<div class="vp"><button class="vp-play" type="button" data-url="${esc(url)}" aria-label="Play ${esc(label)}">${VP_PLAY}</button><div class="vp-wave" aria-hidden="true">${(peaks || []).map((p) => `<i style="height:${Math.max(14, p * 100)}%"></i>`).join("")}</div><span class="vp-secs">${Number(secs || 0).toFixed(1)}s</span></div>`;
+
+let VD = null;
+loaders.voices = () => loadVoicesView();
+async function loadVoicesView() {
+  $("vPending").innerHTML = '<div class="loading">Loading…</div>';
+  try { VD = await api("/admin/console/voices"); } catch (e) { $("vPending").innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  const s = VD.stats;
+  $("vKpis").innerHTML = [
+    ["Phrases with a voice", s.phrases, "the app plays these"],
+    ["Clips", s.clips, "best 3 per dataset phrase"],
+    ["From SpeakGa speakers", s.community, "approved recordings"],
+    ["Waiting for review", s.pending, s.pending ? "listen below" : "nothing waiting", s.pending ? "alert" : ""],
+  ].map(([k, v, sub, cls]) => `<div class="kpi ${cls || ""}"><small>${esc(k)}</small><b>${fmt(v)}</b><span>${esc(sub)}</span></div>`).join("");
+  $("vPending").innerHTML = VD.pending.length ? VD.pending.map((p) => `
+    <div class="vcard" id="vc-${esc(p.id)}">
+      <div class="ph"><b>${esc(p.ga)}</b>${p.english ? `<span>“${esc(p.english)}”</span>` : ""}${p.has_voice ? '<span class="pill">Phrase already has a voice</span>' : '<span class="pill info">First voice for this phrase</span>'}</div>
+      ${vpHtml(p.url, p.secs, p.peaks, p.ga)}
+      <div class="muted" style="font-size:12.5px">${esc(p.contributor || "Signed-in speaker")} · consented ${esc(ago(p.consent_at) || p.consent_at)} · speakers say: ${p.votes.right} sounds right, ${p.votes.wrong} wrong phrase, ${p.votes.poor} poor audio</div>
+      <div class="row-actions"><button class="btn ok" data-va="approve" data-id="${esc(p.id)}">Approve voice</button><button class="btn bad" data-va="reject" data-id="${esc(p.id)}">Reject…</button><span class="status" data-st></span></div>
+      <div class="vreasons hidden" data-reasons><small class="muted">Reason:</small>${["Wrong phrase", "Noisy or unclear", "Not Ga", "No real consent"].map((r) => `<button class="btn sm" data-vr="${esc(r)}" data-id="${esc(p.id)}">${esc(r)}</button>`).join("")}</div>
+    </div>`).join("") : '<div class="empty">Nothing waiting. New recordings from Teach a word land here.</div>';
+  renderVoicePhrases();
+  $("vMissing").innerHTML = VD.missing.length ? VD.missing.map((m) => `<li><span class="dot" style="background:var(--gold-soft);color:var(--gold-ink)">${ICON.q}</span><b class="t">${esc(m.ga)}</b><span class="sub">given ${fmt(m.n)} time${m.n === 1 ? "" : "s"}</span></li>`).join("") : '<li class="empty">Every answer given recently has a voice, or none were saved.</li>';
+}
+function renderVoicePhrases() {
+  if (!VD) return;
+  const q = ($("vSearch").value || "").trim().toLowerCase();
+  const rows = VD.phrases.filter((p) => !q || p.ga.toLowerCase().includes(q));
+  $("vPhraseCount").textContent = `${fmt(VD.phrases.length)} phrases`;
+  $("vPhrases").innerHTML = rows.map((p) => {
+    const sources = [...new Set(p.clips.map((k) => k.kind === "dataset" ? "Dataset" : k.by))].join(", ");
+    // One chip per voice: play it, then remove (or restore) that voice.
+    return `<tr><td><b>${esc(p.ga)}</b></td><td><div class="vclips">${p.clips.map((k, i) =>
+      `<span class="vclip${k.hidden ? " off" : ""}" title="${esc(k.by)}">${vpHtml(k.url, k.secs, k.peaks, `${p.ga}, voice ${i + 1}`, true)}<span class="vn">${i + 1}</span>${k.hidden
+        ? `<button class="vx" data-vrestore="${esc(k.ref)}" aria-label="Restore voice ${i + 1} of ${esc(p.ga)}">Restore</button>`
+        : `<button class="vx bad" data-vremove="${esc(k.ref)}" data-kind="${k.kind}" data-ga="${esc(p.ga)}" aria-label="Remove voice ${i + 1} of ${esc(p.ga)}">✕</button>`}</span>`).join("")}</div></td>
+      <td class="muted" style="font-size:12.5px">${esc(sources)}</td></tr>`;
+  }).join("") || '<tr><td colspan="3" class="empty">No phrase matches.</td></tr>';
+}
+$("vSearch").addEventListener("input", renderVoicePhrases);
+document.addEventListener("click", async (e) => {
+  const a = e.target.closest("[data-va]"), r = e.target.closest("[data-vr]"), rm = e.target.closest("[data-vremove]"), rs = e.target.closest("[data-vrestore]");
+  if (a) {
+    const card = $(`vc-${a.dataset.id}`);
+    if (a.dataset.va === "reject") { card.querySelector("[data-reasons]").classList.remove("hidden"); return; }
+    if (!(await confirmBox("Approve this voice? Everyone will hear it in the app within a minute.", "Approve"))) return;
+    $$("button", card).forEach((x) => (x.disabled = true));
+    try { const d = await api(`/admin/console/voices/${encodeURIComponent(a.dataset.id)}/approve`, { method: "POST" }); toast(d.message || "Approved."); refreshCounts(); loadVoicesView(); }
+    catch (err) { card.querySelector("[data-st]").textContent = err.message; $$("button", card).forEach((x) => (x.disabled = false)); }
+  } else if (r) {
+    const card = $(`vc-${r.dataset.id}`);
+    $$("button", card).forEach((x) => (x.disabled = true));
+    try { const d = await api(`/admin/console/voices/${encodeURIComponent(r.dataset.id)}/reject`, { json: { reason: r.dataset.vr } }); toast(d.message || "Rejected."); refreshCounts(); loadVoicesView(); }
+    catch (err) { card.querySelector("[data-st]").textContent = err.message; $$("button", card).forEach((x) => (x.disabled = false)); }
+  } else if (rm) {
+    const community = rm.dataset.kind === "community";
+    if (!(await confirmBox(community ? `Delete this speaker's recording of “${rm.dataset.ga}”? This can't be undone.` : `Hide this dataset clip of “${rm.dataset.ga}”? You can restore it later.`, community ? "Delete" : "Hide"))) return;
+    try { await api("/admin/console/voices/remove", { json: { kind: rm.dataset.kind, ref: rm.dataset.vremove } }); toast(community ? "Recording deleted." : "Clip hidden."); loadVoicesView(); }
+    catch (err) { toast(err.message); }
+  } else if (rs) {
+    try { await api("/admin/console/voices/restore", { json: { ref: rs.dataset.vrestore } }); toast("Clip restored."); loadVoicesView(); }
+    catch (err) { toast(err.message); }
+  }
 });
 
 /* ================= DOCUMENTS ================= */
