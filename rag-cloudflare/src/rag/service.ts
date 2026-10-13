@@ -435,11 +435,40 @@ async function deducedAnswer(env: Env, query: string): Promise<string | null> {
  * out and not verified, with the sentences shown. Otherwise say it appears
  * in this phrase. Either way the answer asks for the Ga word (the share card).
  */
+/**
+ * A question the asker asked, looked up as questions in the corpus: rows whose
+ * English is itself a question and that share at least two content words
+ * ("treat pests on my farm" finds "how do I control pests on my farm?").
+ * Used only when the normal hit suppresses — this is a hedge, not an answer.
+ */
+async function relatedQuestionPair(
+  env: Env,
+  words: string[]
+): Promise<{ english: string; ga: string } | null> {
+  const probe = words.slice(0, 6);
+  if (probe.length < 2) return null;
+  const forms = (w: string) =>
+    w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? [w, w.slice(0, -1)] : [w];
+  const conds = probe.map(
+    (w) => `(${forms(w).map(() => "(en_norm LIKE ? OR ga_norm LIKE ?)").join(" OR ")})`
+  );
+  const binds = () => probe.flatMap((w) => forms(w).flatMap((f) => [`%${f}%`, `%${f}%`]));
+  const sum = `(${conds.join(" + ")})`;
+  const rows = await env.DB.prepare(
+    `SELECT english, ga FROM corpus_pairs WHERE ${sum} >= 2 AND english LIKE '%?%' ORDER BY ${sum} DESC LIMIT 10`
+  )
+    .bind(...binds(), ...binds())
+    .all<{ english: string; ga: string }>()
+    .catch(() => ({ results: [] as { english: string; ga: string }[] }));
+  return (rows.results || []).find((r) => r.english && r.ga) ?? null;
+}
+
 async function insideAPhraseAnswer(
   env: Env,
   query: string,
   hit: { ga: string; eng: string; image?: string },
-  reason: string
+  reason: string,
+  queryWords: string[] = []
 ): Promise<string> {
   const deduced = await deducedAnswer(env, query);
   if (deduced) return deduced;
@@ -451,16 +480,38 @@ async function insideAPhraseAnswer(
   const toksOf = (s: string) => foldGa(s.toLowerCase()).match(/[\p{L}\p{N}'-]+/gu) ?? [];
   const hitToks = new Set(toksOf(hit.eng));
   const contains = toksOf(word).filter((w) => !["the", "a", "an"].includes(w)).every((w) => hitToks.has(w));
+  // Question meets question: the asker wants this question in Ga, and the
+  // archive holds essentially that question — its full Ga IS the answer,
+  // however long ("how do I control weeds" → the farmer QA pair). Only when
+  // every asked word matched (guaranteed by the hit gate) so the questions
+  // genuinely parallel each other.
+  const Q_WORD = /^(?:how|what|when|where|why|which|who|can|could|do|does|did|should|is|are|am|will|would|may)\b/i;
+  const bothQuestions = Q_WORD.test(word) && (Q_WORD.test(hit.eng) || /\?\s*$/.test(hit.eng));
   // A long sentence ("How do I know if a crop I want to plant needs a lot of
   // water…" for "i want water") teaches nothing about the phrase: only quote
   // short ones.
-  if (hitToks.size > (contains ? 14 : 8)) {
+  if (hitToks.size > (contains ? 14 : 8) && !bothQuestions) {
+    // The hit is a long statement that can't stand in for the asked question —
+    // but a parallel QUESTION in the corpus can ("treat pests" → the archive's
+    // "control pests" question is the same need). Quote it before gap-filling.
+    if (Q_WORD.test(word)) {
+      const rel = await relatedQuestionPair(env, queryWords);
+      if (rel) {
+        return (
+          `I don't have that exact question, but the archive has this one:\n\n` +
+          `**${modernizeGa(rel.ga)}** — “${rel.english.trim()}”` +
+          `\n\nKnow the Ga word? Share it and I'll put it forward for review.`
+        );
+      }
+    }
     return `I don't have “${word}” in the archive yet. Know the Ga word? Share it and I'll put it forward for review.`;
   }
   return (
-    (contains
-      ? `I don't have a Ga word for “${word}” on its own yet — but it appears in this phrase from the archive:\n\n`
-      : `I don't have “${word}” yet. The closest the archive has is:\n\n`) +
+    (bothQuestions
+      ? `I don't have that exact question, but the archive has this one:\n\n`
+      : contains
+        ? `I don't have a Ga word for “${word}” on its own yet — but it appears in this phrase from the archive:\n\n`
+        : `I don't have “${word}” yet. The closest the archive has is:\n\n`) +
     `**${gaShown}** — “${hit.eng}”` +
     (hit.image ? `\n\n![${gaShown}](${hit.image})` : "") +
     `\n\nKnow the Ga word? Share it and I'll put it forward for review.`
@@ -1458,7 +1509,7 @@ async function* askGeneral(
             !bestHit.gaSide &&
             contentWords(bestHit.eng) > Math.max(contentWords(needle), 1)
           ) {
-            yield await insideAPhraseAnswer(env, query, bestHit, "Word only found inside a phrase");
+            yield await insideAPhraseAnswer(env, query, bestHit, "Word only found inside a phrase", queryWords);
             return;
           }
           if (!bestHit.gaSide) {
@@ -1733,24 +1784,35 @@ async function* askGeneral(
   // match a record saying "pest", but "%pest%" covers both directions.
   const probeForms = (w: string) =>
     w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? [w, w.slice(0, -1)] : [w];
+  const wordConds = (words: string[]) =>
+    words.map(
+      (w) =>
+        `(${probeForms(w)
+          .map(() => "(en_norm LIKE ? OR ga_norm LIKE ?)")
+          .join(" OR ")})`
+    );
+  const bindForms = (words: string[]) =>
+    words.flatMap((w) => probeForms(w).flatMap((f) => [`%${f}%`, `%${f}%`]));
+  // Strict: every content word must appear. Relaxed fallback (3+ words): at
+  // least two must appear — a synonym mismatch ("treat pests" vs the
+  // archive's "control pests") shouldn't zero out the probe. Rows are ordered
+  // by how many words matched so the tightest records survive the LIMIT.
   const corpusProbe =
     !browseIntent && probeWords.length
-      ? env.DB.prepare(
-          `SELECT english, ga FROM corpus_pairs WHERE ${probeWords
-            .map(
-              (w) =>
-                `(${probeForms(w)
-                  .map(() => "(en_norm LIKE ? OR ga_norm LIKE ?)")
-                  .join(" OR ")})`
-            )
-            .join(" AND ")} LIMIT 40`
-        )
-          .bind(
-            ...probeWords.flatMap((w) =>
-              probeForms(w).flatMap((f) => [`%${f}%`, `%${f}%`])
-            )
+      ? (async () => {
+          const strict = await env.DB.prepare(
+            `SELECT english, ga FROM corpus_pairs WHERE ${wordConds(probeWords).join(" AND ")} LIMIT 40`
           )
-          .all<{ english: string; ga: string }>()
+            .bind(...bindForms(probeWords))
+            .all<{ english: string; ga: string }>();
+          if (strict.results?.length || probeWords.length < 3) return strict;
+          const conds = wordConds(probeWords);
+          return env.DB.prepare(
+            `SELECT english, ga FROM corpus_pairs WHERE (${conds.join(" + ")}) >= 2 ORDER BY (${conds.join(" + ")}) DESC LIMIT 40`
+          )
+            .bind(...bindForms(probeWords), ...bindForms(probeWords))
+            .all<{ english: string; ga: string }>();
+        })()
       : Promise.resolve({ results: [] as { english: string; ga: string }[] });
   const [{ nodes: expandedNodes }, { nodes: curatedNodes }, heritageRecs, corpusRows] = await Promise.all([
     retrieveWithExpansion(env, probe, {
@@ -2019,7 +2081,7 @@ async function* askGeneral(
     // than presenting the longer sentence as the translation.
     const loose = hits[0].content > 0 && hits[0].extra / hits[0].content > 0.4;
     if (!hits[0].gaSide && loose && !definitional) {
-      yield await insideAPhraseAnswer(env, query, hits[0], "Word only found inside a sentence");
+      yield await insideAPhraseAnswer(env, query, hits[0], "Word only found inside a sentence", queryWords);
       return;
     }
     // Same tautology guard as the direct-lookup path: a gloss that merely
