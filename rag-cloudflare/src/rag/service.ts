@@ -463,6 +463,42 @@ async function relatedQuestionPair(
   return (rows.results || []).find((r) => r.english && r.ga) ?? null;
 }
 
+/**
+ * The closest checked entry to a phrase that isn't stored as asked: the same
+ * phrase with a different last word ("see you later" → "see you soon",
+ * Etsɛŋ ni mana bo), or without it ("see you"). Offered as the closest, never
+ * as the answer. Only when the shared part carries a content word.
+ */
+async function closestEntry(env: Env, phrase: string): Promise<{ ga: string; eng: string } | null> {
+  const words = norm(phrase).split(" ").filter(Boolean);
+  if (words.length < 2 || words.length > 5) return null;
+  // Only a timing/filler last word may differ ("later" ~ "soon"): dropping or
+  // swapping a noun ("i want water" → "i want") changes what was asked.
+  const SOFT = new Set(["later", "soon", "again", "now", "today", "tonight", "then", "too", "also", "please", "well", "very", "much", "all", "there", "here"]);
+  if (!SOFT.has(words[words.length - 1])) return null;
+  const stem = words.slice(0, -1).join(" ");
+  const FRAME = new Set(["i", "you", "we", "they", "he", "she", "it", "a", "an", "the", "is", "are", "am", "to", "of", "in", "my", "your", "how", "what", "do", "does"]);
+  if (stem.split(" ").every((w) => FRAME.has(w)) && !["see", "go", "come", "eat", "sleep", "love", "thank"].some((v) => stem.includes(v))) return null;
+  const rows = await env.DB.prepare(
+    `SELECT headword, translations FROM vocabulary
+      WHERE verified_at IS NOT NULL AND TRIM(verified_at) <> '' AND source IS NOT NULL AND TRIM(source) <> ''
+        AND lower(translations) LIKE ? LIMIT 30`
+  ).bind(`%${stem}%`).all<{ headword: string; translations: string }>().catch(() => ({ results: [] as { headword: string; translations: string }[] }));
+  let best: { ga: string; eng: string; score: number } | null = null;
+  for (const r of rows.results ?? []) {
+    let ts: string[] = [];
+    try { ts = JSON.parse(r.translations || "[]"); } catch { continue; }
+    for (const t of ts) {
+      const n = norm(t);
+      // Same length, last word swapped (best), else the shared part alone.
+      const swapped = n.startsWith(stem + " ") && n.split(" ").length === words.length && SOFT.has(n.split(" ").pop()!);
+      const score = swapped ? 2 : n === stem ? 1 : 0;
+      if (score && (!best || score > best.score)) best = { ga: r.headword, eng: t, score };
+    }
+  }
+  return best ? { ga: best.ga, eng: best.eng } : null;
+}
+
 async function insideAPhraseAnswer(
   env: Env,
   query: string,
@@ -503,6 +539,15 @@ async function insideAPhraseAnswer(
           `\n\nKnow the Ga word? Share it and I'll put it forward for review.`
         );
       }
+    }
+    // Not stored as asked, but a checked entry differs only in its last word.
+    const near = await closestEntry(env, word);
+    if (near) {
+      return (
+        `I don't have “${word}” exactly. The closest in the archive:\n\n` +
+        `**${modernizeGa(near.ga)}** — “${near.eng}”` +
+        `\n\nKnow the Ga word? Share it and I'll put it forward for review.`
+      );
     }
     return `I don't have “${word}” in the archive yet. Know the Ga word? Share it and I'll put it forward for review.`;
   }
