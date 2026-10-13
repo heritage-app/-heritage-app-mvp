@@ -9,7 +9,7 @@
  * Output format matches the datasets: {english, ga, topic}
  */
 import type { Env, VerseRecord } from "../types";
-import { chat } from "./llm";
+import { chat, replyText } from "./llm";
 
 const VISION_MODEL = "@cf/meta/llama-3.2-11b-vision-instruct";
 
@@ -120,7 +120,7 @@ export async function ocrImage(env: Env, bytes: ArrayBuffer): Promise<{ raw: str
     prompt: `OCR this image. ${INSTRUCTION}`,
     max_tokens: 2048,
   })) as VisionRun;
-  const raw = (res.response ?? res.description ?? "").trim();
+  const raw = replyText(res.response ?? res.description).trim();
   return { raw, records: parsePairs(raw) };
 }
 

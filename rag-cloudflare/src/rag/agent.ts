@@ -27,6 +27,7 @@ import { retrieveContext, formatRetrievedContext } from "./retriever";
 import { foldGa } from "./ga";
 import { isInflection, isPartialGa } from "./matching";
 import { modernizeGa } from "./orthography";
+import { replyText } from "./llm";
 
 /** Model calls per turn, including the planning ones. */
 const MAX_MODEL_CALLS = 4;
@@ -548,7 +549,7 @@ export async function runAgent(
 
     const calls: ToolCall[] = (out?.tool_calls ?? []).filter((tc: ToolCall) => !done.has(keyOf(tc)));
     if (!calls.length) {
-      reply = String(out?.response ?? "").trim();
+      reply = replyText(out?.response).trim();
       break;
     }
     messages.push({ role: "assistant", content: JSON.stringify(calls) });

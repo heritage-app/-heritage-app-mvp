@@ -29,6 +29,24 @@ function resolveModel(env: Env, requested?: string): string {
   return env.LLM_MODEL;
 }
 
+/**
+ * The text of a model reply. Workers AI parses a reply that looks like JSON
+ * and returns it as an object — a tool call the model wrote as text
+ * ({"name": …, "parameters": …}), or a structured answer. String() of that
+ * object is "[object Object]", which reached users as the answer. Take a text
+ * field if there is one; anything else is no reply.
+ */
+export function replyText(response: unknown): string {
+  if (typeof response === "string") return response;
+  if (!response || typeof response !== "object") return "";
+  const o = response as Record<string, unknown>;
+  if ("name" in o && ("parameters" in o || "arguments" in o)) return ""; // a tool call, not an answer
+  for (const k of ["response", "answer", "text", "content", "message"]) {
+    if (typeof o[k] === "string") return o[k] as string;
+  }
+  return "";
+}
+
 /** Blocking completion -> full string. */
 export async function chat(env: Env, messages: ChatMessage[], opts: ChatOpts = {}): Promise<string> {
   const res: any = await env.AI.run(resolveModel(env, opts.model) as any, {
@@ -37,7 +55,7 @@ export async function chat(env: Env, messages: ChatMessage[], opts: ChatOpts = {
     max_tokens: opts.maxTokens ?? 1024,
     stream: false,
   });
-  return typeof res?.response === "string" ? res.response : String(res?.response ?? "");
+  return replyText(res?.response);
 }
 
 /**

@@ -197,6 +197,8 @@ export function askedAboutFromAsk(prevAssistant: string): string {
  */
 export function cleanEnglish(question: string): string {
   let out = question.trim().replace(/[?!.]+$/, "");
+  // "what does X mean" asks about X ("what does Bo ni otswa mi aloo? mean").
+  out = out.replace(/^(?:please\s+)?what\s+does\s+["“']?(.+?)["”']?[?!.]*\s+mean$/i, "$1");
   // Framing can stack — "what is | the ga word for | quantum physics" — so
   // strip until nothing more comes off (bounded; each pass removes a prefix).
   const FRAME = /^(please\s+)?(how\s+(do\s+(you|i|we)\s+|to\s+|can\s+i\s+)?(say|write|spell|(ask|tell)(\s+(someone|somebody|a person|people|him|her|them))?)|what\s+(is|do\s+you\s+call)|what'?s|translate|(the\s+)?ga\s+(word\s+)?for)\s+/i;
