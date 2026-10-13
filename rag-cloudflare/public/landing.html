@@ -479,13 +479,13 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:co
 .who i{width:24px;height:24px;border-radius:50%;background:var(--sky);color:var(--sky-ink);display:grid;place-items:center;font-style:normal;font-size:11px;font-weight:800;margin-right:-14px;border:2px solid var(--paper)}
 .who i+i{background:var(--blush);color:var(--blush-ink)}
 .who span{margin-left:16px}
-.shares{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:56px;padding:0;list-style:none}
+.shares{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:56px;padding:0;list-style:none}
 .shares li{padding:18px;border-radius:22px;background:var(--paper);display:grid;gap:6px;align-content:start}
 .shares .si{width:38px;height:38px;border-radius:12px;display:grid;place-items:center}
 .shares .si svg{width:19px;height:19px}
 .shares b{font-family:var(--display);font-size:17px;letter-spacing:-.01em}
 .shares p{font-size:13.5px;color:var(--ink-2);line-height:1.45}
-@media (max-width:1000px){.shares{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:1000px){.shares{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* Phones: the walkthrough plays as a story (see .story), and the five "what you can
    share" cards become a row you swipe sideways. */
 @media (max-width:860px){
@@ -901,8 +901,6 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
       <li><a href="#tour">See the app</a></li>
       <li><a href="/translate">Translate</a></li>
       <li><a href="/learn-ga">Learn Ga</a></li>
-      <li><a href="/ga-words">Ga words</a></li>
-      <li><a href="/samai">Samai</a></li>
       <li><a href="#give">Contribute</a></li>
       <li><a href="#partner">Support</a></li>
     </ul>
@@ -1140,8 +1138,8 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
         <div class="step" data-s="learn">
           <span class="tag t-blush">Learn</span>
           <h3>Practise ten a day.</h3>
-          <p>Four kinds of quiz keep new words fresh: pick the right word, pair Ga with English, finish a phrase and rebuild a scrambled word. Each right answer fills your daily goal.</p>
-          <ul><li>Choose</li><li>Match</li><li>Fill the blank</li><li>Unscramble</li></ul>
+          <p>Five kinds of practice keep new words fresh: hear a Ga speaker and pick the phrase, pick the right word, pair Ga with English, finish a phrase and rebuild a scrambled word. Each right answer fills your daily goal.</p>
+          <ul><li>Listen</li><li>Choose</li><li>Match</li><li>Fill the blank</li><li>Unscramble</li></ul>
           <a class="step-link" href="https://app.speakga.org/#/learn">Start practising <span aria-hidden="true">→</span></a>
         </div>
         <div class="step" data-s="library">
@@ -1195,8 +1193,8 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
     <div class="pipe" id="pipe">
       <ol class="pstages" role="tablist" aria-label="How a word gets into SpeakGa">
         <li role="presentation"><button type="button" role="tab" aria-selected="true" data-p="0"><span class="pn">1</span><b>Nii Obodai asks</b><p>When the archive has no answer, it says so instead of guessing, and asks if you know.</p><i class="pbar"></i></button></li>
-        <li role="presentation"><button type="button" role="tab" aria-selected="false" data-p="1"><span class="pn">2</span><b>You share it</b><p>Add the English and the Ga, with a source if you have one. Words, cultural notes, Bible verses and documents are all welcome.</p><i class="pbar"></i></button></li>
-        <li role="presentation"><button type="button" role="tab" aria-selected="false" data-p="2"><span class="pn">3</span><b>People check it</b><p>It waits in a review queue. When two people send the same answer it verifies itself. Otherwise a reviewer checks the spelling and approves it.</p><i class="pbar"></i></button></li>
+        <li role="presentation"><button type="button" role="tab" aria-selected="false" data-p="1"><span class="pn">2</span><b>You share it</b><p>Add the English and the Ga, with a source if you have one. Words, context, your voice, Bible verses and documents are all welcome, with or without an account.</p><i class="pbar"></i></button></li>
+        <li role="presentation"><button type="button" role="tab" aria-selected="false" data-p="2"><span class="pn">3</span><b>People check it</b><p>It waits in a review queue. When two people send the same word it verifies itself. Otherwise a reviewer checks it, and listens to every recording, before it goes live.</p><i class="pbar"></i></button></li>
         <li role="presentation"><button type="button" role="tab" aria-selected="false" data-p="3"><span class="pn">4</span><b>Everyone can find it</b><p>It joins the searchable archive, Nii Obodai starts answering with it, and the credit stays with you.</p><i class="pbar"></i></button></li>
       </ol>
 
@@ -1238,7 +1236,8 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
 
     <ul class="shares">
       <li><span class="si t-sage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><b>Words &amp; phrases</b><p>An English word or phrase and its Ga.</p></li>
-      <li><span class="si t-sand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6c-2-1.5-5-2-8-1.5V19c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V4.5c-3-.5-6 0-8 1.5Z"/><path d="M12 6v14.5"/></svg></span><b>Cultural notes</b><p>Customs, stories and the context behind a word.</p></li>
+      <li><span class="si t-sand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6c-2-1.5-5-2-8-1.5V19c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V4.5c-3-.5-6 0-8 1.5Z"/><path d="M12 6v14.5"/></svg></span><b>Context</b><p>When and how a word is said, a cultural note, or the word in a sentence.</p></li>
+      <li><span class="si t-blush"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span><b>Your voice</b><p>Say a word or phrase in Ga. Each phrase can have up to five voices.</p></li>
       <li><span class="si t-sky"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg></span><b>Bible verses</b><p>Book, chapter and verse, in Ga and English.</p></li>
       <li><span class="si t-blush"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg></span><b>Corrections</b><p>Tap thumbs-down on any answer and send the right one.</p></li>
       <li><span class="si t-sage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3-3 3 3"/></svg></span><b>Documents</b><p>PDF, Word, text or photos, up to 10 MB each. A reviewer reads them first.</p></li>
@@ -1412,7 +1411,7 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
 <footer>
   <div class="wrap f-row">
     <a class="brand brand-sm" href="#top"><img src="img/brand/speakga-logo.png" width="515" height="144" alt="SpeakGa"></a>
-    <ul class="f-links"><li><a href="https://app.speakga.org/">Open the app</a></li><li><a href="/translate">Translate English to Ga</a></li><li><a href="/learn-ga">Learn Ga</a></li><li><a href="/ga-words">Ga words A–Z</a></li><li><a href="/samai">Ga samai</a></li><li><a href="/about">About</a></li><li><a href="#tour">See the app</a></li><li><a href="#give">Contribute</a></li><li><a href="/support">Support</a></li></ul>
+    <ul class="f-links"><li><a href="https://app.speakga.org/">Open the app</a></li><li><a href="/translate">Translate English to Ga</a></li><li><a href="/learn-ga">Learn Ga</a></li><li><a href="/about">About</a></li><li><a href="#tour">See the app</a></li><li><a href="#give">Contribute</a></li><li><a href="/support">Support</a></li></ul>
     <span>© 2026 Codetrain Foundation</span>
   </div>
 </footer>
@@ -1696,7 +1695,7 @@ function makeStory(box, steps, stageEl, showStep) {
   const LINE = [
     "When the archive has no answer, Nii Obodai says so and asks if you know.",
     "Add the English and the Ga, with a source if you have one.",
-    "Two people sending the same answer verifies it. Otherwise a reviewer approves it.",
+    "Two people sending the same word verifies it. Otherwise a reviewer checks it, and listens to every recording.",
     "It joins the archive everyone can search, and the credit stays with you.",
   ];
   const GLOW = ["rgba(242,179,61,.42)", "rgba(131,214,164,.38)", "rgba(147,185,242,.38)", "rgba(235,190,98,.40)"];
