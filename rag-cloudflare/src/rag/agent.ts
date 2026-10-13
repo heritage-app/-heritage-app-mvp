@@ -489,8 +489,30 @@ export function isGrounded(reply: string, evidence: string): boolean {
 }
 
 /** Compose a reply from evidence alone — used when the model's is rejected. */
-function composeFromEvidence(results: ToolResult[]): string | null {
-  const pairs = results.flatMap((r) => r.pairs ?? []);
+function composeFromEvidence(results: ToolResult[], query = "", minMatch = 1): string | null {
+  // The pair pools span several tools: the same record can arrive twice via
+  // different files (dedup on folded content), and a semantic search hit can
+  // be topically adjacent rather than relevant ("reply to ɛfe" -> "respond to
+  // such reminders as Baruch did"). Keep only pairs that share a content word
+  // with the question.
+  const qw = new Set(
+    (norm(query).trim().match(/[\p{L}\p{N}'-]+/gu) ?? []).filter(
+      (w) => w.length > 2 && !PHRASE_STOP.has(w)
+    )
+  );
+  const seen = new Set<string>();
+  const pairs = (results.flatMap((r) => r.pairs ?? [])).filter((p) => {
+    const key = `${norm(p.ga)}|${norm(p.english)}`;
+    if (seen.has(key)) return false;
+    const rel =
+      !qw.size ||
+      [...qw].filter(
+        (w) => ` ${norm(p.english)} `.includes(` ${w} `) || ` ${norm(p.ga)} `.includes(` ${w} `)
+      ).length >= Math.min(minMatch, qw.size);
+    if (!rel) return false;
+    seen.add(key);
+    return true;
+  });
   if (!pairs.length) return null;
   const top = pairs.slice(0, 3);
   return [
@@ -617,11 +639,13 @@ export async function runAgent(
       steps, modelCalls, composedBy: "list",
     };
   }
-  // The model declined, or wrote Ga the tools never returned — show evidence
-  // only when the model had not already judged it irrelevant.
-  if (said && !/NOT_IN_ARCHIVE/i.test(said)) {
-    const composed = composeFromEvidence(found);
-    if (composed) return { text: composed, steps, modelCalls, composedBy: "evidence" };
-  }
+  // The model wrote Ga the tools never returned — show the evidence. When it
+  // declined outright, still show it if pairs share at least two content words
+  // with the question: a lexical hit the model misjudged ("reply to ɛfe" →
+  // the ojekoo reply pair) is a better hedge than a bare gap, while a stray
+  // one-word overlap stays a gap.
+  const declined = !said || /NOT_IN_ARCHIVE/i.test(said);
+  const composed = composeFromEvidence(found, query, declined ? 2 : 1);
+  if (composed) return { text: composed, steps, modelCalls, composedBy: "evidence" };
   return { text: null, steps, modelCalls, composedBy: "none" };
 }
