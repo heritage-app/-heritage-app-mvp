@@ -45,9 +45,14 @@ export async function voiceCount(env: Env, gaKey: string): Promise<number> {
   return dataset + (rec?.n ?? 0);
 }
 
+/** COMBINING TILDE (code point 0x303) — Ga's nasal mark, as in ã, ɛ̃, ɔ̃. */
+const NASAL_MARK = String.fromCharCode(0x303);
+
 /** Spelling-tolerant phrase key — the same rule as voiceKey() in public/index.html. */
 export function voiceKey(t: string): string {
-  return String(t || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "")
+  // Tone accents are dropped (typed or not, same phrase), but the nasal mark
+  // stays: it changes the word — efa (it's okay) is not efã (frightened).
+  return String(t || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, (m) => (m === NASAL_MARK ? m : ""))
     .replace(/ɛ/g, "e").replace(/ɔ/g, "o").replace(/ŋ/g, "n")
     .replace(/[’'"“”?!.,;:()]/g, "").replace(/n+\b/g, "n").replace(/\s+/g, " ").trim();
 }

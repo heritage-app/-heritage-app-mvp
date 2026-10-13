@@ -3141,9 +3141,13 @@ function acCacheSet(key, data) {
    voice, and an English voice reading Ga teaches the wrong sounds. */
 let VOICES = null, voicesReq = null, voicePlaying = null;
 const voiceBlobs = new Map();
+/** COMBINING TILDE (code point 0x303) — Ga's nasal mark, as in ã, ɛ̃, ɔ̃. */
+const NASAL_MARK = String.fromCharCode(0x303);
 /** Spelling-tolerant key: "Te oyɔɔ tɛŋ?" and "Te oyɔɔ tɛŋŋ" are the same phrase. */
 function voiceKey(t) {
-  return String(t || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "")
+  // Tone accents are dropped, but the nasal mark stays: it changes the word —
+  // efa (it's okay) is not efã (frightened). Same rule as src/routes/voices.ts.
+  return String(t || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, (m) => (m === NASAL_MARK ? m : ""))
     .replace(/ɛ/g, "e").replace(/ɔ/g, "o").replace(/ŋ/g, "n")
     .replace(/[’'"“”?!.,;:()]/g, "").replace(/n+\b/g, "n").replace(/\s+/g, " ").trim();
 }
