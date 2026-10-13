@@ -21,7 +21,7 @@ import { isNotFoundResponse } from "../rag/flagging";
 import admin from "./admin";
 import { archiveStats } from "../rag/archive-stats";
 import { NATIVE_VOICES } from "../data/voices";
-import { voiceKey, safePeaks, deleteRecording, DATASET_CREDIT } from "./voices";
+import { voiceKey, safePeaks, deleteRecording, voiceCount, DATASET_CREDIT, MAX_VOICES } from "./voices";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use("*", requireAdmin);
@@ -472,6 +472,9 @@ app.get("/voices", async (c) => {
       votes: { right: r.votes_right, wrong: r.votes_wrong, poor: r.votes_poor },
       url: `/api/v1/voices/pending/${r.id}/audio`,
       has_voice: phrases.has(voiceKey(r.ga)),
+      // Voices the phrase has now (not counting taken-down clips), of MAX_VOICES.
+      voices: phrases.get(voiceKey(r.ga))?.clips.filter((k) => !k.hidden).length ?? 0,
+      max_voices: MAX_VOICES,
     })),
     phrases: list.sort((a, b) => a.ga.localeCompare(b.ga)),
     missing: [...asks.values()].sort((a, b) => b.n - a.n).slice(0, 12),
@@ -482,6 +485,10 @@ app.post("/voices/:id/approve", async (c) => {
   const id = c.req.param("id"), adminId = c.get("adminId")!;
   const r = await c.env.DB.prepare("SELECT ga, r2_key, status FROM voice_recordings WHERE id = ?").bind(id).first<{ ga: string; r2_key: string; status: string }>();
   if (!r || r.status !== "pending") return c.json({ detail: "This recording isn't waiting for review." }, 404);
+  // Recordings of a phrase add up as voices, to MAX_VOICES.
+  if ((await voiceCount(c.env, voiceKey(r.ga))) >= MAX_VOICES) {
+    return c.json({ detail: `“${r.ga}” already has ${MAX_VOICES} voices. Remove one in the list below first, or reject this one.` }, 409);
+  }
   const obj = await c.env.DOCS_BUCKET.get(r.r2_key);
   if (!obj) return c.json({ detail: "The audio file is missing." }, 404);
   const publicKey = `media/voices/user/${id}.wav`;

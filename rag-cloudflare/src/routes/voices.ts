@@ -28,6 +28,22 @@ export const DATASET_CREDIT = "Ga Multispeaker dataset (Ashesi / GhanaNLP, CC BY
 export const CONSENT_TEXT =
   "My recording may be played publicly in SpeakGa, credited with my first name. I can delete it from Me at any time.";
 const RATE = 16000, MAX_SECS = 12, MIN_SECS = 0.3, MAX_BYTES = 44 + MAX_SECS * RATE * 2;
+/** Voices per phrase: recordings of the same phrase add up, to this many. */
+export const MAX_VOICES = 5;
+
+/** How many voices a phrase has now: dataset clips not taken down + approved recordings. */
+export async function voiceCount(env: Env, gaKey: string): Promise<number> {
+  const paths = NATIVE_VOICES.filter((v) => voiceKey(v.ga) === gaKey).flatMap((v) => v.clips.map((k) => k.path));
+  let dataset = paths.length;
+  if (paths.length) {
+    const hid = await env.DB.prepare(`SELECT COUNT(*) AS n FROM voice_hidden WHERE path IN (${paths.map(() => "?").join(",")})`)
+      .bind(...paths).first<{ n: number }>().catch(() => ({ n: 0 }));
+    dataset -= hid?.n ?? 0;
+  }
+  const rec = await env.DB.prepare("SELECT COUNT(*) AS n FROM voice_recordings WHERE ga_key = ? AND status = 'approved'")
+    .bind(gaKey).first<{ n: number }>().catch(() => ({ n: 0 }));
+  return dataset + (rec?.n ?? 0);
+}
 
 /** Spelling-tolerant phrase key — the same rule as voiceKey() in public/index.html. */
 export function voiceKey(t: string): string {
@@ -98,6 +114,7 @@ app.get("/voices", async (c) => {
     if (e) { e.clips.push(clip); e.english ??= r.english || null; }
     else byKey.set(r.ga_key, { ga: r.ga, english: englishOf.get(r.ga_key) ?? (r.english || null), clips: [clip] });
   }
+  for (const v of byKey.values()) v.clips = v.clips.slice(0, MAX_VOICES);
   return c.json(
     {
       source: "Ga Multispeaker Audio Transcribed Dataset (Ashesi Financial Inclusion Speech Dataset, via GhanaNLP), and Ga speakers on SpeakGa",
@@ -117,6 +134,10 @@ app.post("/voices/record", requireUser, async (c) => {
   if (!(audio instanceof File)) return c.json({ error: "No recording attached." }, 400);
   if (!ga || ga.length > 200) return c.json({ error: "Say which Ga phrase the recording is of." }, 400);
   if (form.get("consent") !== "1") return c.json({ error: "Tick the box to agree your recording can be played in SpeakGa." }, 400);
+  // A phrase holds up to MAX_VOICES voices; a full one doesn't need more.
+  if ((await voiceCount(c.env, voiceKey(ga))) >= MAX_VOICES) {
+    return c.json({ error: `“${ga}” already has ${MAX_VOICES} voices — thank you! Try a phrase without a voice yet.`, full: true }, 409);
+  }
   const buf = await audio.arrayBuffer();
   const info = inspectWav(buf);
   if (typeof info === "string") return c.json({ error: info }, 400);

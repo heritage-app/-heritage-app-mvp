@@ -3422,7 +3422,7 @@ function recorderWidget(hint) {
   }
   function reset() { stopAll(); if (take?.url) URL.revokeObjectURL(take.url); take = null; state = "idle"; draw(); }
   draw();
-  return { el: box, take: () => take, reset };
+  return { el: box, take: () => take, reset, refresh: () => { if (state === "idle") draw(); } };
 }
 
 /* Contribute → "Say it in Ga". Signed-in speakers only; consent is required. */
@@ -3438,7 +3438,14 @@ function renderCfVoice() {
   }
   if (cfRec) return; // keep a take while the form is open
   row.innerHTML = '<div class="f-lab">Say it in Ga <span class="f-opt">optional</span></div>';
-  cfRec = recorderWidget(() => `Tap and say “${$("cfGa").value.trim() || "the Ga"}”. Up to ${REC_MAX_SECS} seconds.`);
+  // Recordings of a phrase add up as voices, up to 5; a full phrase says so.
+  cfRec = recorderWidget(() => {
+    const ga = $("cfGa").value.trim(), v = ga && voiceFor(ga);
+    if (v && v.clips.length >= 5) return `“${ga}” already has 5 voices — thank you! Record a phrase without a voice yet.`;
+    if (v) return `Tap and say “${ga}” — it has ${v.clips.length} voice${v.clips.length > 1 ? "s" : ""}; yours adds another.`;
+    return `Tap and say “${ga || "the Ga"}”. Up to ${REC_MAX_SECS} seconds.`;
+  });
+  if (!$("cfGa").dataset.recHint) { $("cfGa").dataset.recHint = "1"; $("cfGa").addEventListener("input", () => cfRec?.refresh()); }
   row.appendChild(cfRec.el);
   row.insertAdjacentHTML("beforeend",
     '<label class="rec-consent hidden" id="cfVoiceConsentRow"><input type="checkbox" id="cfVoiceConsent"> <span>My recording may be played publicly in SpeakGa, credited with my first name. I can delete it from <b>Your recordings</b> at any time.</span></label>');

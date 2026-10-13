@@ -903,7 +903,6 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
       <li><a href="/learn-ga">Learn Ga</a></li>
       <li><a href="/ga-words">Ga words</a></li>
       <li><a href="/samai">Samai</a></li>
-      <li><a href="#install">Install</a></li>
       <li><a href="#give">Contribute</a></li>
       <li><a href="#partner">Support</a></li>
     </ul>
@@ -923,7 +922,7 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
         <a class="btn btn-ink" href="https://app.speakga.org/">Try SpeakGa <span class="arr" aria-hidden="true">→</span></a>
         <a class="btn btn-line" href="#tour">See it in action</a>
       </div>
-      <p class="note"><span>Free</span><span>Works in your browser</span><span><a href="#install">Installs on your phone</a></span></p>
+      <p class="note"><span>Free</span><span>Works in your browser</span><span>Installs on your phone</span></p>
     </div>
 
     <div class="stage">
@@ -1188,65 +1187,6 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
   </div>
 </section>
 
-<section class="sec" id="install">
-  <div class="wrap">
-    <div class="head"><p class="eyebrow">Install the app</p><h2>SpeakGa on your home screen.</h2><p class="lede">Free, no app store. It opens full-screen, loads fast on a weak connection, and keeps working where the signal is poor.</p></div>
-    <div class="inst-cols">
-      <ol class="inst-grid">
-        <li class="inst-card">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg>
-          <b>iPhone / iPad</b>
-          <ol>
-            <li><i>1</i><span>Open <b>app.speakga.org</b> in Safari</span></li>
-            <li><i>2</i><span>Tap <b>Share</b></span></li>
-            <li><i>3</i><span>Tap <b>Add to Home Screen</b>, then Add</span></li>
-          </ol>
-        </li>
-        <li class="inst-card">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2.5"/><path d="M11 18h2"/></svg>
-          <b>Android</b>
-          <ol>
-            <li><i>1</i><span>Open <b>app.speakga.org</b> in Chrome</span></li>
-            <li><i>2</i><span>Tap <b>Install SpeakGa</b> when it appears, or ⋮ menu → <b>Add to Home screen</b></span></li>
-            <li><i>3</i><span>Tap <b>Install</b></span></li>
-          </ol>
-        </li>
-        <li class="inst-card">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg>
-          <b>Laptop / desktop</b>
-          <ol>
-            <li><i>1</i><span>Open <b>app.speakga.org</b> in Chrome or Edge</span></li>
-            <li><i>2</i><span>Click the install icon at the right of the address bar</span></li>
-            <li><i>3</i><span>Click <b>Install</b>. It opens in its own window</span></li>
-          </ol>
-        </li>
-      </ol>
-      <div class="inst-side">
-        <div class="inst-qr">
-          <img src="img/install-qr.svg" width="180" height="180" alt="QR code that opens SpeakGa on your phone">
-          <p>On a laptop? Point your phone's camera here to open SpeakGa, then add it to your home screen.</p>
-        </div>
-        <div class="cta-row">
-          <a class="btn btn-ink" href="https://app.speakga.org/?install=1">Install SpeakGa <span class="arr" aria-hidden="true">→</span></a>
-          <a class="btn btn-line" href="https://app.speakga.org/">Just open it in the browser</a>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-<script>
-/* Install section: mark the card for the visitor's own platform; on touch
-   screens the QR is useless (you can't scan your own screen), so it stays hidden. */
-(function () {
-  var cards = document.querySelectorAll(".inst-card");
-  if (!cards.length) return;
-  var ua = navigator.userAgent;
-  var ios = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  var and = /android/i.test(ua);
-  var k = ios ? 0 : and ? 1 : 2;
-  if (cards[k]) cards[k].classList.add("mine");
-})();
-</script>
 
 <section class="sec contrib" id="contribute">
   <div class="wrap">
@@ -1307,36 +1247,13 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
   </div>
 </section>
 
-<section class="sec" id="roadmap">
-  <div class="wrap">
-    <div class="head"><p class="eyebrow">Roadmap</p><h2>From working app to Ga language AI.</h2></div>
-    <div class="road">
-      <div class="phase now"><span class="pn">Phase 1</span><h3>Build and show</h3><p>Text conversations, cultural content and quizzes, live today.</p><span class="st">Live now</span></div>
-      <div class="phase"><span class="pn">Phase 2</span><h3>Research and improve</h3><p>Human-reviewed datasets, expert input and accuracy benchmarks.</p><span class="st">Next</span></div>
-      <div class="phase now"><span class="pn">Phase 3</span><h3>Voice</h3><p>93 everyday phrases from native speakers, and Ga speakers adding their own. Speech recognition comes next.</p><span class="st">Under way</span></div>
-      <div class="phase"><span class="pn">Phase 4</span><h3>Wider reach</h3><p>Partnerships with schools, researchers and cultural institutions.</p><span class="st">Long term</span></div>
-    </div>
-  </div>
-</section>
 
-<section class="sec" id="partner" style="padding-top:0">
+<section class="sec" id="partner">
   <div class="wrap fund">
     <div class="fund-head">
       <p class="eyebrow">Support the research</p>
       <h2>Help give Ga a place in the digital future.</h2>
       <p class="lede">SpeakGa is a research project by Codetrain Foundation. The app works today, but Ga still has very little digital language data. Funding and data partners decide how fast that changes.</p>
-    </div>
-
-    <div>
-      <p class="fund-label">Where the research stands</p>
-      <div class="stats">
-        <div class="stat"><b data-stat="words_and_phrases">1,777</b><span>Ga words and phrases</span><small><span data-stat="dictionary_entries">847</span> in the checked dictionary</small></div>
-        <div class="stat"><b data-stat="bible_verses">62,368</b><span>Bible verses in Ga</span><small>Two full translations, all 66 books, with English</small></div>
-        <div class="stat"><b>1–<span data-stat="numbers_in_words">999</span></b><span>Numbers in Ga words</span><small>Every number, spelled out</small></div>
-        <div class="stat"><b data-stat="stories_poems">9</b><span>Stories, poems and songs</span><small><span data-stat="stories">6</span> stories, <span data-stat="poems_and_songs">3</span> poems and songs</small></div>
-        <div class="stat"><b data-stat="samai">16</b><span>Samai symbols</span><small>Documented with their meanings, drawings and sources</small></div>
-        <div class="stat gap"><b>0 hrs</b><span>Recorded Ga speech</span><small>Not started. This needs funding.</small></div>
-      </div>
     </div>
 
     <div>
@@ -1373,12 +1290,6 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
       </ul>
     </div>
 
-    <div class="contact-strip">
-      <div><small>Talk to the team</small><span class="addr" id="addr">experience@codetrainafrica.com</span></div>
-      <div class="acts">
-        <a class="btn btn-gold" href="mailto:experience@codetrainafrica.com?subject=SpeakGa">Email us</a>
-        <button class="btn btn-ondark" type="button" id="copyBtn">Copy address</button>
-      </div>
       <small id="copyMsg" role="status" aria-live="polite"></small>
     </div>
   </div>
@@ -1501,7 +1412,7 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
 <footer>
   <div class="wrap f-row">
     <a class="brand brand-sm" href="#top"><img src="img/brand/speakga-logo.png" width="515" height="144" alt="SpeakGa"></a>
-    <ul class="f-links"><li><a href="https://app.speakga.org/">Open the app</a></li><li><a href="#install">Install the app</a></li><li><a href="/translate">Translate English to Ga</a></li><li><a href="/learn-ga">Learn Ga</a></li><li><a href="/ga-words">Ga words A–Z</a></li><li><a href="/samai">Ga samai</a></li><li><a href="/about">About</a></li><li><a href="#tour">See the app</a></li><li><a href="#give">Contribute</a></li><li><a href="#roadmap">Roadmap</a></li><li><a href="/support">Support</a></li></ul>
+    <ul class="f-links"><li><a href="https://app.speakga.org/">Open the app</a></li><li><a href="/translate">Translate English to Ga</a></li><li><a href="/learn-ga">Learn Ga</a></li><li><a href="/ga-words">Ga words A–Z</a></li><li><a href="/samai">Ga samai</a></li><li><a href="/about">About</a></li><li><a href="#tour">See the app</a></li><li><a href="#give">Contribute</a></li><li><a href="/support">Support</a></li></ul>
     <span>© 2026 Codetrain Foundation</span>
   </div>
 </footer>
@@ -2109,56 +2020,10 @@ function resetGive() {
 }
 if (location.hash === "#give") openGive();
 
-/* Copy address */
-document.getElementById("copyBtn").addEventListener("click", () => {
-  const t = document.getElementById("addr").textContent, msg = document.getElementById("copyMsg");
-  const fallback = () => { const r = document.createRange(); r.selectNodeContents(document.getElementById("addr")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); msg.textContent = "Selected. Press Ctrl+C or ⌘C to copy."; };
-  try { navigator.clipboard.writeText(t).then(() => msg.textContent = "Copied.", fallback); } catch { fallback(); }
-});
 </script>
 <script>
 /* Cookie-free visit counter: page, referring site, device. No names or IP addresses (src/routes/traffic.ts). */
 (function(){function t(e){try{var d=JSON.stringify({e:e,p:location.pathname+(location.hash||""),r:document.referrer});if(!(navigator.sendBeacon&&navigator.sendBeacon("/api/v1/e",d)))fetch("/api/v1/e",{method:"POST",body:d,keepalive:true})}catch(_){}}window.sgTrack=t;t("pageview");document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("a,button");if(!a)return;var h=a.getAttribute("href")||"";if(h.indexOf("install=1")!==-1)t("install_click");if(h.indexOf("https://app.speakga.org")===0)t("start");else if(a.closest("#partner"))t("support")},true);})();
-</script>
-<script>
-/* Research figures: live from the archive (GET /api/v1/archive-stats), counted up when the
-   section comes into view. The numbers written in the markup are the fallback and the resting state. */
-(function () {
-  const els = [...document.querySelectorAll("[data-stat]")];
-  if (!els.length) return;
-  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const fmt = (n) => Math.round(n).toLocaleString("en-GB");
-  const read = (el) => Number(el.textContent.replace(/[^0-9]/g, "")) || 0;
-  els.forEach((el) => { el.dataset.to = read(el); });
-  let played = false;
-  function play() {
-    if (played || reduce) return;
-    played = true;
-    const t0 = performance.now(), dur = 1600;
-    const ease = (t) => 1 - Math.pow(1 - t, 3);
-    (function tick(now) {
-      const k = Math.min(1, (now - t0) / dur), e = ease(k);
-      els.forEach((el) => { el.textContent = fmt(+el.dataset.to * e); });
-      if (k < 1) requestAnimationFrame(tick);
-    })(t0);
-  }
-  function apply(a) {
-    if (!a) return;
-    a.stories_poems = a.stories + a.poems_and_songs;
-    els.forEach((el) => {
-      const v = a[el.dataset.stat];
-      if (typeof v === "number" && v > 0) { el.dataset.to = v; if (!played || reduce) el.textContent = fmt(v); }
-    });
-    if (played && !reduce) els.forEach((el) => { el.textContent = fmt(+el.dataset.to); });
-  }
-  const get = (u) => fetch(u, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : Promise.reject(r.status)));
-  get("/api/v1/archive-stats").catch(() => get("https://speakga.org/api/v1/archive-stats")).then(apply).catch(() => {});
-  const box = els[0].closest(".stats") || els[0];
-  if ("IntersectionObserver" in window) {
-    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); play(); } }, { threshold: 0.35 });
-    io.observe(box);
-  }
-})();
 </script>
 <template id="cwTpl"><style>
 :host{display:block;

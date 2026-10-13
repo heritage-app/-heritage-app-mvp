@@ -832,7 +832,9 @@ async function loadVoicesView() {
   ].map(([k, v, sub, cls]) => `<div class="kpi ${cls || ""}"><small>${esc(k)}</small><b>${fmt(v)}</b><span>${esc(sub)}</span></div>`).join("");
   $("vPending").innerHTML = VD.pending.length ? VD.pending.map((p) => `
     <div class="vcard" id="vc-${esc(p.id)}">
-      <div class="ph"><b>${esc(p.ga)}</b>${p.english ? `<span>“${esc(p.english)}”</span>` : ""}${p.has_voice ? '<span class="pill">Phrase already has a voice</span>' : '<span class="pill info">First voice for this phrase</span>'}</div>
+      <div class="ph"><b>${esc(p.ga)}</b>${p.english ? `<span>“${esc(p.english)}”</span>` : ""}${!p.voices ? '<span class="pill info">First voice for this phrase</span>'
+        : p.voices >= p.max_voices ? `<span class="pill bad">Full: ${p.voices} of ${p.max_voices} voices — remove one below to approve</span>`
+        : `<span class="pill">Adds voice ${p.voices + 1} of ${p.max_voices}</span>`}</div>
       ${vpHtml(p.url, p.secs, p.peaks, p.ga)}
       <div class="muted" style="font-size:12.5px">${esc(p.contributor || "Signed-in speaker")} · consented ${esc(ago(p.consent_at) || p.consent_at)} · speakers say: ${p.votes.right} sounds right, ${p.votes.wrong} wrong phrase, ${p.votes.poor} poor audio</div>
       <div class="row-actions"><button class="btn ok" data-va="approve" data-id="${esc(p.id)}">Approve voice</button><button class="btn bad" data-va="reject" data-id="${esc(p.id)}">Reject…</button><span class="status" data-st></span></div>
