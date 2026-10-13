@@ -49,7 +49,12 @@ CREATE TABLE IF NOT EXISTS voice_hidden (
 CREATE TABLE IF NOT EXISTS voice_phrases (
   ga_key      TEXT PRIMARY KEY,   -- voiceKey(ga)
   ga          TEXT NOT NULL,
-  english     TEXT NOT NULL,
+  english     TEXT NOT NULL,       -- may be '' when only context or examples are set
+  context     TEXT,                -- when / how it's used
+  examples    TEXT,                -- JSON [{ "ga": "...", "en": "..." }]
   updated_by  TEXT,
   updated_at  TEXT NOT NULL
 );
+-- On a database created before context/examples existed, run once:
+--   ALTER TABLE voice_phrases ADD COLUMN context TEXT;
+--   ALTER TABLE voice_phrases ADD COLUMN examples TEXT;

@@ -573,6 +573,9 @@
   .quiz .q-listen { border:1px solid var(--line-2); background:transparent; color:var(--ink-2);
     padding:8px 12px; font:600 10px var(--mono); letter-spacing:.08em; cursor:pointer; align-self:flex-start; }
   .quiz .q-listen:hover { border-color:var(--ink); color:var(--ink); }
+  .q-ctx { font:500 13px/1.5 var(--sans); color:var(--ink-2); }
+  .q-ex { display:grid; gap:2px; padding:9px 11px; border-radius:12px; background:var(--accent-soft); font:500 13.5px/1.45 var(--sans); }
+  .q-ex span { color:var(--muted); font-size:12.5px; }
   /* Native voice player: real Ga speakers, only for recorded phrases. */
   .nv { display:grid; gap:9px; margin:10px 0 2px; padding:11px 13px; border-radius:16px;
     background:var(--accent-soft); border:1px solid var(--accent-line); max-width:460px; }
@@ -4388,6 +4391,9 @@ function revealPanel(card, ok, answer, q) {
     `<span>${ok ? "Archive spelling." : "It was “" + escapeHtml(answer) + "”."}</span></div>` +
     (q.gloss ? `<div class="q-gloss">${escapeHtml(q.gloss)}</div>` : "") +
     (q.phonetic ? `<div class="q-gloss">${escapeHtml(q.phonetic)}</div>` : "") +
+    // Listen & pick: when it's said, and the phrase in a sentence (added in admin).
+    (q.context ? `<div class="q-ctx">${escapeHtml(q.context)}</div>` : "") +
+    (q.example ? `<div class="q-ex"><b>${escapeHtml(q.example.ga)}</b><span>“${escapeHtml(q.example.en)}”</span></div>` : "") +
     (q.source ? `<div class="q-src">Source: ${escapeHtml(q.source)}</div>` : "");
   const why = document.createElement("button");
   why.className = "q-why"; why.type = "button";
@@ -4487,7 +4493,8 @@ function renderListenPick(bubble) {
       scoreAndAdvance(ok, { ga: ans.ga, en: "heard from a Ga speaker", chose: o.ga });
       status.textContent = `${round.correct}/${round.i} this round`;
       // The English, where an admin (or the speaker) has added it.
-      revealPanel(card, ok, ans.ga, { gloss: ans.english ? `“${ans.english}”` : "", source: "a Ga speaker's recording", noWhy: true });
+      const ex = ans.examples?.length ? ans.examples[Math.floor(Math.random() * ans.examples.length)] : null;
+      revealPanel(card, ok, ans.ga, { gloss: ans.english ? `“${ans.english}”` : "", context: ans.context || "", example: ex, source: "a Ga speaker's recording", noWhy: true });
       next.disabled = false;
       scrollDown();
     };

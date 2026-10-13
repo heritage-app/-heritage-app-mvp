@@ -92,13 +92,14 @@ app.get("/voices", async (c) => {
     c.env.DB.prepare(
       "SELECT id, ga, ga_key, english, contributor_name, secs, peaks FROM voice_recordings WHERE status = 'approved' ORDER BY reviewed_at"
     ).all<Rec>().catch(() => ({ results: [] as Rec[] })),
-    c.env.DB.prepare("SELECT ga_key, english FROM voice_phrases").all<{ ga_key: string; english: string }>()
-      .catch(() => ({ results: [] as { ga_key: string; english: string }[] })),
+    c.env.DB.prepare("SELECT ga_key, english, context, examples FROM voice_phrases").all<PhraseInfo>()
+      .catch(() => ({ results: [] as PhraseInfo[] })),
   ]);
   const hidden = new Set((hiddenRes.results ?? []).map((r) => r.path));
-  const englishOf = new Map((englishRes.results ?? []).map((r) => [r.ga_key, r.english]));
+  const infoOf = new Map((englishRes.results ?? []).map((r) => [r.ga_key, r]));
+  const englishOf = new Map((englishRes.results ?? []).filter((r) => r.english).map((r) => [r.ga_key, r.english]));
   type Clip = { url: string; secs: number; peaks: number[]; by: string };
-  const byKey = new Map<string, { ga: string; english: string | null; clips: Clip[] }>();
+  const byKey = new Map<string, { ga: string; english: string | null; context?: string; examples?: Example[]; clips: Clip[] }>();
   for (const v of NATIVE_VOICES) {
     const clips = v.clips.filter((k) => !hidden.has(k.path))
       .map((k) => ({ url: `/api/v1/media/${k.path}`, secs: k.secs, peaks: k.peaks, by: DATASET_CREDIT }));
@@ -114,7 +115,14 @@ app.get("/voices", async (c) => {
     if (e) { e.clips.push(clip); e.english ??= r.english || null; }
     else byKey.set(r.ga_key, { ga: r.ga, english: englishOf.get(r.ga_key) ?? (r.english || null), clips: [clip] });
   }
-  for (const v of byKey.values()) v.clips = v.clips.slice(0, MAX_VOICES);
+  for (const [key, v] of byKey) {
+    v.clips = v.clips.slice(0, MAX_VOICES);
+    // What an admin added: when it's used, and the phrase in sentences.
+    const info = infoOf.get(key);
+    if (info?.context) v.context = info.context;
+    const ex = parseExamples(info?.examples);
+    if (ex.length) v.examples = ex;
+  }
   return c.json(
     {
       source: "Ga Multispeaker Audio Transcribed Dataset (Ashesi Financial Inclusion Speech Dataset, via GhanaNLP), and Ga speakers on SpeakGa",
@@ -238,6 +246,19 @@ app.delete("/voices/mine/:id", requireUser, async (c) => {
 });
 
 export function safePeaks(s: string): number[] { try { return JSON.parse(s); } catch { return []; } }
+
+export type Example = { ga: string; en: string };
+export type PhraseInfo = { ga_key: string; english: string; context: string | null; examples: string | null };
+/** Example sentences as stored (JSON), cleaned: both sides present, at most 5. */
+export function parseExamples(raw: unknown): Example[] {
+  let list: unknown = raw;
+  if (typeof raw === "string") { try { list = JSON.parse(raw); } catch { return []; } }
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((e: any) => ({ ga: String(e?.ga ?? "").trim().slice(0, 300), en: String(e?.en ?? "").trim().slice(0, 300) }))
+    .filter((e) => e.ga && e.en)
+    .slice(0, 5);
+}
 
 /** Delete a recording's audio and mark the row (kept for the audit trail, without audio). */
 export async function deleteRecording(env: Env, id: string, r2Key: string, status: "removed" | "rejected", reason: string, by: string | null) {

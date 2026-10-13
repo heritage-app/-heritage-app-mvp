@@ -21,7 +21,7 @@ import { isNotFoundResponse } from "../rag/flagging";
 import admin from "./admin";
 import { archiveStats } from "../rag/archive-stats";
 import { NATIVE_VOICES } from "../data/voices";
-import { voiceKey, safePeaks, deleteRecording, voiceCount, DATASET_CREDIT, MAX_VOICES } from "./voices";
+import { voiceKey, safePeaks, deleteRecording, voiceCount, parseExamples, DATASET_CREDIT, MAX_VOICES, type PhraseInfo, type Example } from "./voices";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use("*", requireAdmin);
@@ -418,12 +418,13 @@ app.get("/voices", async (c) => {
     // Answers from the last 30 days: the Ga each one led with.
     db.prepare("SELECT response FROM interactions WHERE created_at > ? ORDER BY created_at DESC LIMIT 4000")
       .bind(new Date(Date.now() - 30 * 86400000).toISOString()).all<{ response: string }>().catch(() => ({ results: [] as { response: string }[] })),
-    db.prepare("SELECT ga_key, english FROM voice_phrases").all<{ ga_key: string; english: string }>()
-      .catch(() => ({ results: [] as { ga_key: string; english: string }[] })),
+    db.prepare("SELECT ga_key, english, context, examples FROM voice_phrases").all<PhraseInfo>()
+      .catch(() => ({ results: [] as PhraseInfo[] })),
   ]);
   const hidden = new Set((hiddenRes.results ?? []).map((r) => r.path));
-  const englishOf = new Map((englishRes.results ?? []).map((r) => [r.ga_key, r.english]));
-  type Phrase = { key: string; ga: string; english: string | null; english_source: "admin" | "speaker" | null; clips: { kind: "dataset" | "community"; ref: string; url: string; secs: number; peaks: number[]; by: string; hidden?: boolean }[] };
+  const infoOf = new Map((englishRes.results ?? []).map((r) => [r.ga_key, r]));
+  const englishOf = new Map((englishRes.results ?? []).filter((r) => r.english).map((r) => [r.ga_key, r.english]));
+  type Phrase = { key: string; ga: string; english: string | null; english_source: "admin" | "speaker" | null; context?: string | null; examples?: Example[]; clips: { kind: "dataset" | "community"; ref: string; url: string; secs: number; peaks: number[]; by: string; hidden?: boolean }[] };
   const phrases = new Map<string, Phrase>();
   for (const v of NATIVE_VOICES) {
     const key = voiceKey(v.ga), en = englishOf.get(key) ?? null;
@@ -442,6 +443,11 @@ app.get("/voices", async (c) => {
       const en = englishOf.get(r.ga_key) ?? null;
       phrases.set(r.ga_key, { key: r.ga_key, ga: r.ga, english: en ?? (r.english || null), english_source: en ? "admin" : r.english ? "speaker" : null, clips: [clip] });
     }
+  }
+  for (const [key, p] of phrases) {
+    const info = infoOf.get(key);
+    p.context = info?.context || null;
+    p.examples = parseExamples(info?.examples);
   }
   // Most-given answers that still have no voice.
   const asks = new Map<string, { ga: string; n: number }>();
@@ -530,25 +536,35 @@ app.post("/voices/remove", async (c) => {
   return c.json({ detail: "Say which clip to remove." }, 400);
 });
 
-// The English of a phrase with a voice (dataset recordings come with Ga only).
-// An empty English clears it.
-app.post("/voices/english", async (c) => {
+// What a phrase with a voice means and how it's used (dataset recordings come
+// with Ga only): English, context, example sentences. Send any of them; the
+// rest are kept. Empty values clear; a phrase with nothing left is removed.
+app.post("/voices/details", async (c) => {
   const adminId = c.get("adminId")!;
-  const { ga, english } = await c.req.json<{ ga?: string; english?: string }>().catch(() => ({} as { ga?: string; english?: string }));
-  const g = String(ga ?? "").trim(), en = String(english ?? "").trim().replace(/\s+/g, " ");
+  const body = await c.req.json<{ ga?: string; english?: string; context?: string; examples?: unknown }>().catch(() => ({} as Record<string, unknown>));
+  const g = String(body.ga ?? "").trim();
   if (!g) return c.json({ detail: "Say which phrase." }, 400);
-  if (en.length > 160) return c.json({ detail: "Keep the English under 160 characters." }, 400);
   const key = voiceKey(g);
-  if (!en) {
+  const cur = await c.env.DB.prepare("SELECT english, context, examples FROM voice_phrases WHERE ga_key = ?")
+    .bind(key).first<{ english: string; context: string | null; examples: string | null }>();
+  const clean = (v: unknown) => String(v ?? "").trim().replace(/\s+/g, " ");
+  const english = "english" in body ? clean(body.english) : cur?.english ?? "";
+  const context = "context" in body ? String(body.context ?? "").trim() : cur?.context ?? "";
+  const examples = "examples" in body ? parseExamples(body.examples) : parseExamples(cur?.examples);
+  if (english.length > 160) return c.json({ detail: "Keep the English under 160 characters." }, 400);
+  if (context.length > 600) return c.json({ detail: "Keep the context under 600 characters." }, 400);
+  if (!english && !context && !examples.length) {
     await c.env.DB.prepare("DELETE FROM voice_phrases WHERE ga_key = ?").bind(key).run();
   } else {
     await c.env.DB.prepare(
-      `INSERT INTO voice_phrases (ga_key, ga, english, updated_by, updated_at) VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(ga_key) DO UPDATE SET english = excluded.english, updated_by = excluded.updated_by, updated_at = excluded.updated_at`
-    ).bind(key, g, en, adminId, new Date().toISOString()).run();
+      `INSERT INTO voice_phrases (ga_key, ga, english, context, examples, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(ga_key) DO UPDATE SET english = excluded.english, context = excluded.context, examples = excluded.examples,
+         updated_by = excluded.updated_by, updated_at = excluded.updated_at`
+    ).bind(key, g, english, context || null, examples.length ? JSON.stringify(examples) : null, adminId, new Date().toISOString()).run();
   }
-  await logAction(c.env, adminId, "voice_english", "voice", key, `${g} → ${en || "(cleared)"}`);
-  return c.json({ ok: true, english: en || null });
+  await logAction(c.env, adminId, "voice_details", "voice", key,
+    `${g}: ${english || "(no English)"}${context ? " · context" : ""}${examples.length ? ` · ${examples.length} sentence${examples.length > 1 ? "s" : ""}` : ""}`);
+  return c.json({ ok: true, english: english || null, context: context || null, examples });
 });
 
 app.post("/voices/restore", async (c) => {
