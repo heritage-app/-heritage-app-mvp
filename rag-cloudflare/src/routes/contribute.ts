@@ -24,6 +24,7 @@ import {
   MAX_FILES,
   type Attachment,
 } from "./attachments";
+import { takeGuestAllowance, GUEST_DAILY } from "./guest-limits";
 
 export interface ContributeRequest {
   type: "translation" | "bible_verse" | "correction" | "cultural_note" | "document" | "context";
@@ -169,12 +170,13 @@ export async function handleContribute(request: Request, env: Env): Promise<Resp
     }
   }
 
-  // Evidence files are for signed-in accounts only. Guests can still contribute
-  // text; letting anonymous callers push binaries into R2 is a different risk.
-  if (files.length && isGuest) {
+  // Guests can attach files too (they've given name, email and location
+  // above); uploads are capped per connection per day, and nothing is read or
+  // published before a reviewer approves it.
+  if (files.length && isGuest && !(await takeGuestAllowance(request, env, "files"))) {
     return json({
-      error: "Sign in to attach files. Your written contribution can be submitted without them.",
-    }, 401);
+      error: `That's ${GUEST_DAILY.files} uploads today — thank you! Sign in to add more, or come back tomorrow.`,
+    }, 429);
   }
   if (files.length > MAX_FILES) {
     return json({ error: `At most ${MAX_FILES} files per contribution.` }, 400);

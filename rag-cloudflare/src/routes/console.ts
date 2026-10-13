@@ -406,7 +406,7 @@ app.get("/voices", async (c) => {
   const [pendingRes, communityRes, hiddenRes, recent, englishRes] = await Promise.all([
     db.prepare(
       `SELECT r.id, r.ga, r.english, r.secs, r.peaks, r.votes_right, r.votes_wrong, r.votes_poor, r.created_at,
-              r.contributor_name, r.consent_at, u.email AS contributor_email
+              r.contributor_name, r.consent_at, r.guest_contact, u.email AS contributor_email
          FROM voice_recordings r LEFT JOIN users u ON u.id = r.contributor_id
         WHERE r.status = 'pending' ORDER BY r.created_at LIMIT 100`
     ).all<any>(),
@@ -476,7 +476,7 @@ app.get("/voices", async (c) => {
     },
     pending: (pendingRes.results ?? []).map((r: any) => ({
       id: r.id, ga: r.ga, english: r.english, secs: r.secs, peaks: safePeaks(r.peaks), created_at: r.created_at,
-      contributor: [r.contributor_name, r.contributor_email].filter(Boolean).join(" · "), consent_at: r.consent_at,
+      contributor: r.guest_contact ? `${r.guest_contact} (guest)` : [r.contributor_name, r.contributor_email].filter(Boolean).join(" · "), consent_at: r.consent_at,
       votes: { right: r.votes_right, wrong: r.votes_wrong, poor: r.votes_poor },
       url: `/api/v1/voices/pending/${r.id}/audio`,
       has_voice: phrases.has(voiceKey(r.ga)),

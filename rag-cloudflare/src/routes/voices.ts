@@ -19,14 +19,15 @@
  */
 import { Hono } from "hono";
 import type { Env, Variables } from "../types";
-import { requireUser } from "../auth/middleware";
+import { requireUser, optionalUser } from "../auth/middleware";
+import { takeGuestAllowance, ownerToken, tokenHash, GUEST_DAILY } from "./guest-limits";
 import { NATIVE_VOICES } from "../data/voices";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 export const DATASET_CREDIT = "Ga Multispeaker dataset (Ashesi / GhanaNLP, CC BY-NC 4.0)";
 export const CONSENT_TEXT =
-  "My recording may be played publicly in SpeakGa, credited with my first name. I can delete it from Me at any time.";
+  "My recording may be played publicly in SpeakGa, credited with my first name. I can delete it at any time (Your recordings).";
 const RATE = 16000, MAX_SECS = 12, MIN_SECS = 0.3, MAX_BYTES = 44 + MAX_SECS * RATE * 2;
 /** Voices per phrase: recordings of the same phrase add up, to this many. */
 export const MAX_VOICES = 5;
@@ -157,14 +158,23 @@ app.get("/word-context", async (c) => {
   return c.json({ words: [...byKey.entries()].map(([key, v]) => ({ key, ...v })) }, 200, { "Cache-Control": "public, max-age=60" });
 });
 
-app.post("/voices/record", requireUser, async (c) => {
-  const user = c.get("user")!;
+// Signed-in speakers and guests alike. A guest gives name, email and location
+// (as for any guest contribution), is capped per connection per day, and gets
+// a private key to manage the recording from this device.
+app.post("/voices/record", optionalUser, async (c) => {
+  const user = c.get("user");
   let form: FormData;
   try { form = await c.req.formData(); } catch { return c.json({ error: "Send the recording as a form upload." }, 400); }
   const audio = form.get("audio") as unknown, ga = String(form.get("ga") ?? "").trim(), english = String(form.get("english") ?? "").trim();
   if (!(audio instanceof File)) return c.json({ error: "No recording attached." }, 400);
   if (!ga || ga.length > 200) return c.json({ error: "Say which Ga phrase the recording is of." }, 400);
   if (form.get("consent") !== "1") return c.json({ error: "Tick the box to agree your recording can be played in SpeakGa." }, 400);
+  let guest: { name: string; email: string; location: string } | null = null;
+  if (!user) {
+    guest = { name: String(form.get("contributor_name") ?? "").trim(), email: String(form.get("contributor_email") ?? "").trim(), location: String(form.get("contributor_location") ?? "").trim() };
+    if (!guest.name || !guest.email || !guest.location) return c.json({ error: "Add your name, email and location so we can credit you — or sign in." }, 400);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email)) return c.json({ error: "That email address doesn't look right." }, 400);
+  }
   // A phrase holds up to MAX_VOICES voices; a full one doesn't need more.
   if ((await voiceCount(c.env, voiceKey(ga))) >= MAX_VOICES) {
     return c.json({ error: `“${ga}” already has ${MAX_VOICES} voices — thank you! Try a phrase without a voice yet.`, full: true }, 409);
@@ -173,37 +183,56 @@ app.post("/voices/record", requireUser, async (c) => {
   const info = inspectWav(buf);
   if (typeof info === "string") return c.json({ error: info }, 400);
 
-  // A steady trickle only: 20 recordings a day per speaker.
-  const today = await c.env.DB.prepare(
-    "SELECT COUNT(*) AS n FROM voice_recordings WHERE contributor_id = ? AND created_at > ?"
-  ).bind(user.id, new Date(Date.now() - 86400000).toISOString()).first<{ n: number }>();
-  if ((today?.n ?? 0) >= 20) return c.json({ error: "That's 20 recordings today — thank you! Add more tomorrow." }, 429);
+  if (user) {
+    // A steady trickle only: 20 recordings a day per speaker.
+    const today = await c.env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM voice_recordings WHERE contributor_id = ? AND created_at > ?"
+    ).bind(user.id, new Date(Date.now() - 86400000).toISOString()).first<{ n: number }>();
+    if ((today?.n ?? 0) >= 20) return c.json({ error: "That's 20 recordings today — thank you! Add more tomorrow." }, 429);
+  } else if (!(await takeGuestAllowance(c.req.raw, c.env, "voice"))) {
+    return c.json({ error: `That's ${GUEST_DAILY.voice} recordings today — thank you! Sign in to add more, or come back tomorrow.` }, 429);
+  }
 
+  const anon = c.req.header("X-Anonymous-ID") || "";
+  const contributorId = user ? user.id : `guest_${anon.replace(/^guest_/, "") || "anonymous"}`;
+  const firstName = (user ? user.first_name || user.display_name || "" : guest!.name).trim().split(/\s+/)[0] || null;
+  const owner = user ? null : await ownerToken();
   const id = crypto.randomUUID(), now = new Date().toISOString(), key = `voices-pending/${id}.wav`;
   await c.env.DOCS_BUCKET.put(key, buf, { httpMetadata: { contentType: "audio/wav" } });
   try {
     await c.env.DB.prepare(
       `INSERT INTO voice_recordings (id, ga, ga_key, english, contributor_id, contributor_name, contribution_id, r2_key,
-         secs, peaks, status, consent_text, consent_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`
+         secs, peaks, status, consent_text, consent_at, created_at, owner_token_hash, guest_contact)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`
     ).bind(
-      id, ga, voiceKey(ga), english || null, user.id,
-      (user.first_name || user.display_name || "").trim().split(/\s+/)[0] || null,
+      id, ga, voiceKey(ga), english || null, contributorId, firstName,
       String(form.get("contribution_id") ?? "") || null, key,
-      info.secs, JSON.stringify(info.peaks), CONSENT_TEXT, now, now
+      info.secs, JSON.stringify(info.peaks), CONSENT_TEXT, now, now,
+      owner?.hash ?? null, guest ? `${guest.name} · ${guest.email} · ${guest.location}` : null
     ).run();
   } catch (e) {
     await c.env.DOCS_BUCKET.delete(key).catch(() => {});
     console.error("voice insert failed:", e);
     return c.json({ error: "Couldn't save the recording — try again." }, 500);
   }
-  return c.json({ id, status: "pending", secs: info.secs });
+  // A guest's key is shown once, kept on their device, and stored only as a hash.
+  return c.json({ id, status: "pending", secs: info.secs, ...(owner ? { token: owner.token } : {}) });
 });
 
-// Pending audio: signed-in speakers (peer check) and admins only — never public.
-app.get("/voices/pending/:id/audio", requireUser, async (c) => {
-  const r = await c.env.DB.prepare("SELECT r2_key, status, contributor_id FROM voice_recordings WHERE id = ?")
-    .bind(c.req.param("id")).first<{ r2_key: string; status: string; contributor_id: string }>();
+/** A guest proves a recording is theirs with the key from when they made it. */
+async function guestOwns(env: Env, id: string, token: string | undefined | null): Promise<boolean> {
+  if (!token) return false;
+  const r = await env.DB.prepare("SELECT owner_token_hash FROM voice_recordings WHERE id = ?").bind(id).first<{ owner_token_hash: string | null }>();
+  return !!r?.owner_token_hash && r.owner_token_hash === (await tokenHash(token));
+}
+
+// Pending audio — never public: signed-in speakers (peer check), admins, and a
+// guest listening back to their own take (with its key).
+app.get("/voices/pending/:id/audio", optionalUser, async (c) => {
+  const id = c.req.param("id");
+  if (!c.get("user") && !(await guestOwns(c.env, id, c.req.query("t")))) return c.json({ detail: "Authentication token is missing" }, 401);
+  const r = await c.env.DB.prepare("SELECT r2_key, status FROM voice_recordings WHERE id = ?")
+    .bind(id).first<{ r2_key: string; status: string }>();
   if (!r || r.status !== "pending") return c.json({ detail: "Not found" }, 404);
   const obj = await c.env.DOCS_BUCKET.get(r.r2_key);
   if (!obj) return c.json({ detail: "Not found" }, 404);
@@ -246,25 +275,45 @@ app.post("/voices/:id/vote", requireUser, async (c) => {
   return c.json({ ok: true, verdict });
 });
 
+const mineRow = (r: Rec, token?: string) => ({
+  id: r.id, ga: r.ga, english: r.english, secs: r.secs, peaks: safePeaks(r.peaks), status: r.status,
+  reason: r.reject_reason, created_at: r.created_at,
+  url: r.status === "approved" ? `/api/v1/media/voices/user/${r.id}.wav`
+    : r.status === "pending" ? `/api/v1/voices/pending/${r.id}/audio${token ? `?t=${encodeURIComponent(token)}` : ""}` : null,
+});
+
 app.get("/voices/mine", requireUser, async (c) => {
   const rows = await c.env.DB.prepare(
     `SELECT id, ga, english, secs, peaks, status, reject_reason, created_at FROM voice_recordings
       WHERE contributor_id = ? AND status <> 'removed' ORDER BY created_at DESC LIMIT 100`
   ).bind(c.get("user")!.id).all<Rec>();
-  return c.json({
-    recordings: (rows.results ?? []).map((r) => ({
-      id: r.id, ga: r.ga, english: r.english, secs: r.secs, peaks: safePeaks(r.peaks), status: r.status,
-      reason: r.reject_reason, created_at: r.created_at,
-      url: r.status === "approved" ? `/api/v1/media/voices/user/${r.id}.wav` : r.status === "pending" ? `/api/v1/voices/pending/${r.id}/audio` : null,
-    })),
-  });
+  return c.json({ recordings: (rows.results ?? []).map((r) => mineRow(r)) });
 });
 
-app.delete("/voices/mine/:id", requireUser, async (c) => {
-  const r = await c.env.DB.prepare("SELECT id, r2_key FROM voice_recordings WHERE id = ? AND contributor_id = ?")
-    .bind(c.req.param("id"), c.get("user")!.id).first<{ id: string; r2_key: string }>();
+// A guest's recordings: the ones whose keys this device holds.
+app.post("/voices/mine/guest", async (c) => {
+  const { items } = await c.req.json<{ items?: { id?: string; token?: string }[] }>().catch(() => ({ items: [] }));
+  const out = [];
+  for (const it of (items || []).slice(0, 100)) {
+    if (!it?.id || !(await guestOwns(c.env, it.id, it.token))) continue;
+    const r = await c.env.DB.prepare(
+      "SELECT id, ga, english, secs, peaks, status, reject_reason, created_at FROM voice_recordings WHERE id = ? AND status <> 'removed'"
+    ).bind(it.id).first<Rec>();
+    if (r) out.push(mineRow(r, it.token));
+  }
+  return c.json({ recordings: out });
+});
+
+// Delete: a signed-in speaker's own, or a guest's with its key (X-Owner-Token).
+app.delete("/voices/mine/:id", optionalUser, async (c) => {
+  const id = c.req.param("id"), user = c.get("user");
+  const owns = user
+    ? !!(await c.env.DB.prepare("SELECT 1 AS ok FROM voice_recordings WHERE id = ? AND contributor_id = ?").bind(id, user.id).first())
+    : await guestOwns(c.env, id, c.req.header("X-Owner-Token"));
+  if (!owns) return c.json({ error: "Not found" }, 404);
+  const r = await c.env.DB.prepare("SELECT r2_key FROM voice_recordings WHERE id = ?").bind(id).first<{ r2_key: string }>();
   if (!r) return c.json({ error: "Not found" }, 404);
-  await deleteRecording(c.env, r.id, r.r2_key, "removed", "withdrawn by the speaker", null);
+  await deleteRecording(c.env, id, r.r2_key, "removed", "withdrawn by the speaker", null);
   return c.json({ ok: true });
 });
 

@@ -644,6 +644,8 @@
   .rec-again { flex:none; border:1.5px solid var(--line-2); background:transparent; color:var(--ink); border-radius:999px;
     padding:7px 12px; font:700 12px var(--sans); cursor:pointer; }
   .rec-consent { display:flex; gap:9px; align-items:flex-start; margin-top:9px; font:500 12.5px/1.5 var(--sans); color:var(--ink-2); text-transform:none; letter-spacing:0; }
+  .rec-mine { justify-self:start; margin-top:8px; border:0; background:none; padding:0; color:var(--accent-ink); font:700 12.5px var(--sans); cursor:pointer;
+    text-decoration:underline; text-underline-offset:3px; }
   .rec-consent input { margin-top:2px; width:16px; height:16px; accent-color:var(--ink); flex:none; }
   /* Review → recordings to check; Me → your recordings */
   .vc-sec { display:flex; flex-direction:column; gap:10px; padding-bottom:6px; border-bottom:1px solid var(--line); margin-bottom:4px; }
@@ -3555,12 +3557,7 @@ function renderCfVoice() {
   const row = $("cfVoiceRow");
   if (!canRecord()) { row.classList.add("hidden"); return; }
   row.classList.remove("hidden");
-  if (!me) {
-    cfRec = null;
-    row.innerHTML = '<div class="f-lab">Say it in Ga <span class="f-opt">optional</span></div><div class="f-note"><a href="/auth">Sign in</a> to add your voice. Recordings are tied to an account so they can be credited and deleted.</div>';
-    return;
-  }
-  if (cfRec) return; // keep a take while the form is open
+  if (cfRec) { syncMyVoicesLink(); return; } // keep a take while the form is open
   row.innerHTML = '<div class="f-lab">Say it in Ga <span class="f-opt">optional</span></div>';
   // Recordings of a phrase add up as voices, up to 5; a full phrase says so.
   cfRec = recorderWidget(() => {
@@ -3572,7 +3569,10 @@ function renderCfVoice() {
   if (!$("cfGa").dataset.recHint) { $("cfGa").dataset.recHint = "1"; $("cfGa").addEventListener("input", () => cfRec?.refresh()); }
   row.appendChild(cfRec.el);
   row.insertAdjacentHTML("beforeend",
-    '<label class="rec-consent hidden" id="cfVoiceConsentRow"><input type="checkbox" id="cfVoiceConsent"> <span>My recording may be played publicly in SpeakGa, credited with my first name. I can delete it from <b>Your recordings</b> at any time.</span></label>');
+    `<label class="rec-consent hidden" id="cfVoiceConsentRow"><input type="checkbox" id="cfVoiceConsent"> <span>My recording may be played publicly in SpeakGa, credited with my first name. I can delete it from <b>Your recordings</b>${me ? "" : " on this device"} at any time.</span></label>` +
+    '<button type="button" class="rec-mine hidden" id="cfMyVoices"></button>');
+  $("cfMyVoices").onclick = () => { closeOverlays(); openOverlay("myVoicesOvl"); };
+  syncMyVoicesLink();
   cfRec.el.addEventListener("change", () => {
     $("cfVoiceConsentRow").classList.toggle("hidden", !cfRec.take());
     if (!cfRec.take()) $("cfVoiceConsent").checked = false;
@@ -3584,11 +3584,31 @@ async function uploadVoice(take, ga, english, contributionId) {
   fd.append("audio", new File([take.blob], "recording.wav", { type: "audio/wav" }));
   fd.append("ga", ga); fd.append("english", english); fd.append("consent", "1");
   if (contributionId) fd.append("contribution_id", contributionId);
+  if (!me) {
+    // Guests are credited like any guest contribution.
+    fd.append("contributor_name", $("cfName").value.trim());
+    fd.append("contributor_email", $("cfEmail").value.trim());
+    fd.append("contributor_location", $("cfLoc").value.trim());
+  }
   const h = headers(); delete h["Content-Type"];
   const r = await fetch(`${API}/voices/record`, { method: "POST", headers: h, credentials: "include", body: fd });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(d.error || "Couldn't upload the recording");
+  // A guest's key to this recording lives on this device (Your recordings).
+  if (d.token) saveGuestVoice({ id: d.id, token: d.token, ga });
   return d;
+}
+
+/* A guest's recordings: their private keys, kept on this device. */
+const GUEST_VOICES_KEY = "sg-my-voices";
+function guestVoices() { try { return JSON.parse(localStorage.getItem(GUEST_VOICES_KEY) || "[]"); } catch { return []; } }
+function saveGuestVoice(v) { try { localStorage.setItem(GUEST_VOICES_KEY, JSON.stringify([v, ...guestVoices()].slice(0, 100))); } catch {} }
+function dropGuestVoice(id) { try { localStorage.setItem(GUEST_VOICES_KEY, JSON.stringify(guestVoices().filter((v) => v.id !== id))); } catch {} }
+function syncMyVoicesLink() {
+  const b = $("cfMyVoices"); if (!b) return;
+  const n = me ? 0 : guestVoices().length;
+  b.classList.toggle("hidden", !n);
+  b.textContent = `Your recordings on this device (${n})`;
 }
 
 /* Review → listen to other speakers' recordings and say if they're right. */
@@ -3632,10 +3652,16 @@ async function loadMyVoices() {
   const list = $("myVoicesList");
   list.innerHTML = '<div class="rev-empty">Loading…</div>';
   let recs = [];
-  try { const r = await fetch(`${API}/voices/mine`, { credentials: "include" }); if (!r.ok) throw 0; recs = (await r.json()).recordings || []; }
+  try {
+    const r = me
+      ? await fetch(`${API}/voices/mine`, { credentials: "include" })
+      : await fetch(`${API}/voices/mine/guest`, { method: "POST", headers: headers(), body: JSON.stringify({ items: guestVoices() }) });
+    if (!r.ok) throw 0;
+    recs = (await r.json()).recordings || [];
+  }
   catch { list.innerHTML = '<div class="rev-empty">Couldn\'t load your recordings.</div>'; return; }
   if (!recs.length) {
-    list.innerHTML = '<div class="rev-empty">No recordings yet. In <b>Teach a word</b>, use “Say it in Ga” to add your voice.</div>';
+    list.innerHTML = `<div class="rev-empty">No recordings yet${me ? "" : " on this device"}. In <b>Teach a word</b>, use “Say it in Ga” to add your voice.</div>`;
     return;
   }
   list.innerHTML = "";
@@ -3653,8 +3679,11 @@ async function loadMyVoices() {
       if (del.dataset.sure !== "1") { del.dataset.sure = "1"; del.textContent = "Tap again to delete"; return; }
       del.disabled = true;
       try {
-        const r = await fetch(`${API}/voices/mine/${encodeURIComponent(rec.id)}`, { method: "DELETE", headers: headers(), credentials: "include" });
+        const h = headers();
+        if (!me) h["X-Owner-Token"] = (guestVoices().find((v) => v.id === rec.id) || {}).token || "";
+        const r = await fetch(`${API}/voices/mine/${encodeURIComponent(rec.id)}`, { method: "DELETE", headers: h, credentials: "include" });
         if (!r.ok) throw 0;
+        if (!me) dropGuestVoice(rec.id);
         card.remove(); toast("Recording deleted");
         voicesReq = null; VOICES = null; loadVoices();
         if (!list.children.length) loadMyVoices();
@@ -4027,8 +4056,6 @@ function toast(msg, ms = 2800) {
 
 function openOverlay(id) {
   if (id === "contribOvl") {
-    const fr = $("cfDrop") && $("cfDrop").closest(".f-row");
-    if (fr) fr.classList.toggle("hidden", !me);
     renderCfVoice();
   }
   if (id === "myVoicesOvl") loadMyVoices();
@@ -5134,11 +5161,10 @@ function setCfTab(which) {
   $("cfSub").textContent = isDoc
     ? "Hand over a scan, photo or file. A reviewer reads it and types the entries out."
     : "Type a Ga word, phrase or cultural note. It lands in the review queue — once verified it becomes searchable for everyone.";
-  // Uploads are tied to an account; say so up front instead of rejecting later.
-  const guestOnDoc = isDoc && !me;
-  $("cfDocSignin").classList.toggle("hidden", !guestOnDoc);
-  $("cfDrop").classList.toggle("hidden", guestOnDoc || cfFiles.length >= CF_MAX_FILES);
-  $("contribForm").querySelector('button[type="submit"]').disabled = guestOnDoc;
+  // Guests can upload too (with their name, email and location below).
+  $("cfDocSignin").classList.add("hidden");
+  $("cfDrop").classList.toggle("hidden", cfFiles.length >= CF_MAX_FILES);
+  $("contribForm").querySelector('button[type="submit"]').disabled = false;
 }
 
 $("cfTabText").onclick = () => setCfTab("text");
@@ -5150,7 +5176,6 @@ $("contribForm").addEventListener("submit", async (e) => {
   let body;
 
   if (isDoc) {
-    if (!me) { toast("Sign in to upload a document"); return; }
     if (!cfFiles.length) { toast("Add at least one file"); return; }
     const description = $("cfDesc").value.trim();
     if (!description) { toast("Say what the document contains"); return; }
