@@ -268,7 +268,7 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
 .brand-sm img{height:30px}
 `;
 
-const NAV: Array<[string, string]> = [["/translate", "Translate"], ["/learn-ga", "Learn Ga"], ["/ga-words", "Ga words"], ["/samai", "Samai"], ["/about", "About"], ["/support", "Support"]];
+const NAV: Array<[string, string]> = [["/translate", "Translate"], ["/about", "About"], ["/support", "Support"]];
 
 function page(o: { path: string; title: string; description: string; body: string; jsonld?: object[]; image?: string; section?: string }): string {
   const url = `${SITE}${o.path}`;
@@ -305,7 +305,7 @@ function page(o: { path: string; title: string; description: string; body: strin
 <main>${o.body}</main>
 <footer><div class="wrap f-row">
   <a class="brand brand-sm" href="/"><img src="/img/brand/speakga-logo.png" width="515" height="144" alt="SpeakGa"></a>
-  <ul class="f-links"><li><a href="https://app.speakga.org/">Open the app</a></li><li><a href="/translate">Translate to Ga</a></li><li><a href="/learn-ga">Learn Ga</a></li><li><a href="/ga-words">Ga words</a></li><li><a href="/samai">Ga samai</a></li><li><a href="/about">About</a></li><li><a href="/support">Support the research</a></li><li><a href="/#give">Contribute</a></li></ul>
+  <ul class="f-links"><li><a href="https://app.speakga.org/">Open the app</a></li><li><a href="/translate">Translate to Ga</a></li><li><a href="/about">About</a></li><li><a href="/support">Support the research</a></li><li><a href="/#give">Contribute</a></li></ul>
   <span>© 2026 Codetrain Foundation</span>
 </div></footer>
 <script>(function(){function t(e){try{var d=JSON.stringify({e:e,p:location.pathname,r:document.referrer});if(!(navigator.sendBeacon&&navigator.sendBeacon("/api/v1/e",d)))fetch("/api/v1/e",{method:"POST",body:d,keepalive:true})}catch(_){}}t("pageview");document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("a");if(a&&/^https:\\/\\/app\\.speakga\\.org/.test(a.href))t("start")},true)})();</script>
@@ -478,7 +478,7 @@ app.get("/translate", async (c) => {
 <div class="grid">${POPULAR.map((p) => `<a class="card" href="${ask(`how do you say ${p} in Ga`)}"><h3>${esc(cap(p))}</h3><p>How do you say “${esc(p)}” in Ga?</p></a>`).join("")}</div></section>
 <section class="sec wrap" style="padding-top:0"><div class="prose">
 <h2>A translator that says when it doesn't know</h2>
-<p>Ga has very little digital language data, so SpeakGa doesn't guess. Nii Obodai answers from an archive checked by Ga speakers, and when a word isn't there yet he says so and the question goes to the review queue. You can browse the checked words under <a href="/ga-words">Ga words A–Z</a> or learn by topic under <a href="/learn-ga">Learn Ga</a>.</p>
+<p>Ga has very little digital language data, so SpeakGa doesn't guess. Nii Obodai answers from an archive checked by Ga speakers, and when a word isn't there yet he says so and the question goes to the review queue.</p>
 </div></section>
 ${contributeCta("Can't find your translation?")}`;
   return send(c, page({
@@ -580,7 +580,7 @@ app.get("/about", async (c) => {
 <h2>Who's behind it</h2>
 <p>SpeakGa is built by Codetrain Foundation in Ghana. It's an open research effort to give Ga a place in the digital world: better language data, recorded speech, and AI that only claims what it can back up.</p>
 </div></section>
-<section class="sec wrap"><div class="grid"><a class="card" href="/learn-ga"><h2>Learn Ga</h2><p>Checked words and phrases by topic.</p><span class="n">Browse topics →</span></a><a class="card" href="/samai"><h2>Ga samai</h2><p>Traditional Ga symbols and their meanings.</p><span class="n">See the symbols →</span></a><a class="card" href="/support"><h2>Support the research</h2><p>Fund, partner or lend your Ga.</p><span class="n">Ways to help →</span></a></div></section>`;
+<section class="sec wrap"><div class="grid"><a class="card" href="/support"><h2>Support the research</h2><p>Fund, partner or lend your Ga.</p><span class="n">Ways to help →</span></a></div></section>`;
   return send(c, page({
     path: "/about", section: "/about",
     title: "About SpeakGa: the Ga language companion | SpeakGa",
