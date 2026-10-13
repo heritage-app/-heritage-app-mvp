@@ -1058,7 +1058,7 @@ $("sgList").addEventListener("click", async (e) => {
   $$("button", tr).forEach((x) => (x.disabled = true));
   st.textContent = approve ? "Approving…" : "Rejecting…"; st.className = "ven-st";
   try {
-    await api(`/admin/alignments/${encodeURIComponent(b.dataset.id)}/${b.dataset.sg}`, approve
+    await api(`/admin/alignments/${encodeURIComponent(b.dataset.id)}/${approve ? "promote" : "reject"}`, approve
       ? { json: { english: tr.querySelector("[data-sg-en]").value.trim(), ga: tr.querySelector("[data-sg-ga]").value.trim() } }
       : { method: "POST" });
     tr.style.opacity = ".45"; st.textContent = approve ? "Added to the dictionary" : "Rejected"; st.className = "ven-st " + (approve ? "ok" : "");
