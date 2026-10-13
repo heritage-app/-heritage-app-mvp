@@ -573,6 +573,31 @@
   .quiz .q-listen { border:1px solid var(--line-2); background:transparent; color:var(--ink-2);
     padding:8px 12px; font:600 10px var(--mono); letter-spacing:.08em; cursor:pointer; align-self:flex-start; }
   .quiz .q-listen:hover { border-color:var(--ink); color:var(--ink); }
+  /* Native voice player: real Ga speakers, only for recorded phrases. */
+  .nv { display:grid; gap:9px; margin:10px 0 2px; padding:11px 13px; border-radius:16px;
+    background:var(--accent-soft); border:1px solid var(--accent-line); max-width:460px; }
+  .nv-top { display:flex; align-items:center; gap:11px; min-width:0; }
+  .nv-play { flex:none; width:38px; height:38px; border-radius:50%; border:0; cursor:pointer;
+    background:var(--ink); color:var(--bg); display:grid; place-items:center; }
+  .nv-play svg { width:15px; height:15px; }
+  .nv-play:focus-visible, .nv-chip:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  .nv-wave { flex:1; min-width:0; height:30px; display:flex; align-items:center; gap:2px; }
+  .nv-wave i { flex:1; min-width:2px; border-radius:2px; background:var(--line-2); }
+  .nv-wave i.on { background:var(--accent-ink); }
+  .nv-secs { flex:none; min-width:32px; text-align:right; font:600 11.5px var(--sans); color:var(--muted);
+    font-variant-numeric:tabular-nums; }
+  .nv-bot { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 10px; }
+  .nv-chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .nv-chip { border:1px solid var(--line-2); background:var(--paper); color:var(--ink); border-radius:999px;
+    padding:3px 10px; font:600 11.5px var(--sans); cursor:pointer; }
+  .nv-chip[aria-pressed="true"] { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+  .nv-badge { font:800 10px var(--sans); letter-spacing:.08em; text-transform:uppercase; color:var(--sage-ink);
+    background:var(--sage); border-radius:999px; padding:3px 9px; }
+  .nv-src { font-size:11px; color:var(--muted); }
+  .nv.big { background:transparent; border:0; padding:0 0 12px; margin:0; max-width:none; }
+  .nv.big .nv-play { width:52px; height:52px; }
+  .nv.big .nv-play svg { width:19px; height:19px; }
+  .nv.big .nv-wave { height:38px; }
 
   /* Mode picker */
   .quiz .q-modes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; padding:13px; }
@@ -2433,7 +2458,7 @@ function renderBlock(lines) {
   }
   return `<div class="verse">${out}</div>`;
 }
-function render(bubble, text) { bubble.classList.remove("streaming"); bubble.innerHTML = renderMarkdown(text); }
+function render(bubble, text) { bubble.classList.remove("streaming"); bubble.innerHTML = renderMarkdown(text); addVoice(bubble); }
 
 /**
  * Stream a query into a bubble with a typewriter reveal. Bytes arrive into `acc`;
@@ -3042,24 +3067,110 @@ function acCacheSet(key, data) {
   acCache.set(key, { data, ts: Date.now() });
 }
 
-function speakGa(text) {
-  if ('speechSynthesis' in window) {
-    const u = new SpeechSynthesisUtterance(text); u.lang = 'gaa'; u.rate = 0.8;
-    speechSynthesis.speak(u);
-  }
+/* ---- Native Ga voices ----
+   Real speakers' recordings of the phrases that have them (GET /voices).
+   A phrase without a recording gets no voice at all: browsers have no Ga
+   voice, and an English voice reading Ga teaches the wrong sounds. */
+let VOICES = null, voicesReq = null, voicePlaying = null;
+const voiceBlobs = new Map();
+/** Spelling-tolerant key: "Te oyɔɔ tɛŋ?" and "Te oyɔɔ tɛŋŋ" are the same phrase. */
+function voiceKey(t) {
+  return String(t || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "")
+    .replace(/ɛ/g, "e").replace(/ɔ/g, "o").replace(/ŋ/g, "n")
+    .replace(/[’'"“”?!.,;:()]/g, "").replace(/n+\b/g, "n").replace(/\s+/g, " ").trim();
 }
-function speakBubbleText(text, btn) {
-  if (!('speechSynthesis' in window)) return;
-  speechSynthesis.cancel();
-  const clean = text.replace(/[*_`#>|\[\]]/g, '').trim();
-  if (!clean) return;
-  btn.classList.add("done");
-  btn.innerHTML = ICON.listen + '<span>Speaking…</span>';
-  const u = new SpeechSynthesisUtterance(clean);
-  u.lang = 'en-US'; u.rate = 0.9;
-  u.onend = () => { btn.classList.remove("done"); btn.innerHTML = ICON.listen + '<span>Listen</span>'; };
-  u.onerror = () => { btn.classList.remove("done"); btn.innerHTML = ICON.listen + '<span>Listen</span>'; };
-  speechSynthesis.speak(u);
+function loadVoices() {
+  if (VOICES) return Promise.resolve(VOICES);
+  return voicesReq ||= fetch(`${API}/voices`).then((r) => r.json()).then((d) => {
+    VOICES = new Map();
+    for (const v of d.voices || []) if (v.clips?.length) VOICES.set(voiceKey(v.ga), v);
+    return VOICES;
+  }).catch(() => { voicesReq = null; return (VOICES = new Map()); });
+}
+function voiceFor(text) { return VOICES?.get(voiceKey(text)) || null; }
+loadVoices();
+/** Play one clip; stops whatever else is playing. Resolves when it ends. */
+async function playClip(url, onStart) {
+  stopVoice();
+  let src = voiceBlobs.get(url);
+  if (!src) {
+    // Fetched whole and played from memory: no range requests needed (Safari).
+    const r = await fetch(url.startsWith("http") ? url : API.replace(/\/api\/v1$/, "") + url);
+    if (!r.ok) throw new Error("clip");
+    src = URL.createObjectURL(await r.blob());
+    voiceBlobs.set(url, src);
+  }
+  const a = new Audio(src);
+  voicePlaying = a;
+  await a.play();
+  onStart?.(a);
+  return new Promise((res) => { a.onended = a.onpause = () => res(); });
+}
+function stopVoice() { if (voicePlaying) { voicePlaying.pause(); voicePlaying = null; } }
+/** Play a recording of `text` if there is one; returns false (silently) if not. */
+function speakGa(text, pick) {
+  const v = voiceFor(text);
+  if (!v) return false;
+  const c = v.clips[(pick ?? Math.floor(Math.random() * v.clips.length)) % v.clips.length];
+  playClip(c.url).catch(() => {});
+  return true;
+}
+
+const NV_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>';
+const NV_STOP = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+/** A player for one recorded phrase: play/stop, waveform, a choice of voices. */
+function voicePlayer(v, opts = {}) {
+  const box = document.createElement("div");
+  box.className = "nv" + (opts.big ? " big" : "");
+  const many = v.clips.length > 1 && !opts.hideVoices;
+  box.innerHTML =
+    `<div class="nv-top"><button class="nv-play" type="button" aria-label="Play ${escapeHtml(opts.label || v.ga)}">${NV_PLAY}</button>` +
+    `<div class="nv-wave" aria-hidden="true"></div><span class="nv-secs"></span></div>` +
+    (opts.bare ? "" :
+      `<div class="nv-bot">${many ? `<div class="nv-chips" role="group" aria-label="Choose a voice">${v.clips.map((_, i) =>
+        `<button class="nv-chip" type="button" aria-pressed="${i === 0}">Voice ${i + 1}</button>`).join("")}</div>` : "<span></span>"}` +
+      `<span class="nv-badge">Native speaker</span></div>` +
+      `<div class="nv-src">Recorded by Ga speakers · Ashesi / GhanaNLP speech dataset, CC BY-NC 4.0</div>`);
+  const btn = box.querySelector(".nv-play"), wave = box.querySelector(".nv-wave"), secs = box.querySelector(".nv-secs");
+  let pick = opts.pick ?? 0, raf = 0, audio = null;
+  const draw = () => {
+    const c = v.clips[pick];
+    wave.innerHTML = c.peaks.map((p) => `<i style="height:${Math.max(14, p * 100)}%"></i>`).join("");
+    secs.textContent = c.secs.toFixed(1) + "s";
+  };
+  const idle = () => { cancelAnimationFrame(raf); btn.innerHTML = NV_PLAY; btn.classList.remove("on"); wave.querySelectorAll("i").forEach((i) => i.classList.remove("on")); };
+  const tick = () => {
+    if (!audio || audio.paused) return idle();
+    const f = audio.duration ? audio.currentTime / audio.duration : 0, bars = wave.querySelectorAll("i");
+    bars.forEach((b, k) => b.classList.toggle("on", k / bars.length <= f));
+    raf = requestAnimationFrame(tick);
+  };
+  box.play = () => {
+    if (audio && !audio.paused) { stopVoice(); return; }
+    btn.innerHTML = NV_STOP; btn.classList.add("on");
+    playClip(v.clips[pick].url, (a) => { audio = a; tick(); }).then(idle).catch(idle);
+  };
+  btn.onclick = box.play;
+  box.querySelectorAll(".nv-chip").forEach((ch, i) => ch.onclick = () => {
+    pick = i; box.querySelectorAll(".nv-chip").forEach((c, k) => c.setAttribute("aria-pressed", k === i));
+    stopVoice(); draw(); box.play();
+  });
+  draw();
+  return box;
+}
+/** Under an answer whose Ga has a recording, add its player. Nothing otherwise. */
+function addVoice(bubble) {
+  if (!VOICES) { loadVoices().then(() => addVoice(bubble)); return; }
+  if (bubble.querySelector(".nv")) return;
+  for (const s of bubble.querySelectorAll("strong, b")) {
+    const v = voiceFor(s.textContent);
+    if (!v) continue;
+    const p = voicePlayer(v);
+    const block = s.closest("p, li, ul, ol") ;
+    const anchor = block?.closest("ul, ol") || block;
+    if (anchor && anchor.parentNode === bubble) anchor.after(p); else bubble.appendChild(p);
+    return;
+  }
 }
 
 // NOTE: Autocomplete is database-only. We deliberately do NOT call any LLM to
@@ -3149,12 +3260,15 @@ function renderAcList() {
       tag.className = 'ac-tag'; tag.textContent = AC_ICONS[s.type] ? s.type : '';
       if (tag.textContent) row.appendChild(tag);
     }
-    const listen = document.createElement('button');
-    listen.className = 'ac-listen'; listen.type = 'button'; listen.textContent = '🔊';
-    listen.title = 'Listen';
-    listen.addEventListener('mousedown', (e) => e.preventDefault());
-    listen.addEventListener('click', (e) => { e.stopPropagation(); speakGa(s.text); });
-    row.appendChild(listen);
+    // Only phrases a Ga speaker recorded get a listen button.
+    if (voiceFor(s.text)) {
+      const listen = document.createElement('button');
+      listen.className = 'ac-listen'; listen.type = 'button'; listen.textContent = '🔊';
+      listen.title = 'Hear a Ga speaker';
+      listen.addEventListener('mousedown', (e) => e.preventDefault());
+      listen.addEventListener('click', (e) => { e.stopPropagation(); speakGa(s.text); });
+      row.appendChild(listen);
+    }
 
     row.addEventListener('mousedown', (e) => e.preventDefault()); // keep textarea focus
     row.addEventListener('mouseenter', () => { acIndex = i; markActiveAc(); });
@@ -3762,7 +3876,7 @@ const MODES = {
   scramble: { label: "Unscramble",     blurb: "Rebuild the Ga spelling from tiles" },
   match:    { label: "Match pairs",    blurb: "Join Ga to English, six at a time" },
   blank:    { label: "Fill the blank", blurb: "Complete a verified phrase" },
-  listen:   { label: "Listen & spell", blurb: "Hear it, then rebuild it" },
+  listen:   { label: "Listen & pick",  blurb: "Hear a Ga speaker, pick the phrase" },
   mixed:    { label: "Mixed round",    blurb: "All five, shuffled" },
 };
 const MIXED_POOL = ["choice", "scramble", "match", "blank", "listen"];
@@ -3864,13 +3978,18 @@ async function nextQuestion() {
   scrollDown();
 
   try {
-    // scramble/listen are presentations of a choice item; match/blank have
-    // their own server shapes.
+    // Listen & pick is built from the native recordings, in the browser.
+    if (mode === "listen") {
+      await loadVoices();
+      if (VOICES.size >= 4) return renderListenPick(bubble);
+    }
+    // scramble is a presentation of a choice item; match/blank have their own
+    // server shapes.
     const serverMode = mode === "scramble" || mode === "listen" ? "choice" : mode;
     const q = await fetchQuizItem(serverMode);
     if (mode === "match") renderMatch(bubble, q);
     else if (mode === "blank" && q.mode === "blank") renderBlank(bubble, q);
-    else if (mode === "scramble" || mode === "listen") renderTiles(bubble, q, mode);
+    else if (mode === "scramble") renderTiles(bubble, q, mode);
     else renderChoice(bubble, q);
   } catch {
     const card = qCard(bubble, "PRACTICE", "offline");
@@ -3959,6 +4078,52 @@ function renderChoice(bubble, q) {
   scrollDown();
 }
 
+/* ---- Mode: listen & pick — a Ga speaker says a phrase, pick which one ---- */
+let listenSeen = [];
+function renderListenPick(bubble) {
+  const all = [...VOICES.values()];
+  // Don't repeat a phrase until most have been heard.
+  if (listenSeen.length > all.length * 0.7) listenSeen = [];
+  const fresh = all.filter((v) => !listenSeen.includes(v.ga));
+  const ans = fresh[Math.floor(Math.random() * fresh.length)];
+  listenSeen.push(ans.ga);
+  const opts = shuffle([ans, ...shuffle(all.filter((v) => v !== ans)).slice(0, 3)]);
+
+  const card = qCard(bubble, MODES.listen.label.toUpperCase(), "");
+  card.querySelector(".q-head").insertAdjacentHTML("beforeend", progressHtml());
+  card.insertAdjacentHTML("beforeend",
+    '<div class="q-body"><div class="q-q">Which phrase did you hear?</div>' +
+    '<div class="q-gloss" style="margin-bottom:10px">A Ga speaker says one of these. Play it as often as you like.</div>' +
+    '<div class="q-player"></div><div class="q-opts"></div></div>');
+  const player = voicePlayer(ans, { big: true, bare: true, label: "the phrase", pick: Math.floor(Math.random() * ans.clips.length) });
+  card.querySelector(".q-player").appendChild(player);
+  const box = card.querySelector(".q-opts");
+  const { next, status } = roundFoot(card, `${round ? round.i + 1 : 1} of ${round ? round.len : 1}`);
+  let answered = false;
+  for (const o of opts) {
+    const b = document.createElement("button");
+    b.className = "q-opt"; b.type = "button";
+    b.innerHTML = `<span class="q-opt-main">${escapeHtml(o.ga)}</span>`;
+    b.onclick = () => {
+      if (answered) return;
+      answered = true;
+      const ok = o === ans;
+      [...box.children].forEach((x, k) => {
+        x.classList.add(opts[k] === ans ? "correct" : opts[k] === o ? "wrong" : "miss");
+        x.disabled = true;
+      });
+      scoreAndAdvance(ok, { ga: ans.ga, en: "heard from a Ga speaker", chose: o.ga });
+      status.textContent = `${round.correct}/${round.i} this round`;
+      revealPanel(card, ok, ans.ga, { source: "a Ga speaker's recording (Ashesi / GhanaNLP, CC BY-NC 4.0)" });
+      next.disabled = false;
+      scrollDown();
+    };
+    box.appendChild(b);
+  }
+  player.play();
+  scrollDown();
+}
+
 /* ---- Mode: fill the blank ---- */
 function renderBlank(bubble, q) {
   const card = qCard(bubble, "FILL THE BLANK", "");
@@ -4001,8 +4166,8 @@ function renderBlank(bubble, q) {
   scrollDown();
 }
 
-/* ---- Modes: unscramble + listen & spell (same board, different prompt) ---- */
-function renderTiles(bubble, q, mode) {
+/* ---- Mode: unscramble ---- */
+function renderTiles(bubble, q) {
   const word = (q.answer || "").trim();
   const letters = [...word];
   const scrambled = shuffle([...letters]);
@@ -4010,25 +4175,15 @@ function renderTiles(bubble, q, mode) {
     [scrambled[0], scrambled[1]] = [scrambled[1], scrambled[0]];
   }
 
-  const isListen = mode === "listen";
-  const card = qCard(bubble, isListen ? "LISTEN & SPELL" : "UNSCRAMBLE", "");
+  const card = qCard(bubble, "UNSCRAMBLE", "");
   card.querySelector(".q-head").insertAdjacentHTML("beforeend", progressHtml());
   card.insertAdjacentHTML("beforeend",
     `<div class="q-body">` +
-    `<div class="q-q">${isListen ? "Spell what you hear." : "“" + escapeHtml(q.question) + "” — spell the Ga word."}</div>` +
+    `<div class="q-q">“${escapeHtml(q.question)}” — spell the Ga word.</div>` +
     `<div class="q-slots"></div>` +
     `<div class="q-tray-lab">LETTERS</div><div class="q-bank"></div>` +
     `<div class="q-tray-lab ga-lab hidden">GA LETTERS</div><div class="q-bank ga-only hidden"></div>` +
     `</div>`);
-
-  if (isListen) {
-    const hear = document.createElement("button");
-    hear.className = "q-listen"; hear.type = "button"; hear.textContent = "♪ PLAY AGAIN";
-    hear.style.margin = "0 13px 10px";
-    hear.onclick = () => speakGa(word);
-    card.querySelector(".q-body").prepend(hear);
-    speakGa(word);
-  }
 
   const slots = card.querySelector(".q-slots");
   const bank = card.querySelector(".q-bank:not(.ga-only)");
@@ -4173,11 +4328,13 @@ function renderSummary() {
       row.className = "q-miss";
       row.innerHTML = `<div style="flex:1"><b>${escapeHtml(m.ga)}</b><i>${escapeHtml(m.en)}` +
         (m.chose ? ` — you answered “${escapeHtml(m.chose)}”` : "") + `</i></div>`;
-      const lb = document.createElement("button");
-      lb.className = "q-listen"; lb.type = "button"; lb.textContent = "♪";
-      lb.setAttribute("aria-label", `Hear ${m.ga}`);
-      lb.onclick = () => speakGa(m.ga);
-      row.appendChild(lb);
+      if (voiceFor(m.ga)) {
+        const lb = document.createElement("button");
+        lb.className = "q-listen"; lb.type = "button"; lb.textContent = "♪";
+        lb.setAttribute("aria-label", `Hear ${m.ga}`);
+        lb.onclick = () => speakGa(m.ga);
+        row.appendChild(lb);
+      }
       body.appendChild(row);
     }
   } else {

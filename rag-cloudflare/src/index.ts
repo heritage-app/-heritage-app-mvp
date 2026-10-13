@@ -34,6 +34,7 @@ import bible from "./routes/bible";
 import traffic from "./routes/traffic";
 import adminConsole from "./routes/console";
 import archiveStatsRoute from "./rag/archive-stats";
+import { NATIVE_VOICES } from "./data/voices";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -128,6 +129,24 @@ api.get("/contributions/:id/attachments/:index", requireUser, (c) =>
     parseInt(c.req.param("index"), 10) || 0
   )
 );
+// Native Ga voices: real speakers' recordings of the phrases that have them.
+// The app plays these and nothing else — a phrase without a recording gets no
+// voice (src/data/voices.ts, built by scripts/build-native-voices.mjs).
+api.get("/voices", (c) =>
+  c.json(
+    {
+      source: "Ga Multispeaker Audio Transcribed Dataset (Ashesi Financial Inclusion Speech Dataset, via GhanaNLP)",
+      license: "CC BY-NC 4.0",
+      voices: NATIVE_VOICES.map((v) => ({
+        ga: v.ga,
+        clips: v.clips.map((k) => ({ url: `/api/v1/media/${k.path}`, secs: k.secs, peaks: k.peaks })),
+      })),
+    },
+    200,
+    { "Cache-Control": "public, max-age=3600" }
+  )
+);
+
 // Public media — images referenced by archive records (Ga samai symbols etc.).
 // Keys are confined to the media/ prefix in the bucket; anything else 404s.
 api.get("/media/*", async (c) => {
