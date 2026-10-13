@@ -403,7 +403,7 @@ app.get("/activity", async (c) => {
 /* ---- Voices: recordings waiting, every phrase with a voice, and what to record next ---- */
 app.get("/voices", async (c) => {
   const db = c.env.DB;
-  const [pendingRes, communityRes, hiddenRes, recent] = await Promise.all([
+  const [pendingRes, communityRes, hiddenRes, recent, englishRes] = await Promise.all([
     db.prepare(
       `SELECT r.id, r.ga, r.english, r.secs, r.peaks, r.votes_right, r.votes_wrong, r.votes_poor, r.created_at,
               r.contributor_name, r.consent_at, u.email AS contributor_email
@@ -411,26 +411,37 @@ app.get("/voices", async (c) => {
         WHERE r.status = 'pending' ORDER BY r.created_at LIMIT 100`
     ).all<any>(),
     db.prepare(
-      `SELECT id, ga, ga_key, secs, peaks, contributor_name, reviewed_at FROM voice_recordings
+      `SELECT id, ga, ga_key, english, secs, peaks, contributor_name, reviewed_at FROM voice_recordings
         WHERE status = 'approved' ORDER BY reviewed_at DESC`
     ).all<any>(),
     db.prepare("SELECT path FROM voice_hidden").all<{ path: string }>(),
     // Answers from the last 30 days: the Ga each one led with.
     db.prepare("SELECT response FROM interactions WHERE created_at > ? ORDER BY created_at DESC LIMIT 4000")
       .bind(new Date(Date.now() - 30 * 86400000).toISOString()).all<{ response: string }>().catch(() => ({ results: [] as { response: string }[] })),
+    db.prepare("SELECT ga_key, english FROM voice_phrases").all<{ ga_key: string; english: string }>()
+      .catch(() => ({ results: [] as { ga_key: string; english: string }[] })),
   ]);
   const hidden = new Set((hiddenRes.results ?? []).map((r) => r.path));
-  const phrases = new Map<string, { ga: string; clips: { kind: "dataset" | "community"; ref: string; url: string; secs: number; peaks: number[]; by: string; hidden?: boolean }[] }>();
+  const englishOf = new Map((englishRes.results ?? []).map((r) => [r.ga_key, r.english]));
+  type Phrase = { key: string; ga: string; english: string | null; english_source: "admin" | "speaker" | null; clips: { kind: "dataset" | "community"; ref: string; url: string; secs: number; peaks: number[]; by: string; hidden?: boolean }[] };
+  const phrases = new Map<string, Phrase>();
   for (const v of NATIVE_VOICES) {
-    phrases.set(voiceKey(v.ga), {
-      ga: v.ga,
+    const key = voiceKey(v.ga), en = englishOf.get(key) ?? null;
+    phrases.set(key, {
+      key, ga: v.ga, english: en, english_source: en ? "admin" : null,
       clips: v.clips.map((k) => ({ kind: "dataset" as const, ref: k.path, url: `/api/v1/media/${k.path}`, secs: k.secs, peaks: k.peaks, by: DATASET_CREDIT, hidden: hidden.has(k.path) })),
     });
   }
   for (const r of communityRes.results ?? []) {
     const clip = { kind: "community" as const, ref: r.id, url: `/api/v1/media/voices/user/${r.id}.wav`, secs: r.secs, peaks: safePeaks(r.peaks), by: r.contributor_name || "A SpeakGa speaker" };
     const e = phrases.get(r.ga_key);
-    if (e) e.clips.push(clip); else phrases.set(r.ga_key, { ga: r.ga, clips: [clip] });
+    if (e) {
+      e.clips.push(clip);
+      if (!e.english && r.english) { e.english = r.english; e.english_source = "speaker"; }
+    } else {
+      const en = englishOf.get(r.ga_key) ?? null;
+      phrases.set(r.ga_key, { key: r.ga_key, ga: r.ga, english: en ?? (r.english || null), english_source: en ? "admin" : r.english ? "speaker" : null, clips: [clip] });
+    }
   }
   // Most-given answers that still have no voice.
   const asks = new Map<string, { ga: string; n: number }>();
@@ -453,6 +464,7 @@ app.get("/voices", async (c) => {
       clips: list.reduce((n, p) => n + p.clips.filter((k) => !k.hidden).length, 0),
       community: (communityRes.results ?? []).length,
       pending: (pendingRes.results ?? []).length,
+      no_english: list.filter((p) => !p.english).length,
     },
     pending: (pendingRes.results ?? []).map((r: any) => ({
       id: r.id, ga: r.ga, english: r.english, secs: r.secs, peaks: safePeaks(r.peaks), created_at: r.created_at,
@@ -509,6 +521,27 @@ app.post("/voices/remove", async (c) => {
     return c.json({ ok: true });
   }
   return c.json({ detail: "Say which clip to remove." }, 400);
+});
+
+// The English of a phrase with a voice (dataset recordings come with Ga only).
+// An empty English clears it.
+app.post("/voices/english", async (c) => {
+  const adminId = c.get("adminId")!;
+  const { ga, english } = await c.req.json<{ ga?: string; english?: string }>().catch(() => ({} as { ga?: string; english?: string }));
+  const g = String(ga ?? "").trim(), en = String(english ?? "").trim().replace(/\s+/g, " ");
+  if (!g) return c.json({ detail: "Say which phrase." }, 400);
+  if (en.length > 160) return c.json({ detail: "Keep the English under 160 characters." }, 400);
+  const key = voiceKey(g);
+  if (!en) {
+    await c.env.DB.prepare("DELETE FROM voice_phrases WHERE ga_key = ?").bind(key).run();
+  } else {
+    await c.env.DB.prepare(
+      `INSERT INTO voice_phrases (ga_key, ga, english, updated_by, updated_at) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(ga_key) DO UPDATE SET english = excluded.english, updated_by = excluded.updated_by, updated_at = excluded.updated_at`
+    ).bind(key, g, en, adminId, new Date().toISOString()).run();
+  }
+  await logAction(c.env, adminId, "voice_english", "voice", key, `${g} → ${en || "(cleared)"}`);
+  return c.json({ ok: true, english: en || null });
 });
 
 app.post("/voices/restore", async (c) => {

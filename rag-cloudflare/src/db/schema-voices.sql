@@ -43,3 +43,13 @@ CREATE TABLE IF NOT EXISTS voice_hidden (
   hidden_by  TEXT,
   hidden_at  TEXT NOT NULL
 );
+
+-- The English of a phrase that has a voice. Dataset recordings come with Ga
+-- only; an admin adds what it means (shown after Listen & pick, and in admin).
+CREATE TABLE IF NOT EXISTS voice_phrases (
+  ga_key      TEXT PRIMARY KEY,   -- voiceKey(ga)
+  ga          TEXT NOT NULL,
+  english     TEXT NOT NULL,
+  updated_by  TEXT,
+  updated_at  TEXT NOT NULL
+);

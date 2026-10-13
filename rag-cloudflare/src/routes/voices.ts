@@ -71,26 +71,32 @@ type Rec = {
 
 // Public list. Cached briefly: an approval shows up within a minute.
 app.get("/voices", async (c) => {
-  const [hiddenRes, recRes] = await Promise.all([
+  const [hiddenRes, recRes, englishRes] = await Promise.all([
     c.env.DB.prepare("SELECT path FROM voice_hidden").all<{ path: string }>().catch(() => ({ results: [] as { path: string }[] })),
     c.env.DB.prepare(
-      "SELECT id, ga, ga_key, contributor_name, secs, peaks FROM voice_recordings WHERE status = 'approved' ORDER BY reviewed_at"
+      "SELECT id, ga, ga_key, english, contributor_name, secs, peaks FROM voice_recordings WHERE status = 'approved' ORDER BY reviewed_at"
     ).all<Rec>().catch(() => ({ results: [] as Rec[] })),
+    c.env.DB.prepare("SELECT ga_key, english FROM voice_phrases").all<{ ga_key: string; english: string }>()
+      .catch(() => ({ results: [] as { ga_key: string; english: string }[] })),
   ]);
   const hidden = new Set((hiddenRes.results ?? []).map((r) => r.path));
+  const englishOf = new Map((englishRes.results ?? []).map((r) => [r.ga_key, r.english]));
   type Clip = { url: string; secs: number; peaks: number[]; by: string };
-  const byKey = new Map<string, { ga: string; clips: Clip[] }>();
+  const byKey = new Map<string, { ga: string; english: string | null; clips: Clip[] }>();
   for (const v of NATIVE_VOICES) {
     const clips = v.clips.filter((k) => !hidden.has(k.path))
       .map((k) => ({ url: `/api/v1/media/${k.path}`, secs: k.secs, peaks: k.peaks, by: DATASET_CREDIT }));
-    if (clips.length) byKey.set(voiceKey(v.ga), { ga: v.ga, clips });
+    const key = voiceKey(v.ga);
+    if (clips.length) byKey.set(key, { ga: v.ga, english: englishOf.get(key) ?? null, clips });
   }
   for (const r of recRes.results ?? []) {
     let peaks: number[] = [];
     try { peaks = JSON.parse(r.peaks); } catch { /* flat waveform */ }
     const clip = { url: `/api/v1/media/voices/user/${r.id}.wav`, secs: r.secs, peaks, by: `${r.contributor_name || "A SpeakGa speaker"} (SpeakGa)` };
     const e = byKey.get(r.ga_key);
-    if (e) e.clips.push(clip); else byKey.set(r.ga_key, { ga: r.ga, clips: [clip] });
+    // An admin's English wins; otherwise the speaker's own, from their contribution.
+    if (e) { e.clips.push(clip); e.english ??= r.english || null; }
+    else byKey.set(r.ga_key, { ga: r.ga, english: englishOf.get(r.ga_key) ?? (r.english || null), clips: [clip] });
   }
   return c.json(
     {

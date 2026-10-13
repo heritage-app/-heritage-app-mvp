@@ -125,6 +125,11 @@ button.kpi{cursor:pointer}button.kpi:hover{box-shadow:inset 0 0 0 1px var(--fain
 .vx{border:0;background:none;cursor:pointer;font:700 11.5px var(--sans);color:var(--ink-2);padding:3px 6px;border-radius:999px}
 .vx.bad{color:var(--bad)}.vx:hover{background:var(--sunk)}
 .vx:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
+.ven{width:100%;min-width:200px;padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font:500 13.5px var(--sans)}
+.ven:focus{outline:2px solid var(--gold);outline-offset:0;border-color:transparent}
+.ven::placeholder{color:var(--faint)}
+.ven-st{display:block;font-size:11.5px;min-height:15px;color:var(--muted)}
+.ven-st.ok{color:var(--ok)}.ven-st.bad{color:var(--bad)}
 
 /* lists */
 .att{list-style:none;margin:0;padding:0;display:grid}
@@ -330,10 +335,12 @@ input.gaip{font:700 16px var(--display)}
       <div class="hd"><h1>Voices</h1><p>Real speakers saying Ga phrases. The app plays these and nothing else: a phrase without a recording has no voice. Recordings people add wait here until you approve them.</p></div>
       <div class="kpis" id="vKpis"><div class="loading">Loading…</div></div>
       <div class="panel"><h2>Waiting for review <small>listen before you approve</small></h2><div id="vPending"></div></div>
-      <div class="grid2">
-        <div class="panel"><h2>Phrases with a voice <small id="vPhraseCount"></small></h2><input class="vsearch" id="vSearch" type="search" placeholder="Find a phrase" aria-label="Find a phrase"><div class="tbl-wrap"><table><thead><tr><th>Phrase</th><th>Voices <small class="muted">play · remove</small></th><th>Source</th></tr></thead><tbody id="vPhrases"></tbody></table></div></div>
-        <div class="panel"><h2>Given often, no voice yet <small>answers from the last 30 days</small></h2><ul class="att" id="vMissing"></ul><p class="muted" style="font-size:12.5px;margin-top:10px">Ask Ga speakers to record these. In the app, these answers show “Be the first to record”.</p></div>
-      </div>
+      <div class="panel"><h2>Phrases with a voice <small id="vPhraseCount"></small>
+          <span class="tabs" role="tablist" id="vTabs" style="margin-left:auto"><button role="tab" aria-selected="true" data-f="all">All</button><button role="tab" aria-selected="false" data-f="noen">Needs English <span class="num" id="vNoEn"></span></button></span></h2>
+        <p class="muted" style="font-size:13px;margin:0 0 10px">Dataset recordings come with the Ga only. Add what each phrase means: learners see it after Listen &amp; pick. Type, then press Enter or click away to save.</p>
+        <input class="vsearch" id="vSearch" type="search" placeholder="Find a phrase (Ga or English)" aria-label="Find a phrase">
+        <div class="tbl-wrap"><table><thead><tr><th>Phrase</th><th style="min-width:220px">English</th><th>Voices <small class="muted">play · remove</small></th><th>Source</th></tr></thead><tbody id="vPhrases"></tbody></table></div></div>
+      <div class="panel"><h2>Given often, no voice yet <small>answers from the last 30 days</small></h2><ul class="att" id="vMissing"></ul><p class="muted" style="font-size:12.5px;margin-top:10px">Ask Ga speakers to record these. In the app, these answers show “Be the first to record”.</p></div>
     </section>
 
     <!-- ============ DOCUMENTS ============ -->
@@ -821,6 +828,7 @@ async function loadVoicesView() {
     ["Clips", s.clips, "best 3 per dataset phrase"],
     ["From SpeakGa speakers", s.community, "approved recordings"],
     ["Waiting for review", s.pending, s.pending ? "listen below" : "nothing waiting", s.pending ? "alert" : ""],
+    ["Need English", s.no_english, s.no_english ? "add it in the list below" : "every phrase has it"],
   ].map(([k, v, sub, cls]) => `<div class="kpi ${cls || ""}"><small>${esc(k)}</small><b>${fmt(v)}</b><span>${esc(sub)}</span></div>`).join("");
   $("vPending").innerHTML = VD.pending.length ? VD.pending.map((p) => `
     <div class="vcard" id="vc-${esc(p.id)}">
@@ -833,22 +841,57 @@ async function loadVoicesView() {
   renderVoicePhrases();
   $("vMissing").innerHTML = VD.missing.length ? VD.missing.map((m) => `<li><span class="dot" style="background:var(--gold-soft);color:var(--gold-ink)">${ICON.q}</span><b class="t">${esc(m.ga)}</b><span class="sub">given ${fmt(m.n)} time${m.n === 1 ? "" : "s"}</span></li>`).join("") : '<li class="empty">Every answer given recently has a voice, or none were saved.</li>';
 }
+let vFilter = "all";
 function renderVoicePhrases() {
   if (!VD) return;
   const q = ($("vSearch").value || "").trim().toLowerCase();
-  const rows = VD.phrases.filter((p) => !q || p.ga.toLowerCase().includes(q));
+  const rows = VD.phrases.filter((p) => (vFilter !== "noen" || !p.english) &&
+    (!q || p.ga.toLowerCase().includes(q) || (p.english || "").toLowerCase().includes(q)));
+  const noEn = VD.phrases.filter((p) => !p.english).length;
   $("vPhraseCount").textContent = `${fmt(VD.phrases.length)} phrases`;
+  $("vNoEn").textContent = noEn ? `(${noEn})` : "";
   $("vPhrases").innerHTML = rows.map((p) => {
     const sources = [...new Set(p.clips.map((k) => k.kind === "dataset" ? "Dataset" : k.by))].join(", ");
+    // The English: editable in place. A speaker's own English shows until an admin sets one.
+    const en = `<input class="ven" type="text" value="${esc(p.english || "")}" placeholder="What it means in English" data-ven="${esc(p.ga)}" data-was="${esc(p.english || "")}" aria-label="English for ${esc(p.ga)}">` +
+      (p.english_source === "speaker" ? '<small class="muted">from the speaker</small>' : "") + '<small class="ven-st" aria-live="polite"></small>';
     // One chip per voice: play it, then remove (or restore) that voice.
-    return `<tr><td><b>${esc(p.ga)}</b></td><td><div class="vclips">${p.clips.map((k, i) =>
+    return `<tr><td><b>${esc(p.ga)}</b></td><td>${en}</td><td><div class="vclips">${p.clips.map((k, i) =>
       `<span class="vclip${k.hidden ? " off" : ""}" title="${esc(k.by)}">${vpHtml(k.url, k.secs, k.peaks, `${p.ga}, voice ${i + 1}`, true)}<span class="vn">${i + 1}</span>${k.hidden
         ? `<button class="vx" data-vrestore="${esc(k.ref)}" aria-label="Restore voice ${i + 1} of ${esc(p.ga)}">Restore</button>`
         : `<button class="vx bad" data-vremove="${esc(k.ref)}" data-kind="${k.kind}" data-ga="${esc(p.ga)}" aria-label="Remove voice ${i + 1} of ${esc(p.ga)}">✕</button>`}</span>`).join("")}</div></td>
       <td class="muted" style="font-size:12.5px">${esc(sources)}</td></tr>`;
-  }).join("") || '<tr><td colspan="3" class="empty">No phrase matches.</td></tr>';
+  }).join("") || `<tr><td colspan="4" class="empty">${vFilter === "noen" && !q ? "Every phrase has its English." : "No phrase matches."}</td></tr>`;
 }
 $("vSearch").addEventListener("input", renderVoicePhrases);
+$("vTabs").addEventListener("click", (e) => {
+  const t = e.target.closest("[data-f]"); if (!t) return;
+  vFilter = t.dataset.f;
+  $$("#vTabs [role=tab]").forEach((b) => b.setAttribute("aria-selected", b === t));
+  renderVoicePhrases();
+});
+/* Save a phrase's English on Enter or when the field loses focus. */
+async function saveVoiceEnglish(inp) {
+  const english = inp.value.trim(), ga = inp.dataset.ven, st = inp.parentElement.querySelector(".ven-st");
+  if (english === inp.dataset.was) return;
+  st.textContent = "Saving…"; st.className = "ven-st";
+  try {
+    await api("/admin/console/voices/english", { json: { ga, english } });
+    inp.dataset.was = english;
+    const p = VD.phrases.find((x) => x.ga === ga);
+    if (p) { p.english = english || null; p.english_source = english ? "admin" : null; }
+    st.textContent = english ? "Saved" : "Cleared"; st.className = "ven-st ok";
+    const noEn = VD.phrases.filter((x) => !x.english).length;
+    $("vNoEn").textContent = noEn ? `(${noEn})` : "";
+    inp.parentElement.querySelector(".muted")?.remove();
+  } catch (err) { st.textContent = err.message; st.className = "ven-st bad"; }
+}
+$("vPhrases").addEventListener("keydown", (e) => {
+  const inp = e.target.closest(".ven"); if (!inp) return;
+  if (e.key === "Enter") { e.preventDefault(); inp.blur(); }
+  if (e.key === "Escape") { inp.value = inp.dataset.was; inp.blur(); }
+});
+$("vPhrases").addEventListener("focusout", (e) => { const inp = e.target.closest(".ven"); if (inp) saveVoiceEnglish(inp); });
 document.addEventListener("click", async (e) => {
   const a = e.target.closest("[data-va]"), r = e.target.closest("[data-vr]"), rm = e.target.closest("[data-vremove]"), rs = e.target.closest("[data-vrestore]");
   if (a) {

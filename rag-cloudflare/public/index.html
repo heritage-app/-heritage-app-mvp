@@ -4479,7 +4479,8 @@ function renderListenPick(bubble) {
       });
       scoreAndAdvance(ok, { ga: ans.ga, en: "heard from a Ga speaker", chose: o.ga });
       status.textContent = `${round.correct}/${round.i} this round`;
-      revealPanel(card, ok, ans.ga, { source: "a Ga speaker's recording (Ashesi / GhanaNLP, CC BY-NC 4.0)", noWhy: true });
+      // The English, where an admin (or the speaker) has added it.
+      revealPanel(card, ok, ans.ga, { gloss: ans.english ? `“${ans.english}”` : "", source: "a Ga speaker's recording", noWhy: true });
       next.disabled = false;
       scrollDown();
     };
