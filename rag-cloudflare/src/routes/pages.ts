@@ -88,6 +88,72 @@ async function topicCounts(env: Env): Promise<Record<string, number>> {
   return Object.fromEntries(TOPICS.map((t) => [t.slug, t.cats.reduce((n, c) => n + (byCat[c] || 0), 0)]));
 }
 
+/** URL slug for a headword: ASCII-folded, punctuation stripped, spaces to hyphens. */
+const slugify = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[''ʼ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+interface VocabEntry {
+  slug: string; ga: string; pos: string | null; phonetic: string | null;
+  english: string[]; examples: { ga: string; en: string }[]; category: string; source: string;
+}
+
+/** Every verified vocabulary entry, merged by slug (one page per headword). */
+async function vocabBySlug(env: Env): Promise<Map<string, VocabEntry>> {
+  const rows = await env.DB.prepare(
+    `SELECT headword, headword_normalized, part_of_speech, meanings, translations, phonetic, examples, category, source FROM vocabulary
+     WHERE source IS NOT NULL AND TRIM(source) <> '' AND verified_at IS NOT NULL AND TRIM(verified_at) <> '' ORDER BY id`
+  ).all<{ headword: string; headword_normalized: string; part_of_speech: string | null; meanings: string; translations: string; phonetic: string | null; examples: string; category: string; source: string }>();
+  const map = new Map<string, VocabEntry>();
+  for (const r of rows.results || []) {
+    const slug = slugify(r.headword_normalized || r.headword || "");
+    if (!slug) continue;
+    const meanings = [...json<string[]>(r.meanings, []), ...json<string[]>(r.translations, [])]
+      .map((m) => String(m).trim()).filter(Boolean);
+    const examples = json<any[]>(r.examples, [])
+      .map((e) => {
+        if (typeof e === "string") {
+          const [ga, en] = e.split(/\s+[—–-]\s+/);
+          return ga && en ? { ga: ga.trim(), en: en.trim() } : null;
+        }
+        return e?.ga ? { ga: String(e.ga), en: String(e.english || e.en || "") } : null;
+      })
+      .filter((x): x is { ga: string; en: string } => !!x);
+    const prev = map.get(slug);
+    if (prev) {
+      for (const m of meanings) if (!prev.english.some((e) => e.toLowerCase() === m.toLowerCase())) prev.english.push(cap(m));
+      for (const e of examples) if (prev.examples.length < 4 && !prev.examples.some((p) => p.ga === e.ga)) prev.examples.push(e);
+      if (!prev.phonetic && r.phonetic) prev.phonetic = r.phonetic;
+      continue;
+    }
+    if (!meanings.length) continue;
+    map.set(slug, {
+      slug, ga: (r.headword || "").trim(), pos: r.part_of_speech, phonetic: r.phonetic,
+      english: [...new Set(meanings.map(cap))], examples, category: r.category || "", source: r.source,
+    });
+  }
+  return map;
+}
+
+/** Up to `n` corpus sentences containing the headword (used only when the entry lacks examples). */
+async function corpusExamples(env: Env, headwordNorm: string, n = 3): Promise<{ ga: string; en: string }[]> {
+  const probe = slugify(headwordNorm).replace(/-/g, " ");
+  if (!probe) return [];
+  const rows = await env.DB.prepare(
+    `SELECT english, ga, ga_norm FROM corpus_pairs WHERE ga_norm LIKE '%' || ? || '%' LIMIT 40`
+  ).bind(probe).all<{ english: string; ga: string; ga_norm: string }>().catch(() => ({ results: [] as any[] }));
+  const words = probe.split(" ");
+  const out: { ga: string; en: string }[] = [];
+  for (const r of rows.results || []) {
+    const toks = String(r.ga_norm || "").replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter(Boolean);
+    const hit = toks.some((_, i) => words.every((w, j) => toks[i + j] === w));
+    if (!hit || !r.ga || !r.english || r.ga.length > 140) continue;
+    out.push({ ga: String(r.ga).trim(), en: String(r.english).trim() });
+    if (out.length >= n) break;
+  }
+  return out;
+}
+
 /** Samai symbols with only the readings whose dataset is in the archive. */
 export async function liveSamai(env: Env): Promise<SamaiSymbol[]> {
   const rows = await env.DB.prepare("SELECT DISTINCT original_filename f FROM documents WHERE original_filename LIKE 'ga-samai%'")
@@ -101,10 +167,13 @@ export async function liveSamai(env: Env): Promise<SamaiSymbol[]> {
 
 /** Every public page, for the sitemap. */
 export async function sitePages(env: Env): Promise<Array<{ path: string; images?: string[] }>> {
-  const [counts, samai] = await Promise.all([topicCounts(env), liveSamai(env)]);
+  const [counts, samai, vocab] = await Promise.all([topicCounts(env), liveSamai(env), vocabBySlug(env)]);
   return [
+    { path: "/translate" },
     { path: "/learn-ga" },
     ...TOPICS.filter((t) => counts[t.slug] > 0).map((t) => ({ path: `/learn-ga/${t.slug}` })),
+    { path: "/ga-words" },
+    ...[...vocab.keys()].map((slug) => ({ path: `/ga-words/${slug}` })),
     { path: "/samai", images: samai.map((s) => s.readings[0].image) },
     ...samai.map((s) => ({ path: `/samai/${s.slug}`, images: s.readings.map((r) => r.image) })),
     { path: "/about" },
@@ -199,7 +268,7 @@ footer{border-top:1px solid var(--line);padding-block:40px calc(40px + env(safe-
 .brand-sm img{height:30px}
 `;
 
-const NAV: Array<[string, string]> = [["/learn-ga", "Learn Ga"], ["/samai", "Samai"], ["/about", "About"], ["/support", "Support"]];
+const NAV: Array<[string, string]> = [["/translate", "Translate"], ["/learn-ga", "Learn Ga"], ["/ga-words", "Ga words"], ["/samai", "Samai"], ["/about", "About"], ["/support", "Support"]];
 
 function page(o: { path: string; title: string; description: string; body: string; jsonld?: object[]; image?: string; section?: string }): string {
   const url = `${SITE}${o.path}`;
@@ -236,7 +305,7 @@ function page(o: { path: string; title: string; description: string; body: strin
 <main>${o.body}</main>
 <footer><div class="wrap f-row">
   <a class="brand brand-sm" href="/"><img src="/img/brand/speakga-logo.png" width="515" height="144" alt="SpeakGa"></a>
-  <ul class="f-links"><li><a href="https://app.speakga.org/">Open the app</a></li><li><a href="/learn-ga">Learn Ga</a></li><li><a href="/samai">Ga samai</a></li><li><a href="/about">About</a></li><li><a href="/support">Support the research</a></li><li><a href="/#give">Contribute</a></li></ul>
+  <ul class="f-links"><li><a href="https://app.speakga.org/">Open the app</a></li><li><a href="/translate">Translate to Ga</a></li><li><a href="/learn-ga">Learn Ga</a></li><li><a href="/ga-words">Ga words</a></li><li><a href="/samai">Ga samai</a></li><li><a href="/about">About</a></li><li><a href="/support">Support the research</a></li><li><a href="/#give">Contribute</a></li></ul>
   <span>© 2026 Codetrain Foundation</span>
 </div></footer>
 <script>(function(){function t(e){try{var d=JSON.stringify({e:e,p:location.pathname,r:document.referrer});if(!(navigator.sendBeacon&&navigator.sendBeacon("/api/v1/e",d)))fetch("/api/v1/e",{method:"POST",body:d,keepalive:true})}catch(_){}}t("pageview");document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("a");if(a&&/^https:\\/\\/app\\.speakga\\.org/.test(a.href))t("start")},true)})();</script>
@@ -259,7 +328,7 @@ function send(c: C, html: string, status = 200) {
 /* ----------------------------------------------------------------- routes */
 
 // The app domain serves the app; these pages live on speakga.org.
-export const PAGE_PATHS = ["/learn-ga", "/learn-ga/*", "/samai", "/samai/*", "/about", "/support"];
+export const PAGE_PATHS = ["/translate", "/learn-ga", "/learn-ga/*", "/ga-words", "/ga-words/*", "/samai", "/samai/*", "/about", "/support"];
 for (const p of PAGE_PATHS) {
   app.use(p, async (c, next) => {
     if (hostKind(c.req.url) === "app") return c.redirect(`${SITE}${new URL(c.req.url).pathname}`, 301);
@@ -388,9 +457,109 @@ app.get("/samai/:slug", async (c) => {
   }));
 });
 
+// Things people actually type into the app or a search engine.
+const POPULAR: string[] = [
+  "thank you", "good morning", "good afternoon", "good evening", "how are you",
+  "welcome", "goodbye", "see you later", "I love you", "yes", "no", "please",
+  "sorry", "what is your name", "my name is", "where are you going", "come here",
+  "sit down", "how much", "water", "food", "friend", "God bless you", "help me",
+];
+
+app.get("/translate", async (c) => {
+  const f = await liveFigures(c.env);
+  const body = `${crumbs([["Home", "/"], ["Translate English to Ga"]])}
+<section class="hero wrap"><span class="eyebrow">English to Ga translator</span><h1>Translate English to Ga</h1>
+<p class="lede">Type an English word or phrase and Nii Obodai answers in Ga from SpeakGa's checked archive: ${fmt(f.words)} words and phrases from the Bureau of Ghana Languages' Ga Language Guide, a UCLA Ga course and more than ${fmt(f.corpus)} example sentences.</p>
+<form action="https://app.speakga.org/" method="get" style="display:flex;gap:10px;flex-wrap:wrap;max-width:640px">
+  <input type="search" name="q" placeholder="e.g. how do you say thank you in Ga" aria-label="English word or phrase" style="flex:1;min-width:240px;min-height:48px;padding:0 18px;border:1.5px solid var(--line);border-radius:999px;font:inherit">
+  <button class="btn btn-ink" type="submit" style="cursor:pointer">Translate to Ga</button>
+</form></section>
+<section class="sec wrap" style="padding-top:0"><h2 style="font-size:clamp(24px,2.6vw,32px);margin-bottom:16px">Popular English to Ga translations</h2>
+<div class="grid">${POPULAR.map((p) => `<a class="card" href="${ask(`how do you say ${p} in Ga`)}"><h3>${esc(cap(p))}</h3><p>How do you say “${esc(p)}” in Ga?</p></a>`).join("")}</div></section>
+<section class="sec wrap" style="padding-top:0"><div class="prose">
+<h2>A translator that says when it doesn't know</h2>
+<p>Ga has very little digital language data, so SpeakGa doesn't guess. Nii Obodai answers from an archive checked by Ga speakers, and when a word isn't there yet he says so and the question goes to the review queue. You can browse the checked words under <a href="/ga-words">Ga words A–Z</a> or learn by topic under <a href="/learn-ga">Learn Ga</a>.</p>
+</div></section>
+${contributeCta("Can't find your translation?")}`;
+  return send(c, page({
+    path: "/translate", section: "/translate",
+    title: "English to Ga translator: words and phrases | SpeakGa",
+    description: `Translate English to Ga free with SpeakGa. Checked Ga translations for ${fmt(f.words)} words and phrases — thank you, good morning, numbers, family and more — plus ${fmt(f.corpus)} example sentences.`,
+    body,
+    jsonld: [crumbLd([["Home", "/"], ["Translate English to Ga", "/translate"]])],
+  }));
+});
+
+app.get("/ga-words", async (c) => {
+  const vocab = await vocabBySlug(c.env);
+  const entries = [...vocab.values()].sort((a, b) => a.slug.localeCompare(b.slug));
+  const letters = new Map<string, VocabEntry[]>();
+  for (const w of entries) {
+    const L = (w.slug[0] || "#").replace(/[^a-z]/, "#");
+    (letters.get(L) ?? letters.set(L, []).get(L)!).push(w);
+  }
+  const az = [...letters.keys()].sort();
+  const body = `${crumbs([["Home", "/"], ["Ga words"]])}
+<section class="hero wrap"><span class="eyebrow">Ga dictionary</span><h1>Ga words and their meanings</h1>
+<p class="lede">${fmt(entries.length)} checked Ga words and phrases, A to Z — every one verified by Ga speakers with its English meaning${entries.some((w) => w.phonetic) ? ", pronunciation where we have it" : ""} and example sentences. This is the same dictionary Nii Obodai answers from.</p>
+<div class="row"><a class="btn btn-ink" href="/translate">Translate English to Ga</a><a class="btn btn-line" href="${ask("teach me some Ga words")}">Ask Nii Obodai</a></div>
+<div class="chips" style="margin-top:14px" aria-label="Jump to a letter">${az.map((L) => `<a class="chip" href="#${L}">${L.toUpperCase()} <b>${fmt(letters.get(L)!.length)}</b></a>`).join("")}</div></section>
+${az.map((L) => `<section class="sec wrap" style="padding-block:20px" id="${L}"><h2 style="font-size:clamp(22px,2.4vw,30px);margin-bottom:14px">${L.toUpperCase()}</h2>
+<ul class="words">${letters.get(L)!.map((w) => `<li class="w"><a href="/ga-words/${w.slug}" style="text-decoration:none"><span class="ga" lang="gaa">${esc(w.ga)}</span></a><span class="en">${esc(w.english.slice(0, 3).join("; "))}</span></li>`).join("")}</ul></section>`).join("")}
+${contributeCta("Know a Ga word that isn't here?")}`;
+  return send(c, page({
+    path: "/ga-words", section: "/ga-words",
+    title: `Ga words A–Z: ${fmt(entries.length)} Ga words and their meaning | SpeakGa`,
+    description: `Browse ${fmt(entries.length)} Ga words with English meanings, pronunciation and examples — every entry checked by Ga speakers. From aba (arrive) to numbers, greetings and proverbs.`,
+    body,
+    jsonld: [crumbLd([["Home", "/"], ["Ga words", "/ga-words"]]), {
+      "@context": "https://schema.org", "@type": "DefinedTermSet", "@id": `${SITE}/ga-words#terms`,
+      name: "SpeakGa Ga dictionary", inLanguage: "gaa",
+    }],
+  }));
+});
+
+app.get("/ga-words/:slug", async (c) => {
+  const vocab = await vocabBySlug(c.env);
+  const w = vocab.get(c.req.param("slug"));
+  if (!w) return notFound(c);
+  const topic = TOPICS.find((t) => t.cats.includes(w.category));
+  const examples = w.examples.length >= 2 ? w.examples : [...w.examples, ...(await corpusExamples(c.env, w.ga, 3 - w.examples.length))];
+  const related = [...vocab.values()].filter((x) => x.category === w.category && x.slug !== w.slug).slice(0, 8);
+  const first = w.english[0].toLowerCase();
+  const desc = `${w.ga} is Ga for “${w.english.slice(0, 3).join("; ").toLowerCase()}”${w.phonetic ? ` (say it: ${w.phonetic})` : ""}. Checked by Ga speakers${w.source ? ` — source: ${w.source.replace(/\s*\((curated import|promoted from verified dataset)\)\s*$/i, "")}` : ""}.`;
+  const body = `${crumbs([["Home", "/"], ["Ga words", "/ga-words"], [w.ga]])}
+<section class="hero wrap"><span class="eyebrow">Ga word${w.pos ? ` · ${esc(w.pos)}` : ""}</span>
+<h1 lang="gaa">${esc(w.ga)}</h1>
+<p class="lede"><b lang="gaa">${esc(w.ga)}</b> is Ga for “${esc(w.english.join("; ").toLowerCase())}”.${w.phonetic ? ` Say it: <b>${esc(w.phonetic)}</b>.` : ""}</p>
+<div class="row"><a class="btn btn-ink" href="${ask(`what does ${w.ga} mean in Ga`)}">Ask Nii Obodai about ${esc(w.ga)}</a><a class="btn btn-line" href="${ask(`use ${w.ga} in a sentence`)}">Use it in a sentence</a></div></section>
+${examples.length ? `<section class="sec wrap" style="padding-top:0"><h2 style="font-size:clamp(24px,2.6vw,32px);margin-bottom:16px">${esc(w.ga)} in a sentence</h2>
+<div class="grid">${examples.slice(0, 4).map((e) => `<div class="card"><p lang="gaa" style="font-weight:700;color:var(--ink)">${esc(e.ga)}</p><p>“${esc(e.en)}”</p></div>`).join("")}</div>
+${w.examples.length < 2 ? `<p class="src-list" style="margin-top:14px">Example sentences from the wider archive — not individually verified like the dictionary entry.</p>` : ""}</section>` : ""}
+<section class="sec wrap" style="padding-top:0"><div class="prose">
+<h2>How do you say ${esc(first)} in Ga?</h2>
+<p>${esc(first.charAt(0).toUpperCase() + first.slice(1))} in Ga is <b lang="gaa">${esc(w.ga)}</b>${w.english.length > 1 ? ` — it can also mean ${esc(w.english.slice(1).join(" and ").toLowerCase())}` : ""}. To hear how it's used in real sentences, ask Nii Obodai in the app.</p>
+</div></section>
+${related.length ? `<section class="sec wrap" style="padding-top:0"><h2 style="font-size:clamp(24px,2.6vw,32px);margin-bottom:16px">More ${topic ? esc(topic.title.toLowerCase()) : "Ga words"}</h2><div class="chips">${related.map((x) => `<a class="chip" href="/ga-words/${x.slug}" lang="gaa">${esc(x.ga)} <b>${esc(x.english[0].toLowerCase())}</b></a>`).join("")}${topic ? `<a class="chip" href="/learn-ga/${topic.slug}">All ${esc(topic.title.toLowerCase())} →</a>` : ""}</div></section>` : ""}
+${contributeCta(`Know another way to say ${first} in Ga?`)}`;
+  return send(c, page({
+    path: `/ga-words/${w.slug}`, section: "/ga-words",
+    title: `${w.ga}: "${first}" in Ga | SpeakGa Ga dictionary`,
+    description: desc.length > 160 ? desc.slice(0, 157).replace(/\s+\S*$/, "") + "…" : desc,
+    body,
+    jsonld: [crumbLd([["Home", "/"], ["Ga words", "/ga-words"], [w.ga, `/ga-words/${w.slug}`]]), {
+      "@context": "https://schema.org", "@type": "DefinedTerm", name: w.ga, description: w.english.join("; "),
+      inLanguage: "gaa", inDefinedTermSet: { "@type": "DefinedTermSet", name: "SpeakGa Ga dictionary", url: `${SITE}/ga-words` },
+    }],
+  }));
+});
+
 async function liveFigures(env: Env) {
-  const s = await archiveStats(env);
-  return { words: s.words_and_phrases, dictionary: s.dictionary_entries, numbers: s.numbers_in_words, verses: s.bible_verses, translations: s.bible_translations, stories: s.stories, poems: s.poems_and_songs, samai: s.samai };
+  const [s, corpus] = await Promise.all([
+    archiveStats(env),
+    env.DB.prepare("SELECT COUNT(*) n FROM corpus_pairs").first<{ n: number }>().catch(() => null),
+  ]);
+  return { words: s.words_and_phrases, dictionary: s.dictionary_entries, numbers: s.numbers_in_words, verses: s.bible_verses, translations: s.bible_translations, stories: s.stories, poems: s.poems_and_songs, samai: s.samai, corpus: corpus?.n ?? 0 };
 }
 
 app.get("/about", async (c) => {
