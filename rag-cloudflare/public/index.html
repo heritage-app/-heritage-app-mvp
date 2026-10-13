@@ -611,6 +611,7 @@
   @keyframes recPulse { 0%,100% { box-shadow:0 0 0 0 rgba(192,71,61,.45); } 50% { box-shadow:0 0 0 9px rgba(192,71,61,0); } }
   .rec-mic:focus-visible, .rec-again:focus-visible, .vc-vote:focus-visible, .vc-del:focus-visible, .nv-first:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
   .rec-hint { font:500 13px var(--sans); color:var(--muted); }
+  .rec-hint.warn { color:var(--blush-ink); }
   .rec-time { flex:none; font:700 12.5px var(--sans); color:#C0473D; font-variant-numeric:tabular-nums; }
   .rec-live i { height:14%; }
   .rec-take { flex:1; min-width:0; margin:0; padding:0; background:none; border:0; }
@@ -3267,31 +3268,43 @@ function openRecordFor(english, ga) {
 }
 
 /* ---- Recording a phrase ----
-   MediaRecorder captures; the browser then decodes, resamples to 16 kHz mono,
-   trims the silence, levels the volume and writes WAV — the same preparation
-   as the dataset clips, so every voice sounds alike. */
+   The raw microphone signal is captured directly (no compressed file to decode
+   back), then resampled to 16 kHz mono, trimmed, levelled and written as WAV —
+   the same preparation as the dataset clips, so every voice sounds alike.
+   The audio engine is started inside the tap itself: Safari starts it paused
+   if it's created after the permission prompt, and then records silence. */
 const MIC_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
 const REC_MAX_SECS = 10;
+const REC_MSG = {
+  denied: "Allow the microphone for SpeakGa in your browser, then tap again.",
+  nothing: "We couldn't hear your microphone. Check that the right one is selected and not muted, then tap again.",
+  quiet: "That was very quiet. Try again, a little closer to the microphone.",
+  short: "That was too short. Tap, say the phrase, then tap stop.",
+  failed: "Something went wrong preparing the recording. Tap to try again.",
+};
 function canRecord() {
-  return !!(navigator.mediaDevices?.getUserMedia && window.MediaRecorder && (window.AudioContext || window.webkitAudioContext) && window.OfflineAudioContext);
+  const AC = window.AudioContext || window.webkitAudioContext;
+  return !!(navigator.mediaDevices?.getUserMedia && AC && AC.prototype.createScriptProcessor && window.OfflineAudioContext);
 }
-async function processTake(blob) {
-  const AC = window.AudioContext || window.webkitAudioContext, ac = new AC();
-  let buf;
-  try { buf = await ac.decodeAudioData(await blob.arrayBuffer()); } finally { ac.close?.(); }
-  const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(buf.duration * 16000)), 16000);
+/** Raw samples at `rate` → { blob (16 kHz mono WAV), secs, peaks }. Throws "quiet" / "short". */
+async function processPcm(pcm, rate) {
+  if (pcm.length < rate * 0.3) throw new Error("short");
+  const off = new OfflineAudioContext(1, Math.max(1, Math.ceil((pcm.length / rate) * 16000)), 16000);
+  const buf = off.createBuffer(1, pcm.length, rate);
+  if (buf.copyToChannel) buf.copyToChannel(pcm, 0); else buf.getChannelData(0).set(pcm);
   const src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start();
   const s = (await off.startRendering()).getChannelData(0);
   // Trim: frames of 20 ms; speech is well above the quietest frames.
   const fr = 320, rms = [];
   for (let i = 0; i + fr <= s.length; i += fr) { let e = 0; for (let j = i; j < i + fr; j++) e += s[j] * s[j]; rms.push(Math.sqrt(e / fr)); }
-  if (rms.length < 5) throw new Error("short");
+  if (rms.length < 10) throw new Error("short");
   const sorted = [...rms].sort((x, y) => x - y);
   const noise = sorted[Math.floor(sorted.length * 0.1)], speech = sorted[Math.floor(sorted.length * 0.95)];
-  if (speech < 0.01) throw new Error("silent");
+  if (speech < 0.003) throw new Error("quiet");
   const gate = noise + (speech - noise) * 0.15;
   let a = rms.findIndex((v) => v > gate), z = rms.length - 1 - [...rms].reverse().findIndex((v) => v > gate);
   a = Math.max(0, a * fr - 1920); z = Math.min(s.length, (z + 1) * fr + 1920);
+  if (z - a < 16000 * 0.25) throw new Error("short");
   let max = 1e-4; for (let i = a; i < z; i++) max = Math.max(max, Math.abs(s[i]));
   const n = z - a, g = 0.89 / max, wav = new DataView(new ArrayBuffer(44 + n * 2)), peaks = new Array(32).fill(0);
   const str = (o, t) => [...t].forEach((ch, k) => wav.setUint8(o + k, ch.charCodeAt(0)));
@@ -3309,13 +3322,20 @@ async function processTake(blob) {
 function recorderWidget(hint) {
   const box = document.createElement("div");
   box.className = "rec";
-  let state = "idle", take = null, stream = null, mr = null, timer = 0, raf = 0, ac = null;
-  const stopAll = () => { clearInterval(timer); cancelAnimationFrame(raf); stream?.getTracks().forEach((t) => t.stop()); stream = null; ac?.close?.(); ac = null; };
+  let state = "idle", take = null, stream = null, ac = null, proc = null, pcm = [], rate = 48000, timer = 0, raf = 0, t0 = 0;
+  const stopAll = () => {
+    clearInterval(timer); cancelAnimationFrame(raf);
+    if (proc) { proc.onaudioprocess = null; try { proc.disconnect(); } catch {} proc = null; }
+    stream?.getTracks().forEach((t) => t.stop()); stream = null;
+    ac?.close?.(); ac = null;
+  };
   function draw(msg) {
     box.innerHTML = "";
     if (state === "idle") {
-      box.innerHTML = `<button type="button" class="rec-mic" aria-label="Start recording">${MIC_ICON}</button><span class="rec-hint">${escapeHtml(msg || hint())}</span>`;
+      box.innerHTML = `<button type="button" class="rec-mic" aria-label="Start recording">${MIC_ICON}</button><span class="rec-hint${msg ? " warn" : ""}">${escapeHtml(msg || hint())}</span>`;
       box.querySelector(".rec-mic").onclick = start;
+    } else if (state === "asking") {
+      box.innerHTML = '<span class="rec-hint">Waiting for the microphone…</span>';
     } else if (state === "rec") {
       box.innerHTML = '<button type="button" class="rec-mic live" aria-label="Stop recording"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button><div class="nv-wave rec-live" aria-hidden="true"></div><span class="rec-time">0:00</span>';
       box.querySelector(".rec-mic").onclick = stop;
@@ -3331,28 +3351,35 @@ function recorderWidget(hint) {
       box.appendChild(again);
     }
   }
-  async function start() {
-    try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
-    catch { draw("Allow the microphone in your browser to record."); return; }
-    const chunks = [];
-    mr = new MediaRecorder(stream);
-    mr.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-    mr.onstop = async () => {
-      stopAll();
-      state = "busy"; draw();
-      try {
-        const t = await processTake(new Blob(chunks, { type: mr.mimeType || "audio/webm" }));
-        take = { ...t, url: URL.createObjectURL(t.blob) };
-        state = "done"; draw();
-      } catch { state = "idle"; draw("We didn't catch that. Try again, a little closer to the microphone."); }
-      box.dispatchEvent(new Event("change"));
-    };
-    mr.start();
+  function fail(why, detail) {
+    if (detail) console.warn("recording:", why, detail);
+    stopAll(); state = "idle"; draw(REC_MSG[why] || REC_MSG.failed);
+    box.dispatchEvent(new Event("change"));
+  }
+  function start() {
+    // Created and resumed inside the tap (see above).
+    const AC = window.AudioContext || window.webkitAudioContext;
+    try { ac = new AC(); ac.resume?.(); } catch (e) { return fail("failed", e); }
+    state = "asking"; draw();
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+      .then(begin)
+      .catch((e) => fail(e && (e.name === "NotAllowedError" || e.name === "SecurityError") ? "denied" : "nothing", e));
+  }
+  function begin(s) {
+    stream = s;
+    if (!ac) return fail("failed");
+    ac.resume?.();
+    rate = ac.sampleRate; pcm = [];
+    const srcNode = ac.createMediaStreamSource(stream);
+    const an = ac.createAnalyser(); an.fftSize = 512; srcNode.connect(an);
+    // Raw capture. Routed through a silent gain to the output, or it never runs.
+    proc = ac.createScriptProcessor(4096, 1, 1);
+    const mute = ac.createGain(); mute.gain.value = 0;
+    srcNode.connect(proc); proc.connect(mute); mute.connect(ac.destination);
+    proc.onaudioprocess = (e) => pcm.push(new Float32Array(e.inputBuffer.getChannelData(0)));
     state = "rec"; draw();
-    // Live level bars while recording.
-    const AC = window.AudioContext || window.webkitAudioContext; ac = new AC();
-    const an = ac.createAnalyser(); an.fftSize = 512; ac.createMediaStreamSource(stream).connect(an);
-    const data = new Uint8Array(an.fftSize), wave = box.querySelector(".rec-live"), t0 = Date.now();
+    const data = new Uint8Array(an.fftSize), wave = box.querySelector(".rec-live");
+    t0 = Date.now();
     wave.innerHTML = "<i></i>".repeat(32);
     const bars = wave.querySelectorAll("i");
     const loop = () => {
@@ -3369,8 +3396,23 @@ function recorderWidget(hint) {
       if (secs >= REC_MAX_SECS) stop();
     }, 200);
   }
-  function stop() { if (mr && mr.state !== "inactive") mr.stop(); }
-  function reset() { stopAll(); if (mr && mr.state !== "inactive") { mr.onstop = null; mr.stop(); } if (take?.url) URL.revokeObjectURL(take.url); take = null; state = "idle"; draw(); }
+  async function stop() {
+    if (state !== "rec") return;
+    const chunks = pcm, r = rate;
+    stopAll();
+    state = "busy"; draw();
+    const len = chunks.reduce((n, c) => n + c.length, 0);
+    if (!len) return fail("nothing", "no audio frames captured");
+    const all = new Float32Array(len); let o = 0;
+    for (const c of chunks) { all.set(c, o); o += c.length; }
+    try {
+      const t = await processPcm(all, r);
+      take = { ...t, url: URL.createObjectURL(t.blob) };
+      state = "done"; draw();
+      box.dispatchEvent(new Event("change"));
+    } catch (e) { fail(["quiet", "short"].includes(e?.message) ? e.message : "failed", e); }
+  }
+  function reset() { stopAll(); if (take?.url) URL.revokeObjectURL(take.url); take = null; state = "idle"; draw(); }
   draw();
   return { el: box, take: () => take, reset };
 }
