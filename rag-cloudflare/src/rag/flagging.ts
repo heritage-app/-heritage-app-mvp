@@ -199,11 +199,11 @@ export function cleanEnglish(question: string): string {
   let out = question.trim().replace(/[?!.]+$/, "");
   // Framing can stack — "what is | the ga word for | quantum physics" — so
   // strip until nothing more comes off (bounded; each pass removes a prefix).
-  const FRAME = /^(please\s+)?(how\s+(do\s+(you|i|we)\s+|to\s+|can\s+i\s+)?(say|write|spell)|what\s+(is|do\s+you\s+call)|what'?s|translate|(the\s+)?ga\s+(word\s+)?for)\s+/i;
+  const FRAME = /^(please\s+)?(how\s+(do\s+(you|i|we)\s+|to\s+|can\s+i\s+)?(say|write|spell|(ask|tell)(\s+(someone|somebody|a person|people|him|her|them))?)|what\s+(is|do\s+you\s+call)|what'?s|translate|(the\s+)?ga\s+(word\s+)?for)\s+/i;
   // After "how do you say / translate", the rest IS the phrase asked about:
   // "how do you say | what is your name" must keep "what is".
   for (let i = 0; i < 3 && FRAME.test(out); i++) {
-    const said = /^(please\s+)?(how\s+(do\s+(you|i|we)\s+|to\s+|can\s+i\s+)?(say|write|spell)|translate)\s+/i.test(out);
+    const said = /^(please\s+)?(how\s+(do\s+(you|i|we)\s+|to\s+|can\s+i\s+)?(say|write|spell|(ask|tell)(\s+(someone|somebody|a person|people|him|her|them))?)|translate)\s+/i.test(out);
     out = out.replace(FRAME, "");
     if (said) break;
   }

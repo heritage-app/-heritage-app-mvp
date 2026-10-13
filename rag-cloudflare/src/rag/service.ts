@@ -467,6 +467,14 @@ async function insideAPhraseAnswer(
   );
 }
 
+/** "how do I ask/tell (someone) X" → "how do you say X". */
+function askFrameToSay(q: string): string {
+  return q.replace(
+    /^\s*(?:please\s+)?how\s+(?:do|can|would|should)\s+(?:i|you|we|one)\s+(?:ask|tell)(?:\s+(?:someone|somebody|a person|people|him|her|them))?\s+/i,
+    "how do you say "
+  );
+}
+
 /** General-knowledge engine for history, stories, phrases, numerics. */
 async function* askGeneral(
   env: Env,
@@ -478,6 +486,10 @@ async function* askGeneral(
   /** See askBible. */
   strict = false
 ): AsyncGenerator<string> {
+  // "how do I ask (someone) what is your name" is "how do you say what is your
+  // name": otherwise "ask" counts as a word to translate, and "Just why should
+  // you ask about my name?" matched.
+  query = askFrameToSay(query);
   // Numeric range table: "count from 1 to 10"
   const rangeMatch = query.match(/(\d+)\s+to\s+(\d+)/i);
   if (rangeMatch) {
@@ -499,7 +511,9 @@ async function* askGeneral(
   if (
     /^(?:who are you|what are you|what['’]?s your name|what is your name|who is nii obodai|what does nii obodai mean|what is nii obodai|meaning of nii obodai|what can you do|introduce yourself|tell me about yourself)\b/i.test(
       selfStripped
-    )
+    ) &&
+    // "what is your name in ga" asks for the Ga phrase, not about the guide.
+    !/\b(in|into)\s+ga\b/i.test(selfStripped)
   ) {
     yield NII_MEANING_RE.test(selfStripped)
       ? "**Nii** is a Ga honorific for a man — seniority or lineage. **Obodai** is a name; together Nii Obodai is the name your Ga guide answers to."
