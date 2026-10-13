@@ -52,9 +52,11 @@ CREATE TABLE IF NOT EXISTS voice_phrases (
   english     TEXT NOT NULL,       -- may be '' when only context or examples are set
   context     TEXT,                -- when / how it's used
   examples    TEXT,                -- JSON [{ "ga": "...", "en": "..." }]
+  draft       INTEGER NOT NULL DEFAULT 0, -- 1 = a suggestion no Ga speaker has confirmed: kept out of the app
   updated_by  TEXT,
   updated_at  TEXT NOT NULL
 );
--- On a database created before context/examples existed, run once:
+-- On a database created before these existed, run once:
 --   ALTER TABLE voice_phrases ADD COLUMN context TEXT;
 --   ALTER TABLE voice_phrases ADD COLUMN examples TEXT;
+--   ALTER TABLE voice_phrases ADD COLUMN draft INTEGER NOT NULL DEFAULT 0;

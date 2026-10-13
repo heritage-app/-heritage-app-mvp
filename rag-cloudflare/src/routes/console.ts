@@ -418,13 +418,13 @@ app.get("/voices", async (c) => {
     // Answers from the last 30 days: the Ga each one led with.
     db.prepare("SELECT response FROM interactions WHERE created_at > ? ORDER BY created_at DESC LIMIT 4000")
       .bind(new Date(Date.now() - 30 * 86400000).toISOString()).all<{ response: string }>().catch(() => ({ results: [] as { response: string }[] })),
-    db.prepare("SELECT ga_key, english, context, examples FROM voice_phrases").all<PhraseInfo>()
+    db.prepare("SELECT ga_key, english, context, examples, draft FROM voice_phrases").all<PhraseInfo>()
       .catch(() => ({ results: [] as PhraseInfo[] })),
   ]);
   const hidden = new Set((hiddenRes.results ?? []).map((r) => r.path));
   const infoOf = new Map((englishRes.results ?? []).map((r) => [r.ga_key, r]));
   const englishOf = new Map((englishRes.results ?? []).filter((r) => r.english).map((r) => [r.ga_key, r.english]));
-  type Phrase = { key: string; ga: string; english: string | null; english_source: "admin" | "speaker" | null; context?: string | null; examples?: Example[]; clips: { kind: "dataset" | "community"; ref: string; url: string; secs: number; peaks: number[]; by: string; hidden?: boolean }[] };
+  type Phrase = { key: string; ga: string; english: string | null; english_source: "admin" | "speaker" | null; draft?: boolean; context?: string | null; examples?: Example[]; clips: { kind: "dataset" | "community"; ref: string; url: string; secs: number; peaks: number[]; by: string; hidden?: boolean }[] };
   const phrases = new Map<string, Phrase>();
   for (const v of NATIVE_VOICES) {
     const key = voiceKey(v.ga), en = englishOf.get(key) ?? null;
@@ -447,6 +447,7 @@ app.get("/voices", async (c) => {
   for (const [key, p] of phrases) {
     const info = infoOf.get(key);
     p.context = info?.context || null;
+    p.draft = !!info?.draft;
     p.examples = parseExamples(info?.examples);
   }
   // Most-given answers that still have no voice.
@@ -471,6 +472,7 @@ app.get("/voices", async (c) => {
       community: (communityRes.results ?? []).length,
       pending: (pendingRes.results ?? []).length,
       no_english: list.filter((p) => !p.english).length,
+      to_check: list.filter((p) => p.draft).length,
     },
     pending: (pendingRes.results ?? []).map((r: any) => ({
       id: r.id, ga: r.ga, english: r.english, secs: r.secs, peaks: safePeaks(r.peaks), created_at: r.created_at,
@@ -541,7 +543,8 @@ app.post("/voices/remove", async (c) => {
 // rest are kept. Empty values clear; a phrase with nothing left is removed.
 app.post("/voices/details", async (c) => {
   const adminId = c.get("adminId")!;
-  const body = await c.req.json<{ ga?: string; english?: string; context?: string; examples?: unknown }>().catch(() => ({} as Record<string, unknown>));
+  const body = await c.req.json<{ ga?: string; english?: string; context?: string; examples?: unknown; draft?: boolean }>().catch(() => ({} as Record<string, unknown>));
+  const draft = body.draft === true ? 1 : 0;
   const g = String(body.ga ?? "").trim();
   if (!g) return c.json({ detail: "Say which phrase." }, 400);
   const key = voiceKey(g);
@@ -557,14 +560,14 @@ app.post("/voices/details", async (c) => {
     await c.env.DB.prepare("DELETE FROM voice_phrases WHERE ga_key = ?").bind(key).run();
   } else {
     await c.env.DB.prepare(
-      `INSERT INTO voice_phrases (ga_key, ga, english, context, examples, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO voice_phrases (ga_key, ga, english, context, examples, draft, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(ga_key) DO UPDATE SET english = excluded.english, context = excluded.context, examples = excluded.examples,
-         updated_by = excluded.updated_by, updated_at = excluded.updated_at`
-    ).bind(key, g, english, context || null, examples.length ? JSON.stringify(examples) : null, adminId, new Date().toISOString()).run();
+         draft = excluded.draft, updated_by = excluded.updated_by, updated_at = excluded.updated_at`
+    ).bind(key, g, english, context || null, examples.length ? JSON.stringify(examples) : null, draft, adminId, new Date().toISOString()).run();
   }
   await logAction(c.env, adminId, "voice_details", "voice", key,
     `${g}: ${english || "(no English)"}${context ? " · context" : ""}${examples.length ? ` · ${examples.length} sentence${examples.length > 1 ? "s" : ""}` : ""}`);
-  return c.json({ ok: true, english: english || null, context: context || null, examples });
+  return c.json({ ok: true, english: english || null, context: context || null, examples, draft: !!draft });
 });
 
 app.post("/voices/restore", async (c) => {

@@ -97,12 +97,14 @@ app.get("/voices", async (c) => {
     c.env.DB.prepare(
       "SELECT id, ga, ga_key, english, contributor_name, secs, peaks FROM voice_recordings WHERE status = 'approved' ORDER BY reviewed_at"
     ).all<Rec>().catch(() => ({ results: [] as Rec[] })),
-    c.env.DB.prepare("SELECT ga_key, english, context, examples FROM voice_phrases").all<PhraseInfo>()
+    c.env.DB.prepare("SELECT ga_key, english, context, examples, draft FROM voice_phrases").all<PhraseInfo>()
       .catch(() => ({ results: [] as PhraseInfo[] })),
   ]);
   const hidden = new Set((hiddenRes.results ?? []).map((r) => r.path));
-  const infoOf = new Map((englishRes.results ?? []).map((r) => [r.ga_key, r]));
-  const englishOf = new Map((englishRes.results ?? []).filter((r) => r.english).map((r) => [r.ga_key, r.english]));
+  // Suggestions no Ga speaker has confirmed (draft) stay out of the app.
+  const confirmed = (englishRes.results ?? []).filter((r) => !r.draft);
+  const infoOf = new Map(confirmed.map((r) => [r.ga_key, r]));
+  const englishOf = new Map(confirmed.filter((r) => r.english).map((r) => [r.ga_key, r.english]));
   type Clip = { url: string; secs: number; peaks: number[]; by: string };
   const byKey = new Map<string, { ga: string; english: string | null; context?: string; examples?: Example[]; clips: Clip[] }>();
   for (const v of NATIVE_VOICES) {
@@ -253,7 +255,7 @@ app.delete("/voices/mine/:id", requireUser, async (c) => {
 export function safePeaks(s: string): number[] { try { return JSON.parse(s); } catch { return []; } }
 
 export type Example = { ga: string; en: string };
-export type PhraseInfo = { ga_key: string; english: string; context: string | null; examples: string | null };
+export type PhraseInfo = { ga_key: string; english: string; context: string | null; examples: string | null; draft?: number };
 /** Example sentences as stored (JSON), cleaned: both sides present, at most 5. */
 export function parseExamples(raw: unknown): Example[] {
   let list: unknown = raw;

@@ -130,6 +130,7 @@ button.kpi{cursor:pointer}button.kpi:hover{box-shadow:inset 0 0 0 1px var(--fain
 .ven::placeholder{color:var(--faint)}
 .ven-st{display:block;font-size:11.5px;min-height:15px;color:var(--muted)}
 .ven-st.ok{color:var(--ok)}.ven-st.bad{color:var(--bad)}
+.vdraft{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
 .vdet-btn{border:0;background:none;padding:0;margin-top:2px;cursor:pointer;font:700 12px var(--sans);color:var(--gold-ink);text-decoration:underline;text-underline-offset:3px}
 .vdet-btn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .vdet-row td{background:var(--sunk)}
@@ -345,7 +346,7 @@ input.gaip{font:700 16px var(--display)}
       <div class="kpis" id="vKpis"><div class="loading">Loading…</div></div>
       <div class="panel"><h2>Waiting for review <small>listen before you approve</small></h2><div id="vPending"></div></div>
       <div class="panel"><h2>Phrases with a voice <small id="vPhraseCount"></small>
-          <span class="tabs" role="tablist" id="vTabs" style="margin-left:auto"><button role="tab" aria-selected="true" data-f="all">All</button><button role="tab" aria-selected="false" data-f="noen">Needs English <span class="num" id="vNoEn"></span></button></span></h2>
+          <span class="tabs" role="tablist" id="vTabs" style="margin-left:auto"><button role="tab" aria-selected="true" data-f="all">All</button><button role="tab" aria-selected="false" data-f="noen">Needs English <span class="num" id="vNoEn"></span></button><button role="tab" aria-selected="false" data-f="check">To check <span class="num" id="vCheck"></span></button></span></h2>
         <p class="muted" style="font-size:13px;margin:0 0 10px">Dataset recordings come with the Ga only. Add what each phrase means: learners see it after Listen &amp; pick. Type, then press Enter or click away to save.</p>
         <input class="vsearch" id="vSearch" type="search" placeholder="Find a phrase (Ga or English)" aria-label="Find a phrase">
         <div class="tbl-wrap"><table><thead><tr><th>Phrase</th><th style="min-width:220px">English</th><th>Voices <small class="muted">play · remove</small></th><th>Source</th></tr></thead><tbody id="vPhrases"></tbody></table></div></div>
@@ -838,6 +839,7 @@ async function loadVoicesView() {
     ["From SpeakGa speakers", s.community, "approved recordings"],
     ["Waiting for review", s.pending, s.pending ? "listen below" : "nothing waiting", s.pending ? "alert" : ""],
     ["Need English", s.no_english, s.no_english ? "add it in the list below" : "every phrase has it"],
+    ["Suggestions to check", s.to_check || 0, s.to_check ? "confirm or correct them below" : "nothing to check", s.to_check ? "alert" : ""],
   ].map(([k, v, sub, cls]) => `<div class="kpi ${cls || ""}"><small>${esc(k)}</small><b>${fmt(v)}</b><span>${esc(sub)}</span></div>`).join("");
   $("vPending").innerHTML = VD.pending.length ? VD.pending.map((p) => `
     <div class="vcard" id="vc-${esc(p.id)}">
@@ -856,16 +858,21 @@ let vFilter = "all";
 function renderVoicePhrases() {
   if (!VD) return;
   const q = ($("vSearch").value || "").trim().toLowerCase();
-  const rows = VD.phrases.filter((p) => (vFilter !== "noen" || !p.english) &&
+  const rows = VD.phrases.filter((p) => (vFilter !== "noen" || !p.english) && (vFilter !== "check" || p.draft) &&
     (!q || p.ga.toLowerCase().includes(q) || (p.english || "").toLowerCase().includes(q)));
   const noEn = VD.phrases.filter((p) => !p.english).length;
   $("vPhraseCount").textContent = `${fmt(VD.phrases.length)} phrases`;
   $("vNoEn").textContent = noEn ? `(${noEn})` : "";
+  const toCheck = VD.phrases.filter((p) => p.draft).length;
+  $("vCheck").textContent = toCheck ? `(${toCheck})` : "";
   $("vPhrases").innerHTML = rows.map((p) => {
     const sources = [...new Set(p.clips.map((k) => k.kind === "dataset" ? "Dataset" : k.by))].join(", ");
     // The English: editable in place. A speaker's own English shows until an admin sets one.
     const en = `<input class="ven" type="text" value="${esc(p.english || "")}" placeholder="What it means in English" data-ven="${esc(p.ga)}" data-was="${esc(p.english || "")}" aria-label="English for ${esc(p.ga)}">` +
-      (p.english_source === "speaker" ? '<small class="muted">from the speaker</small>' : "") + '<small class="ven-st" aria-live="polite"></small>' +
+      (p.english_source === "speaker" ? '<small class="muted">from the speaker</small>' : "") +
+      // A suggestion no Ga speaker has confirmed: learners don't see it until it's confirmed (or edited).
+      (p.draft ? `<span class="vdraft"><span class="pill warn">Suggested — check</span><button class="btn sm ok" type="button" data-vconfirm="${esc(p.ga)}">Confirm</button></span>` : "") +
+      '<small class="ven-st" aria-live="polite"></small>' +
       `<button class="vdet-btn" type="button" data-vdet="${esc(p.ga)}" aria-expanded="false">${detSummary(p)}</button>`;
     // One chip per voice: play it, then remove (or restore) that voice.
     return `<tr><td><b>${esc(p.ga)}</b></td><td>${en}</td><td><div class="vclips">${p.clips.map((k, i) =>
@@ -873,9 +880,21 @@ function renderVoicePhrases() {
         ? `<button class="vx" data-vrestore="${esc(k.ref)}" aria-label="Restore voice ${i + 1} of ${esc(p.ga)}">Restore</button>`
         : `<button class="vx bad" data-vremove="${esc(k.ref)}" data-kind="${k.kind}" data-ga="${esc(p.ga)}" aria-label="Remove voice ${i + 1} of ${esc(p.ga)}">✕</button>`}</span>`).join("")}</div></td>
       <td class="muted" style="font-size:12.5px">${esc(sources)}</td></tr>`;
-  }).join("") || `<tr><td colspan="4" class="empty">${vFilter === "noen" && !q ? "Every phrase has its English." : "No phrase matches."}</td></tr>`;
+  }).join("") || `<tr><td colspan="4" class="empty">${vFilter === "noen" && !q ? "Every phrase has its English." : vFilter === "check" && !q ? "No suggestions waiting." : "No phrase matches."}</td></tr>`;
 }
 $("vSearch").addEventListener("input", renderVoicePhrases);
+/* Confirm a suggestion as it stands: it then shows in the app. */
+$("vPhrases").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-vconfirm]"); if (!b) return;
+  const p = VD.phrases.find((x) => x.ga === b.dataset.vconfirm); if (!p) return;
+  b.disabled = true;
+  try {
+    await api("/admin/console/voices/details", { json: { ga: p.ga, english: p.english || "" } });
+    p.draft = false; b.closest(".vdraft").remove(); toast(`Confirmed: ${p.ga} — learners see it now.`);
+    const tc = VD.phrases.filter((x) => x.draft).length; $("vCheck").textContent = tc ? `(${tc})` : "";
+    if (vFilter === "check") renderVoicePhrases();
+  } catch (err) { b.disabled = false; toast(err.message); }
+});
 $("vTabs").addEventListener("click", (e) => {
   const t = e.target.closest("[data-f]"); if (!t) return;
   vFilter = t.dataset.f;
@@ -946,7 +965,9 @@ async function saveVoiceEnglish(inp) {
     await api("/admin/console/voices/details", { json: { ga, english } });
     inp.dataset.was = english;
     const p = VD.phrases.find((x) => x.ga === ga);
-    if (p) { p.english = english || null; p.english_source = english ? "admin" : null; }
+    if (p) { p.english = english || null; p.english_source = english ? "admin" : null; p.draft = false; }
+    inp.parentElement.querySelector(".vdraft")?.remove();
+    const tc = VD.phrases.filter((x) => x.draft).length; $("vCheck").textContent = tc ? `(${tc})` : "";
     st.textContent = english ? "Saved" : "Cleared"; st.className = "ven-st ok";
     const noEn = VD.phrases.filter((x) => !x.english).length;
     $("vNoEn").textContent = noEn ? `(${noEn})` : "";
