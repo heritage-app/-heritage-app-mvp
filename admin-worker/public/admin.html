@@ -130,6 +130,9 @@ button.kpi{cursor:pointer}button.kpi:hover{box-shadow:inset 0 0 0 1px var(--fain
 .ven::placeholder{color:var(--faint)}
 .ven-st{display:block;font-size:11.5px;min-height:15px;color:var(--muted)}
 .ven-st.ok{color:var(--ok)}.ven-st.bad{color:var(--bad)}
+/* Suggested words: English and Ga get equal room. */
+#sgList td:nth-child(1),#sgList td:nth-child(2){width:42%}
+#sgList .ven{min-width:0}
 .vdraft{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
 .vdet-btn{border:0;background:none;padding:0;margin-top:2px;cursor:pointer;font:700 12px var(--sans);color:var(--gold-ink);text-decoration:underline;text-underline-offset:3px}
 .vdet-btn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
@@ -274,6 +277,7 @@ input.gaip{font:700 16px var(--display)}
     <div class="grp"><span>Archive</span>
       <button class="nav" data-v="archive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg>Documents</button>
       <button class="nav" data-v="voices"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Voices<span class="ct num" id="ctVoices"></span></button>
+      <button class="nav" data-v="suggest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h11M4 12h8M4 17h6"/><path d="M17 14l2 2 4-4"/></svg>Suggested words<span class="ct num" id="ctSuggest"></span></button>
       <button class="nav" data-v="import"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></svg>Scan import</button>
     </div>
     <div class="grp"><span>Insights</span>
@@ -351,6 +355,17 @@ input.gaip{font:700 16px var(--display)}
         <input class="vsearch" id="vSearch" type="search" placeholder="Find a phrase (Ga or English)" aria-label="Find a phrase">
         <div class="tbl-wrap"><table><thead><tr><th>Phrase</th><th style="min-width:220px">English</th><th>Voices <small class="muted">play · remove</small></th><th>Source</th></tr></thead><tbody id="vPhrases"></tbody></table></div></div>
       <div class="panel"><h2>Given often, no voice yet <small>answers from the last 30 days</small></h2><ul class="att" id="vMissing"></ul><p class="muted" style="font-size:12.5px;margin-top:10px">Ask Ga speakers to record these. In the app, these answers show “Be the first to record”.</p></div>
+    </section>
+
+    <!-- ============ SUGGESTED WORDS ============ -->
+    <section class="view hidden" data-view="suggest">
+      <div class="hd"><h1>Suggested words</h1><p>English–Ga pairs that aren't in the checked dictionary yet. <b>GATITOS</b> is Google's list of professional translations (CC-BY 4.0). Check the Ga, correct either side if needed, then approve it into the dictionary or reject it. Nothing here shows to learners until approved.</p></div>
+      <div class="panel">
+        <h2><span class="tabs" role="tablist" id="sgTabs"><button role="tab" aria-selected="true" data-src="gatitos">GATITOS <span class="num" id="sgCountG"></span></button><button role="tab" aria-selected="false" data-src="corpus">Corpus guesses <span class="num" id="sgCountC"></span></button></span></h2>
+        <input class="vsearch" id="sgSearch" type="search" placeholder="Find an English or Ga word" aria-label="Find a suggested word">
+        <div class="tbl-wrap"><table><thead><tr><th>English</th><th>Ga</th><th></th></tr></thead><tbody id="sgList"></tbody></table></div>
+        <div class="pager" id="sgPager"></div>
+      </div>
     </section>
 
     <!-- ============ DOCUMENTS ============ -->
@@ -1003,6 +1018,52 @@ document.addEventListener("click", async (e) => {
     try { await api("/admin/console/voices/restore", { json: { ref: rs.dataset.vrestore } }); toast("Clip restored."); loadVoicesView(); }
     catch (err) { toast(err.message); }
   }
+});
+
+/* ================= SUGGESTED WORDS ================= */
+const SG = { src: "gatitos", page: 0, size: 50, q: "" };
+loaders.suggest = () => loadSuggest();
+async function loadSuggest() {
+  $("sgList").innerHTML = '<tr><td colspan="3" class="loading">Loading…</td></tr>';
+  let d;
+  try {
+    d = await api(`/admin/alignments?status=inferred&source=${SG.src}&limit=${SG.size}&offset=${SG.page * SG.size}${SG.q ? `&q=${encodeURIComponent(SG.q)}` : ""}`);
+  } catch (e) { $("sgList").innerHTML = `<tr><td colspan="3" class="empty">${esc(e.message)}</td></tr>`; return; }
+  $("sgCountG").textContent = d.counts.gatitos ? `(${fmt(d.counts.gatitos)})` : "";
+  $("sgCountC").textContent = d.counts.corpus ? `(${fmt(d.counts.corpus)})` : "";
+  $("ctSuggest").textContent = d.counts.gatitos || "";
+  $("sgList").innerHTML = d.alignments.length ? d.alignments.map((a) => {
+    let note = ""; try { const ex = JSON.parse(a.examples || "[]"); if (ex[0]?.ga && /already has/.test(ex[0].ga)) note = '<small class="muted">The dictionary already has other Ga for this English — compare before approving.</small>'; } catch {}
+    return `<tr id="sg-${esc(a.id)}">
+      <td><input class="ven" data-sg-en value="${esc(a.english_word)}" aria-label="English">${note}</td>
+      <td><input class="ven ga" data-sg-ga value="${esc(a.ga_word)}" aria-label="Ga"></td>
+      <td><div class="row-actions" style="flex-wrap:nowrap"><button class="btn sm ok" data-sg="approve" data-id="${esc(a.id)}">Approve</button><button class="btn sm bad" data-sg="reject" data-id="${esc(a.id)}">Reject</button></div><small class="ven-st" data-sg-st></small></td></tr>`;
+  }).join("") : `<tr><td colspan="3" class="empty">${SG.q ? "No suggestion matches." : "Nothing to review here."}</td></tr>`;
+  const pages = Math.ceil((d.total || 0) / SG.size);
+  $("sgPager").innerHTML = pages > 1 ? `<span class="pinfo">Page ${SG.page + 1} of ${fmt(pages)} · ${fmt(d.total)} in all</span><button class="btn sm" id="sgPrev" ${SG.page ? "" : "disabled"}>Previous</button><button class="btn sm" id="sgNext" ${SG.page < pages - 1 ? "" : "disabled"}>Next</button>` : "";
+  $("sgPrev") && ($("sgPrev").onclick = () => { SG.page--; loadSuggest(); });
+  $("sgNext") && ($("sgNext").onclick = () => { SG.page++; loadSuggest(); });
+}
+$("sgTabs").addEventListener("click", (e) => {
+  const t = e.target.closest("[data-src]"); if (!t) return;
+  SG.src = t.dataset.src; SG.page = 0;
+  $$("#sgTabs [role=tab]").forEach((b) => b.setAttribute("aria-selected", b === t));
+  loadSuggest();
+});
+let sgTimer = 0;
+$("sgSearch").addEventListener("input", () => { clearTimeout(sgTimer); sgTimer = setTimeout(() => { SG.q = $("sgSearch").value.trim(); SG.page = 0; loadSuggest(); }, 300); });
+$("sgList").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-sg]"); if (!b) return;
+  const tr = b.closest("tr"), st = tr.querySelector("[data-sg-st]"), approve = b.dataset.sg === "approve";
+  $$("button", tr).forEach((x) => (x.disabled = true));
+  st.textContent = approve ? "Approving…" : "Rejecting…"; st.className = "ven-st";
+  try {
+    await api(`/admin/alignments/${encodeURIComponent(b.dataset.id)}/${b.dataset.sg}`, approve
+      ? { json: { english: tr.querySelector("[data-sg-en]").value.trim(), ga: tr.querySelector("[data-sg-ga]").value.trim() } }
+      : { method: "POST" });
+    tr.style.opacity = ".45"; st.textContent = approve ? "Added to the dictionary" : "Rejected"; st.className = "ven-st " + (approve ? "ok" : "");
+    setTimeout(() => { tr.remove(); if (!$("sgList").children.length) loadSuggest(); }, 900);
+  } catch (err) { st.textContent = err.message; st.className = "ven-st bad"; $$("button", tr).forEach((x) => (x.disabled = false)); }
 });
 
 /* ================= DOCUMENTS ================= */

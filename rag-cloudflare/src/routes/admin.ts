@@ -1159,15 +1159,28 @@ app.post("/alignments/build", async (c) => {
   return c.json({ pairs_scanned: pairs.length, alignments: rows.length });
 });
 
+// Suggested words: GATITOS (Google, professional translations) and the older
+// co-occurrence guesses. ?source=gatitos|corpus narrows it, ?q= searches both
+// sides, ?offset pages through.
 app.get("/alignments", async (c) => {
   const status = c.req.query("status") || "inferred";
   const minConf = parseFloat(c.req.query("min_confidence") ?? "0") || 0;
   const limit = Math.min(Math.max(parseInt(c.req.query("limit") ?? "100", 10) || 100, 1), 500);
-  const rows = await c.env.DB.prepare(
-    `SELECT * FROM word_alignments WHERE status = ? AND confidence >= ?
-     ORDER BY evidence_count DESC, confidence DESC LIMIT ?`
-  ).bind(status, minConf, limit).all();
-  return c.json({ alignments: rows.results ?? [], total: rows.results?.length ?? 0 });
+  const offset = Math.max(parseInt(c.req.query("offset") ?? "0", 10) || 0, 0);
+  const source = c.req.query("source") || "";
+  const q = (c.req.query("q") || "").trim().toLowerCase();
+  const where = ["status = ?", "confidence >= ?"], binds: unknown[] = [status, minConf];
+  if (source === "gatitos") where.push("source LIKE 'gatitos%'");
+  else if (source === "corpus") where.push("(source IS NULL OR source NOT LIKE 'gatitos%')");
+  if (q) { where.push("(english_normalized LIKE ? OR ga_normalized LIKE ? OR lower(english_word) LIKE ? OR lower(ga_word) LIKE ?)"); binds.push(`%${q}%`, `%${foldGa(q)}%`, `%${q}%`, `%${q}%`); }
+  const w = where.join(" AND ");
+  const [rows, total, counts] = await Promise.all([
+    c.env.DB.prepare(`SELECT * FROM word_alignments WHERE ${w}
+       ORDER BY (source LIKE 'gatitos%') DESC, evidence_count DESC, confidence DESC, english_word LIMIT ? OFFSET ?`).bind(...binds, limit, offset).all(),
+    c.env.DB.prepare(`SELECT COUNT(*) AS n FROM word_alignments WHERE ${w}`).bind(...binds).first<{ n: number }>(),
+    c.env.DB.prepare(`SELECT SUM(source LIKE 'gatitos%') AS gatitos, SUM(source IS NULL OR source NOT LIKE 'gatitos%') AS corpus FROM word_alignments WHERE status = ?`).bind(status).first<{ gatitos: number; corpus: number }>(),
+  ]);
+  return c.json({ alignments: rows.results ?? [], total: total?.n ?? 0, counts: { gatitos: counts?.gatitos ?? 0, corpus: counts?.corpus ?? 0 } });
 });
 
 app.post("/alignments/:id/promote", async (c) => {
@@ -1177,12 +1190,14 @@ app.post("/alignments/:id/promote", async (c) => {
   if (!row) return c.json({ detail: "Alignment not found" }, 404);
   if (row.status === "promoted") return c.json({ detail: "Already promoted" }, 409);
 
-  // The reviewer may correct the guessed spelling before approving it.
-  const body = await c.req.json<{ ga?: string }>().catch(() => ({} as { ga?: string }));
+  // The reviewer may correct the Ga spelling, or the English, before approving.
+  const body = await c.req.json<{ ga?: string; english?: string }>().catch(() => ({} as { ga?: string; english?: string }));
   const ga = normalizeGaCase((body.ga ?? "").trim() || row.ga_word);
+  const english = (body.english ?? "").trim() || row.english_word;
+  const fromGatitos = String(row.source || "").startsWith("gatitos");
 
   const now = nowIso();
-  const vid = `vocab:align:${row.english_word}:${ga}`;
+  const vid = `vocab:align:${english}:${ga}`;
   const stmts = [
     c.env.DB.prepare(
       `INSERT OR REPLACE INTO vocabulary
@@ -1194,16 +1209,18 @@ app.post("/alignments/:id/promote", async (c) => {
       ga,
       foldGa(ga.toLowerCase()),
       null,
-      JSON.stringify([row.english_word]),
-      JSON.stringify([row.english_word]),
-      row.examples,
-      `corpus-alignment (inferred, confidence ${row.confidence}, n=${row.evidence_count}; reviewer-approved${ga !== row.ga_word ? `, corrected from ${row.ga_word}` : ""})`,
+      JSON.stringify([english]),
+      JSON.stringify([english]),
+      fromGatitos ? "[]" : row.examples,
+      fromGatitos
+        ? `Google GATITOS (SMOL), CC-BY 4.0 — reviewer-approved${ga !== row.ga_word || english !== row.english_word ? `, corrected from “${row.english_word}” → ${row.ga_word}` : ""}`
+        : `corpus-alignment (inferred, confidence ${row.confidence}, n=${row.evidence_count}; reviewer-approved${ga !== row.ga_word ? `, corrected from ${row.ga_word}` : ""})`,
       adminId,
       now
     ),
     c.env.DB.prepare(
-      "UPDATE word_alignments SET status = 'promoted', ga_word = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ?"
-    ).bind(ga, adminId, now, id),
+      "UPDATE word_alignments SET status = 'promoted', ga_word = ?, english_word = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ?"
+    ).bind(ga, english, adminId, now, id),
   ];
   try {
     await c.env.DB.batch(stmts);
