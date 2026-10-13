@@ -141,6 +141,22 @@ app.get("/voices", async (c) => {
   );
 });
 
+// Approved context for words and phrases (word_context): how each is used and
+// the word in a sentence, credited. The app shows it under the word's answer.
+app.get("/word-context", async (c) => {
+  const rows = await c.env.DB.prepare(
+    "SELECT ga, ga_key, english, context, example_ga, example_en, contributor_name FROM word_context ORDER BY approved_at"
+  ).all<{ ga: string; ga_key: string; english: string | null; context: string | null; example_ga: string | null; example_en: string | null; contributor_name: string | null }>()
+    .catch(() => ({ results: [] as never[] }));
+  const byKey = new Map<string, { ga: string; notes: { context: string | null; example: Example | null; by: string | null }[] }>();
+  for (const r of rows.results ?? []) {
+    const e = byKey.get(r.ga_key) ?? { ga: r.ga, notes: [] };
+    e.notes.push({ context: r.context, example: r.example_ga && r.example_en ? { ga: r.example_ga, en: r.example_en } : null, by: r.contributor_name });
+    byKey.set(r.ga_key, e);
+  }
+  return c.json({ words: [...byKey.entries()].map(([key, v]) => ({ key, ...v })) }, 200, { "Cache-Control": "public, max-age=60" });
+});
+
 app.post("/voices/record", requireUser, async (c) => {
   const user = c.get("user")!;
   let form: FormData;

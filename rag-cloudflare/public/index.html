@@ -602,6 +602,24 @@
   .nv.big .nv-play svg { width:19px; height:19px; }
   .nv.big .nv-wave { height:38px; }
   .nv-also { margin-top:10px; }
+  /* Context people added for a word, under its answer. */
+  .wc { display:grid; gap:8px; margin-top:12px; padding-top:10px; border-top:1px solid var(--line); }
+  .wc-note { display:grid; gap:3px; }
+  .wc-note p { margin:0; font:500 13.5px/1.5 var(--sans); color:var(--ink-2); }
+  .wc-note .wc-ex b { color:var(--ink); }
+  .wc-note small { font-size:11.5px; color:var(--muted); }
+  .wc-add { justify-self:start; border:0; background:none; padding:0; color:var(--accent-ink); font:700 12.5px var(--sans); cursor:pointer;
+    text-decoration:underline; text-underline-offset:3px; }
+  .wc-add:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  #cfContext { display:block; width:100%; margin-top:6px; min-height:76px; padding:10px 14px; border:0; border-radius:14px; background:var(--paper);
+    box-shadow:inset 0 0 0 1px var(--line-2); font:500 15px var(--sans); color:var(--ink); resize:vertical; }
+  /* The context fields stack: the context box, then the sentence (Ga | English). */
+  #cfContextRow:not(.hidden) { display:grid; grid-template-columns:minmax(0,1fr); gap:8px; }
+  #cfContextRow .f-lab { display:block; }
+  .cf-ex { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; margin-top:6px; }
+  .cf-ex input { min-height:46px; padding:0 14px; border:0; border-radius:14px; background:var(--paper); box-shadow:inset 0 0 0 1px var(--line-2);
+    font:500 14.5px var(--sans); color:var(--ink); min-width:0; }
+  @media (max-width:560px) { .cf-ex { grid-template-columns:minmax(0,1fr); } }
   .nv-also-h { font:500 13px var(--sans); color:var(--ink-2); }
   .nv-also .nv { margin-top:6px; }
   /* "Be the first to record" — an invitation, never a player. */
@@ -1884,6 +1902,7 @@
               <select id="cfType">
                 <option value="translation">Translation (word / phrase)</option>
                 <option value="cultural_note">Cultural note</option>
+                <option value="context">Context for a word (how it's used)</option>
                 <option value="bible_verse">Bible verse</option>
               </select>
             </label>
@@ -1900,6 +1919,14 @@
             <label class="f-lab">Ga <input id="cfGa" type="text" placeholder="Ojekoo" /></label>
           </div>
           <!-- Say it in Ga: a speaker's recording, reviewed before anyone hears it. -->
+          <!-- Context for a word: when or how it's said, and the word in a sentence. -->
+          <div class="f-row hidden" id="cfContextRow">
+            <label class="f-lab">Context <span class="f-opt">when or how it's said</span>
+              <textarea id="cfContext" rows="3" maxlength="600" placeholder="e.g. Said to an elder. A reply when someone thanks you."></textarea></label>
+            <div class="f-lab">Example sentence <span class="f-opt">optional</span></div>
+            <div class="cf-ex"><input id="cfExGa" type="text" class="ga-key" maxlength="300" placeholder="The word in a Ga sentence" aria-label="Example sentence in Ga" />
+              <input id="cfExEn" type="text" maxlength="300" placeholder="The sentence in English" aria-label="Example sentence in English" /></div>
+          </div>
           <div class="f-row hidden" id="cfVoiceRow"></div>
           <div class="f-row">
             <label class="f-lab">Note <span class="f-opt">source or context, optional</span> <input id="cfNote" type="text" placeholder="e.g. heard from grandmother, Nii 1959" /></label>
@@ -2536,7 +2563,7 @@ function renderBlock(lines) {
   }
   return `<div class="verse">${out}</div>`;
 }
-function render(bubble, text) { bubble.classList.remove("streaming"); bubble.innerHTML = renderMarkdown(text); addVoice(bubble); }
+function render(bubble, text) { bubble.classList.remove("streaming"); bubble.innerHTML = renderMarkdown(text); addVoice(bubble); addWordContext(bubble); }
 
 /**
  * Stream a query into a bubble with a typewriter reveal. Bytes arrive into `acc`;
@@ -3296,6 +3323,53 @@ function addAlsoSaid(bubble) {
 
 /* A checked answer whose Ga has no recording: no player, only an invitation to
    record it. Worked-out ("not a checked entry yet") answers don't get one. */
+/* Context people added for a word (approved in the Review queue), and an
+   invitation to add more. Shown under checked word answers. */
+let WORD_CONTEXT = null, wordContextReq = null;
+function loadWordContext() {
+  return wordContextReq ||= fetch(`${API}/word-context`).then((r) => r.json())
+    .then((d) => (WORD_CONTEXT = new Map((d.words || []).map((w) => [w.key, w]))))
+    .catch(() => { wordContextReq = null; return (WORD_CONTEXT = new Map()); });
+}
+loadWordContext();
+function addWordContext(bubble) {
+  if (bubble.querySelector(".wc")) return;
+  const text = bubble.textContent || "";
+  if (/Not a checked entry yet/.test(text) || !/^In Ga, “|is Ga for “/.test(text.trim())) return;
+  const ga = bubble.querySelector("strong, b")?.textContent.replace(/\s*\(.*$/, "").trim().replace(/[.!?]+$/, "");
+  const english = (text.match(/“([^”]{1,80})”/) || [])[1];
+  if (!ga || ga.length > 40 || !english) return;
+  if (!WORD_CONTEXT) { loadWordContext().then(() => addWordContext(bubble)); return; }
+  const box = document.createElement("div");
+  box.className = "wc";
+  const w = WORD_CONTEXT.get(voiceKey(ga));
+  for (const n of (w?.notes || []).slice(0, 3)) {
+    const item = document.createElement("div");
+    item.className = "wc-note";
+    item.innerHTML = (n.context ? `<p>${escapeHtml(n.context)}</p>` : "") +
+      (n.example ? `<p class="wc-ex"><b>${escapeHtml(n.example.ga)}</b> — “${escapeHtml(n.example.en)}”</p>` : "") +
+      `<small>${n.by ? `Added by ${escapeHtml(n.by)}` : "Added by a SpeakGa speaker"}</small>`;
+    box.appendChild(item);
+  }
+  const add = document.createElement("button");
+  add.type = "button"; add.className = "wc-add";
+  add.textContent = w ? "Add more context" : `Add context for “${ga}”`;
+  add.onclick = () => openContextFor(english, ga);
+  box.appendChild(add);
+  // Under the voice player / "also said", above "be the first to record".
+  const first = bubble.querySelector(".nv-first");
+  if (first) first.before(box); else bubble.appendChild(box);
+}
+function openContextFor(english, ga) {
+  if ($("cfGuestRow")) $("cfGuestRow").classList.toggle("hidden", !!me);
+  setCfTab("text");
+  $("cfType").value = "context"; syncCfType();
+  $("cfEnglish").value = english; $("cfGa").value = ga;
+  $("cfContext").value = ""; $("cfExGa").value = ""; $("cfExEn").value = "";
+  openOverlay("contribOvl");
+  setTimeout(() => { $("cfContextRow").scrollIntoView({ block: "center", behavior: "smooth" }); $("cfContext").focus(); }, 80);
+}
+
 function addFirstToRecord(bubble) {
   if (!canRecord() || bubble.querySelector(".nv-first")) return;
   const text = bubble.textContent || "";
@@ -3313,7 +3387,7 @@ function addFirstToRecord(bubble) {
 function openRecordFor(english, ga) {
   if ($("cfGuestRow")) $("cfGuestRow").classList.toggle("hidden", !!me);
   setCfTab("text");
-  $("cfType").value = "translation"; $("cfBibleRow").classList.add("hidden");
+  $("cfType").value = "translation"; syncCfType();
   $("cfEnglish").value = english; $("cfGa").value = ga;
   openOverlay("contribOvl");
   setTimeout(() => $("cfVoiceRow").scrollIntoView({ block: "center", behavior: "smooth" }), 80);
@@ -5037,8 +5111,12 @@ $("contributeBtn").onclick = () => {
   setCfTab("text");
   openOverlay("contribOvl");
 };
-$("cfType").addEventListener("change", (e) =>
-  $("cfBibleRow").classList.toggle("hidden", e.target.value !== "bible_verse"));
+function syncCfType() {
+  const t = $("cfType").value;
+  $("cfBibleRow").classList.toggle("hidden", t !== "bible_verse");
+  $("cfContextRow").classList.toggle("hidden", t !== "context");
+}
+$("cfType").addEventListener("change", syncCfType);
 
 /* ---- Contribute tabs: a typed entry and an uploaded source are separate
    submissions, so each pane owns its own fields and its own validation. ---- */
@@ -5082,6 +5160,13 @@ $("contribForm").addEventListener("submit", async (e) => {
     const english = $("cfEnglish").value.trim(), ga = normalizeGaCase($("cfGa").value.trim());
     if (!english || !ga) { toast("Both English and Ga are needed"); return; }
     body = { type, english, ga, notes: $("cfNote").value.trim() || undefined };
+    if (type === "context") {
+      body.context = $("cfContext").value.trim() || undefined;
+      body.example_ga = normalizeGaCase($("cfExGa").value.trim()) || undefined;
+      body.example_en = $("cfExEn").value.trim() || undefined;
+      if (!body.context && !(body.example_ga && body.example_en)) { toast("Add the context, or an example sentence in Ga and English"); return; }
+      if (!!body.example_ga !== !!body.example_en) { toast("An example sentence needs both the Ga and the English"); return; }
+    }
   }
   // A recording goes with the text, but only with the speaker's consent.
   const take = !isDoc && cfRec?.take();
@@ -5133,10 +5218,12 @@ $("contribForm").addEventListener("submit", async (e) => {
     closeOverlays();
     $("contribForm").reset();
     $("cfBibleRow").classList.add("hidden");
+    $("cfContextRow").classList.add("hidden");
     cfFiles = []; renderCfFiles();
     resetCfVoice();
     setCfTab("text");
     toast(isDoc ? "Document submitted — a reviewer will transcribe it"
+        : body.type === "context" ? "Thanks — your context goes to review, then shows under the word's answer" + voiceNote
         : (d.has_conflict ? "Recorded — conflicts with an existing entry, queued for admin review"
         : "Submitted — staged for review") + voiceNote);
     refreshReviewCount();

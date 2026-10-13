@@ -8,6 +8,8 @@
  *  - bible_verse: a full verse record (book/chapter/verse + ga + en)
  *  - correction: fixes an existing KB entry (linked to interaction_id)
  *  - cultural_note: heritage context, stories, customs
+ *  - context: how a word is used (and the word in a sentence) — approved into
+ *    word_context, shown under the word's answer; never a dictionary entry
  *
  * All contributions land in `user_contributions` with `pending_review` status.
  * Non-conflicting contributions from 2+ independent users auto-verify.
@@ -24,7 +26,7 @@ import {
 } from "./attachments";
 
 export interface ContributeRequest {
-  type: "translation" | "bible_verse" | "correction" | "cultural_note" | "document";
+  type: "translation" | "bible_verse" | "correction" | "cultural_note" | "document" | "context";
   /** Required for every type except `document`. */
   english: string;
   ga: string;
@@ -38,6 +40,10 @@ export interface ContributeRequest {
   contributor_name?: string;
   contributor_email?: string;
   contributor_location?: string;
+  /** For context type: when/how it's said, and an optional example sentence. */
+  context?: string;
+  example_ga?: string;
+  example_en?: string;
   /** For bible_verse type only */
   book?: string;
   chapter?: number;
@@ -107,7 +113,7 @@ export async function handleContribute(request: Request, env: Env): Promise<Resp
 
   const { type, english, ga } = body;
 
-  const validTypes = ["translation", "bible_verse", "correction", "cultural_note", "document"];
+  const validTypes = ["translation", "bible_verse", "correction", "cultural_note", "document", "context"];
   if (!type || !validTypes.includes(type)) {
     return json({ error: `type must be one of: ${validTypes.join(", ")}` }, 400);
   }
@@ -133,6 +139,12 @@ export async function handleContribute(request: Request, env: Env): Promise<Resp
     }
     if (type === "bible_verse" && (!body.book || !body.chapter || !body.verse)) {
       return json({ error: "bible_verse requires book, chapter, verse" }, 400);
+    }
+    if (type === "context") {
+      const ctx = body.context?.trim() || "", exGa = body.example_ga?.trim() || "", exEn = body.example_en?.trim() || "";
+      if (!ctx && !(exGa && exEn)) return json({ error: "Add the context, or an example sentence in Ga and English." }, 400);
+      if ((exGa && !exEn) || (!exGa && exEn)) return json({ error: "An example sentence needs both the Ga and the English." }, 400);
+      if (ctx.length > 600 || exGa.length > 300 || exEn.length > 300) return json({ error: "Keep the context under 600 characters and the sentence under 300." }, 400);
     }
   }
 
@@ -219,6 +231,30 @@ export async function handleContribute(request: Request, env: Env): Promise<Resp
     // Evidence for the reviewer. Stored, never parsed or indexed.
     attachments,
   });
+
+  // Context for a word: straight to review. It is never a translation vote, so
+  // it skips the agreement / auto-verify handler below.
+  if (type === "context") {
+    const ctx = body.context?.trim() || "", exGa = body.example_ga?.trim() || "", exEn = body.example_en?.trim() || "";
+    const meta = JSON.parse(metadata);
+    meta.context = ctx || null;
+    meta.example_ga = exGa || null;
+    meta.example_en = exEn || null;
+    // What the review card shows.
+    meta.notes = [ctx && `Context: ${ctx}`, exGa && `Example: ${exGa} — “${exEn}”`, body.notes?.trim()].filter(Boolean).join("\n");
+    const id = crypto.randomUUID();
+    try {
+      await env.DB.prepare(
+        `INSERT INTO user_contributions (id, original_query, user_answer, category, timestamp, status,
+         agreement_score, conflict_group_id, contribution_count, ai_confidence, contributor_id, ai_issues)
+         VALUES (?, ?, ?, ?, ?, 'pending_review', 0, NULL, 1, 0, ?, ?)`
+      ).bind(id, queryText, answerText, category, new Date().toISOString(), userId, JSON.stringify(meta)).run();
+    } catch (e) {
+      console.error("context contribution insert failed:", e);
+      return json({ status: "error", message: "Couldn't save that — try again." }, 503);
+    }
+    return json({ status: "ok", contribution_id: id, type, message: "Thanks — an admin reviews it before it shows." }, 201);
+  }
 
   try {
     // Check for conflicts via the existing learning-from-gaps handler.

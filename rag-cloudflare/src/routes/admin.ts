@@ -22,6 +22,7 @@ import { ocrImage, textToPairs, parsePairs, tryParseStructuredPairs } from "../r
 import { embed } from "../rag/embeddings";
 import { foldGa } from "../db/vocabulary";
 import { normalizeGaCase } from "../rag/ga";
+import { voiceKey } from "./voices";
 import { slugifyFilename, timestampSlug, humanFileSize, humanizeTimestamp, nowIso } from "../utils/time";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -624,6 +625,30 @@ app.post("/contributions/:id/approve", async (c) => {
     isQuotaError(e)
       ? c.json({ detail: "D1 daily write limit reached — approve can't complete right now. It resets at midnight UTC; upgrading to Workers Paid removes the cap." }, 503)
       : null;
+
+  // Context for a word: goes to word_context (shown under the word's answer),
+  // never to vocabulary.
+  if (meta.type === "context") {
+    let name: string | null = meta.contributor_name || null;
+    if (!name && meta.contributor_id) {
+      const u = await c.env.DB.prepare("SELECT first_name, display_name FROM users WHERE id = ?")
+        .bind(meta.contributor_id).first<{ first_name: string | null; display_name: string | null }>().catch(() => null);
+      name = (u?.first_name || u?.display_name || "").trim().split(/\s+/)[0] || null;
+    }
+    try {
+      await c.env.DB.batch([
+        statusUpdate,
+        c.env.DB.prepare(
+          `INSERT INTO word_context (id, ga, ga_key, english, context, example_ga, example_en, contributor_id, contributor_name, contribution_id, approved_by, approved_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(crypto.randomUUID(), ga, voiceKey(ga), row.original_query, meta.context || null, meta.example_ga || null, meta.example_en || null,
+          meta.contributor_id || null, name, row.id, adminId, now),
+      ]);
+    } catch (e) {
+      return quotaResponse(e) ?? (() => { throw e; })();
+    }
+    return c.json({ status: "success", message: `Context added to “${ga}”. It shows under its answer in the app.` });
+  }
 
   // A `document` submission is a source, not a word pair — it has no Ga answer,
   // so it must never reach the vocabulary insert below.
