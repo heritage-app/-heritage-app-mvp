@@ -1477,7 +1477,14 @@
   .sidebar { width:300px; background:var(--bg); border-right:1px solid var(--line); padding:14px 12px 12px; gap:10px; }
   body.nav-collapsed .sidebar { padding:0; }
   .sb-head { display:flex; align-items:center; gap:10px; padding:4px 4px 6px; }
-  .sb-mark { width:32px; height:32px; flex:none; border-radius:10px; background:var(--ink); color:var(--bg); display:grid; place-items:center; font:800 15px var(--display); }
+  .sb-mark { width:28px; height:32px; flex:none; object-fit:contain; }
+  /* One way to open and close the sidebar at a time: on wide screens, while it's
+     open, its own close button is the control; the header ≡ returns when it's closed. */
+  @media (min-width:861px) {
+    body:not(.nav-collapsed) .sidebar:not(.hidden) ~ .maincol .menu-btn { display:none !important; }
+  }
+  /* Chat list: what the chat is about now, then what it started with. */
+  .conv .was { font:500 11.5px var(--sans); color:var(--faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:22px; }
   .sb-title { flex:1; font:800 19px var(--display); letter-spacing:-.3px; white-space:nowrap; }
   .sb-collapse { width:40px; height:40px; border-radius:50%; background:var(--paper-2); color:var(--ink-2); padding:0; }
   .sb-collapse:hover { background:var(--paper-3); color:var(--ink); }
@@ -1527,7 +1534,7 @@
 <body>
   <nav class="sidebar hidden" id="history" aria-label="Your chats">
     <div class="sb-head">
-      <span class="sb-mark">H</span>
+      <img class="sb-mark" src="img/brand/speakga-mark.png" width="226" height="256" alt="SpeakGa">
       <b class="sb-title">Your chats</b>
       <button class="sb-collapse" id="collapseBtn" type="button" aria-label="Close the sidebar" title="Close the sidebar">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><line x1="9" y1="4" x2="9" y2="20"/></svg>
@@ -2849,10 +2856,21 @@ async function loadConversations() {
       const b = document.createElement("div");
       b.className = "conv" + (c.conversation_id === conversationId ? " active" : "");
       b.dataset.id = c.conversation_id; b.tabIndex = 0;
-      const t = document.createElement("div"); t.className = "t"; t.textContent = c.title || "New conversation";
+      // The title comes from the first question; once the chat has moved on
+      // ("Number one in Ga" → "it is raining"), lead with the latest question
+      // and keep the title as what it started with.
+      const snip = convSnippet(c.last_message), title = c.title || "New conversation";
+      // Same topic once question framing is set aside: "how do you say good
+      // morning in ga" is the chat titled "Good morning in Ga".
+      const n = (s) => s.toLowerCase().replace(/[^\p{L}\p{N} ]+/gu, " ")
+        .replace(/^\s*(please\s+)?(how\s+(do|can|would)\s+(you|i|we)\s+(say|write|ask)|what\s+(is|does|do)|whats|translate|tell\s+me(\s+about)?|teach\s+me)\s+/, "")
+        .replace(/\s+(in|into)\s+ga(\s+language)?\s*$/, "").replace(/\s+mean\s*$/, "").replace(/\s+/g, " ").trim();
+      const same = (a, b2) => { const x = n(a), y = n(b2); return !x || x === y || y.includes(x) || x.includes(y); };
+      const movedOn = snip && !same(snip, title);
+      const t = document.createElement("div"); t.className = "t";
+      t.textContent = movedOn ? snip.charAt(0).toUpperCase() + snip.slice(1) : title;
       b.appendChild(t);
-      const snip = convSnippet(c.last_message);
-      if (snip) { const m = document.createElement("div"); m.className = "m"; m.textContent = snip; b.appendChild(m); }
+      if (movedOn) { const w = document.createElement("div"); w.className = "was"; w.textContent = `Started with: ${title}`; b.appendChild(w); }
       b.title = c.last_activity || "";
       b.setAttribute("role", "button");
       b.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openConversation(c.conversation_id); } };
