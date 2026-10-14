@@ -1079,10 +1079,6 @@ async function vocabByEnglish(db: D1Database): Promise<Map<string, { id: string;
   }
   return map;
 }
-async function existingGaFor(db: D1Database, english: string): Promise<{ id: string; headword: string }[]> {
-  return (await vocabByEnglish(db)).get(enKey(english)) ?? [];
-}
-
 app.post("/alignments/build", async (c) => {
   const docs = await c.env.DB.prepare(
     "SELECT unique_path FROM documents WHERE category = 'heritage' AND unique_path LIKE '%.jsonl'"
@@ -1220,20 +1216,18 @@ app.get("/alignments", async (c) => {
   return c.json({ alignments, total: total?.n ?? 0, counts: { gatitos: counts?.gatitos ?? 0, corpus: counts?.corpus ?? 0 } });
 });
 
-app.post("/alignments/:id/promote", async (c) => {
-  const adminId = c.get("adminId")!;
-  const id = c.req.param("id");
-  const row = await c.env.DB.prepare("SELECT * FROM word_alignments WHERE id = ?").bind(id).first<any>();
-  if (!row) return c.json({ detail: "Alignment not found" }, 404);
-  if (row.status === "promoted") return c.json({ detail: "Already promoted" }, 409);
-
-  // The reviewer may correct the Ga spelling, or the English, before approving.
-  const body = await c.req.json<{ ga?: string; english?: string }>().catch(() => ({} as { ga?: string; english?: string }));
-  const ga = normalizeGaCase((body.ga ?? "").trim() || row.ga_word);
-  const english = (body.english ?? "").trim() || row.english_word;
+// The statements that approve one suggestion into the checked dictionary. The
+// reviewer may correct the Ga spelling, or the English, before approving.
+function promoteStatements(
+  db: D1Database, adminId: string, row: any,
+  byEnglish: Map<string, { id: string; headword: string }[]>,
+  edits: { ga?: string; english?: string }
+) {
+  const ga = normalizeGaCase((edits.ga ?? "").trim() || row.ga_word);
+  const english = (edits.english ?? "").trim() || row.english_word;
   const fromGatitos = String(row.source || "").startsWith("gatitos");
 
-  const existing = (await existingGaFor(c.env.DB, english)).filter(
+  const existing = (byEnglish.get(enKey(english)) ?? []).filter(
     (x) => foldGa(x.headword.toLowerCase()) !== foldGa(ga.toLowerCase())
   );
   const variation = existing.length
@@ -1243,7 +1237,7 @@ app.post("/alignments/:id/promote", async (c) => {
   const now = nowIso();
   const vid = `vocab:align:${english}:${ga}`;
   const stmts = [
-    c.env.DB.prepare(
+    db.prepare(
       `INSERT OR REPLACE INTO vocabulary
          (id, headword, headword_normalized, part_of_speech, meanings, translations,
           examples, variants, phonetic, category, source, verified_by, verified_at)
@@ -1262,18 +1256,68 @@ app.post("/alignments/:id/promote", async (c) => {
       adminId,
       now
     ),
-    c.env.DB.prepare(
+    db.prepare(
       "UPDATE word_alignments SET status = 'promoted', ga_word = ?, english_word = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ?"
-    ).bind(ga, english, adminId, now, id),
+    ).bind(ga, english, adminId, now, row.id),
   ];
+  return { stmts, vid };
+}
+
+const writeLimitHit = (e: unknown) => /row write limit|exceeded D1/i.test(String(e));
+
+app.post("/alignments/:id/promote", async (c) => {
+  const adminId = c.get("adminId")!;
+  const id = c.req.param("id");
+  const row = await c.env.DB.prepare("SELECT * FROM word_alignments WHERE id = ?").bind(id).first<any>();
+  if (!row) return c.json({ detail: "Alignment not found" }, 404);
+  if (row.status === "promoted") return c.json({ detail: "Already promoted" }, 409);
+
+  const body = await c.req.json<{ ga?: string; english?: string }>().catch(() => ({} as { ga?: string; english?: string }));
+  const { stmts, vid } = promoteStatements(c.env.DB, adminId, row, await vocabByEnglish(c.env.DB), body);
   try {
     await c.env.DB.batch(stmts);
   } catch (e) {
-    if (/row write limit|exceeded D1/i.test(String(e)))
-      return c.json({ detail: "D1 daily write limit reached — resets at midnight UTC." }, 503);
+    if (writeLimitHit(e)) return c.json({ detail: "D1 daily write limit reached — resets at midnight UTC." }, 503);
     throw e;
   }
   return c.json({ status: "success", vocabulary_id: vid });
+});
+
+// Approve or reject many suggestions at once (up to 100 per call; the console
+// works through "all matching" in chunks). Each item may carry corrections.
+app.post("/alignments/bulk", async (c) => {
+  const adminId = c.get("adminId")!;
+  const body = await c.req.json<{ action?: string; items?: { id: string; ga?: string; english?: string }[] }>()
+    .catch(() => ({} as { action?: string; items?: { id: string; ga?: string; english?: string }[] }));
+  const action = body.action;
+  const items = (body.items ?? []).filter((x) => x && typeof x.id === "string").slice(0, 100);
+  if (action !== "approve" && action !== "reject") return c.json({ detail: "action must be approve or reject" }, 400);
+  if (!items.length) return c.json({ done: 0, skipped: 0 });
+
+  const ids = items.map((x) => x.id);
+  const rows = await c.env.DB.prepare(
+    `SELECT * FROM word_alignments WHERE status = 'inferred' AND id IN (${ids.map(() => "?").join(",")})`
+  ).bind(...ids).all<any>();
+  const found = new Map((rows.results ?? []).map((r) => [r.id, r]));
+  const now = nowIso();
+  const stmts: D1PreparedStatement[] = [];
+  if (action === "reject") {
+    for (const id of found.keys())
+      stmts.push(c.env.DB.prepare("UPDATE word_alignments SET status = 'rejected', reviewed_by = ?, reviewed_at = ? WHERE id = ?").bind(adminId, now, id));
+  } else {
+    const byEnglish = await vocabByEnglish(c.env.DB);
+    for (const it of items) {
+      const row = found.get(it.id);
+      if (row) stmts.push(...promoteStatements(c.env.DB, adminId, row, byEnglish, it).stmts);
+    }
+  }
+  try {
+    if (stmts.length) await c.env.DB.batch(stmts);
+  } catch (e) {
+    if (writeLimitHit(e)) return c.json({ detail: "D1 daily write limit reached — resets at midnight UTC." }, 503);
+    throw e;
+  }
+  return c.json({ done: found.size, skipped: items.length - found.size });
 });
 
 app.post("/alignments/:id/reject", async (c) => {

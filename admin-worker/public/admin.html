@@ -131,7 +131,10 @@ button.kpi{cursor:pointer}button.kpi:hover{box-shadow:inset 0 0 0 1px var(--fain
 .ven-st{display:block;font-size:11.5px;min-height:15px;color:var(--muted)}
 .ven-st.ok{color:var(--ok)}.ven-st.bad{color:var(--bad)}
 /* Suggested words: English and Ga get equal room. */
-#sgList td:nth-child(1),#sgList td:nth-child(2){width:42%}
+#sgList td:nth-child(2),#sgList td:nth-child(3){width:42%}
+.sg-bulk{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0}
+.sg-bulk #sgSel{font-size:13px;color:var(--muted,#667);min-width:84px}
+.sg-sep{flex:1}
 #sgList .ven{min-width:0}
 .vdraft{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
 .vdet-btn{border:0;background:none;padding:0;margin-top:2px;cursor:pointer;font:700 12px var(--sans);color:var(--gold-ink);text-decoration:underline;text-underline-offset:3px}
@@ -363,7 +366,16 @@ input.gaip{font:700 16px var(--display)}
       <div class="panel">
         <h2><span class="tabs" role="tablist" id="sgTabs"><button role="tab" aria-selected="true" data-src="gatitos">GATITOS <span class="num" id="sgCountG"></span></button><button role="tab" aria-selected="false" data-src="corpus">Corpus guesses <span class="num" id="sgCountC"></span></button></span></h2>
         <input class="vsearch" id="sgSearch" type="search" placeholder="Find an English or Ga word" aria-label="Find a suggested word">
-        <div class="tbl-wrap"><table><thead><tr><th>English</th><th>Ga</th><th></th></tr></thead><tbody id="sgList"></tbody></table></div>
+        <div class="sg-bulk" id="sgBulk">
+          <span id="sgSel">0 selected</span>
+          <button class="btn sm ok" data-bulk="approve" data-scope="sel" disabled>Approve selected</button>
+          <button class="btn sm bad" data-bulk="reject" data-scope="sel" disabled>Reject selected</button>
+          <span class="sg-sep"></span>
+          <button class="btn sm" data-bulk="approve" data-scope="all">Approve all <span id="sgAllN"></span></button>
+          <button class="btn sm" data-bulk="reject" data-scope="all">Reject all <span id="sgAllN2"></span></button>
+          <small class="ven-st" id="sgBulkSt"></small>
+        </div>
+        <div class="tbl-wrap"><table><thead><tr><th style="width:1%"><input type="checkbox" id="sgAll" aria-label="Select every row on this page"></th><th>English</th><th>Ga</th><th></th></tr></thead><tbody id="sgList"></tbody></table></div>
         <div class="pager" id="sgPager"></div>
       </div>
     </section>
@@ -1024,21 +1036,26 @@ document.addEventListener("click", async (e) => {
 const SG = { src: "gatitos", page: 0, size: 50, q: "" };
 loaders.suggest = () => loadSuggest();
 async function loadSuggest() {
-  $("sgList").innerHTML = '<tr><td colspan="3" class="loading">Loading…</td></tr>';
+  $("sgList").innerHTML = '<tr><td colspan="4" class="loading">Loading…</td></tr>';
   let d;
   try {
     d = await api(`/admin/alignments?status=inferred&source=${SG.src}&limit=${SG.size}&offset=${SG.page * SG.size}${SG.q ? `&q=${encodeURIComponent(SG.q)}` : ""}`);
-  } catch (e) { $("sgList").innerHTML = `<tr><td colspan="3" class="empty">${esc(e.message)}</td></tr>`; return; }
+  } catch (e) { $("sgList").innerHTML = `<tr><td colspan="4" class="empty">${esc(e.message)}</td></tr>`; return; }
   $("sgCountG").textContent = d.counts.gatitos ? `(${fmt(d.counts.gatitos)})` : "";
   $("sgCountC").textContent = d.counts.corpus ? `(${fmt(d.counts.corpus)})` : "";
   $("ctSuggest").textContent = d.counts.gatitos || "";
   $("sgList").innerHTML = d.alignments.length ? d.alignments.map((a) => {
     const note = a.existing?.length ? '<small class="muted">Dictionary already has: ' + a.existing.map((x) => '<b>' + esc(x.headword) + '</b>').join(', ') + ' — approve to add this as another way to say it.</small>' : '';
-    return `<tr id="sg-${esc(a.id)}">
+    return `<tr id="sg-${esc(a.id)}" data-id="${esc(a.id)}">
+      <td><input type="checkbox" data-sg-pick aria-label="Select ${esc(a.english_word)}"></td>
       <td><input class="ven" data-sg-en value="${esc(a.english_word)}" aria-label="English">${note}</td>
       <td><input class="ven ga" data-sg-ga value="${esc(a.ga_word)}" aria-label="Ga"></td>
       <td><div class="row-actions" style="flex-wrap:nowrap"><button class="btn sm ok" data-sg="approve" data-id="${esc(a.id)}"${a.existing?.length ? ' data-var="1"' : ''}>${a.existing?.length ? "Add as variation" : "Approve"}</button><button class="btn sm bad" data-sg="reject" data-id="${esc(a.id)}">Reject</button></div><small class="ven-st" data-sg-st></small></td></tr>`;
-  }).join("") : `<tr><td colspan="3" class="empty">${SG.q ? "No suggestion matches." : "Nothing to review here."}</td></tr>`;
+  }).join("") : `<tr><td colspan="4" class="empty">${SG.q ? "No suggestion matches." : "Nothing to review here."}</td></tr>`;
+  SG.total = d.total || 0;
+  $("sgAllN").textContent = $("sgAllN2").textContent = SG.total ? fmt(SG.total) + (SG.q ? " matching" : "") : "";
+  $$("#sgBulk [data-scope=all]").forEach((x) => (x.disabled = !SG.total || SG.busy));
+  $("sgAll").checked = false; sgSyncSel();
   const pages = Math.ceil((d.total || 0) / SG.size);
   $("sgPager").innerHTML = pages > 1 ? `<span class="pinfo">Page ${SG.page + 1} of ${fmt(pages)} · ${fmt(d.total)} in all</span><button class="btn sm" id="sgPrev" ${SG.page ? "" : "disabled"}>Previous</button><button class="btn sm" id="sgNext" ${SG.page < pages - 1 ? "" : "disabled"}>Next</button>` : "";
   $("sgPrev") && ($("sgPrev").onclick = () => { SG.page--; loadSuggest(); });
@@ -1064,6 +1081,55 @@ $("sgList").addEventListener("click", async (e) => {
     tr.style.opacity = ".45"; st.textContent = approve ? (b.dataset.var === "1" ? "Added as another way to say it" : "Added to the dictionary") : "Rejected"; st.className = "ven-st " + (approve ? "ok" : "");
     setTimeout(() => { tr.remove(); if (!$("sgList").children.length) loadSuggest(); }, 900);
   } catch (err) { st.textContent = err.message; st.className = "ven-st bad"; $$("button", tr).forEach((x) => (x.disabled = false)); }
+});
+
+// Bulk: tick rows (or the header box for the whole page) and approve/reject the
+// selection with any corrections typed in, or work through every suggestion that
+// matches the current tab and search, 100 at a time.
+function sgPicked() { return $$("#sgList [data-sg-pick]:checked").map((x) => x.closest("tr")); }
+function sgSyncSel() {
+  const n = sgPicked().length, boxes = $$("#sgList [data-sg-pick]");
+  $("sgSel").textContent = `${n} selected`;
+  $$("#sgBulk [data-scope=sel]").forEach((x) => (x.disabled = !n || SG.busy));
+  $("sgAll").checked = !!boxes.length && n === boxes.length;
+  $("sgAll").indeterminate = n > 0 && n < boxes.length;
+}
+$("sgAll").addEventListener("change", () => { $$("#sgList [data-sg-pick]").forEach((x) => (x.checked = $("sgAll").checked)); sgSyncSel(); });
+$("sgList").addEventListener("change", (e) => { if (e.target.matches("[data-sg-pick]")) sgSyncSel(); });
+const sgItem = (tr) => ({ id: tr.dataset.id, english: tr.querySelector("[data-sg-en]").value.trim(), ga: tr.querySelector("[data-sg-ga]").value.trim() });
+$("sgBulk").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-bulk]"); if (!b || SG.busy) return;
+  const action = b.dataset.bulk, all = b.dataset.scope === "all", st = $("sgBulkSt");
+  const verb = action === "approve" ? "Approv" : "Reject";
+  const tab = SG.src === "gatitos" ? "GATITOS" : "corpus-guess";
+  if (all && !confirm(`${verb}${action === "approve" ? "e" : ""} all ${fmt(SG.total)} ${tab} suggestions${SG.q ? ` matching “${SG.q}”` : ""}?${action === "approve" ? "\n\nThey go straight into the checked dictionary that learners see." : ""}`)) return;
+  SG.busy = true; $$("#sgBulk button").forEach((x) => (x.disabled = true)); st.className = "ven-st";
+  let done = 0, failed = "";
+  try {
+    if (!all) {
+      const items = sgPicked().map(sgItem);
+      for (let i = 0; i < items.length; i += 100) {
+        st.textContent = `${verb}ing ${fmt(done)} of ${fmt(items.length)}…`;
+        done += (await api("/admin/alignments/bulk", { json: { action, items: items.slice(i, i + 100) } })).done;
+      }
+    } else {
+      // Reviewed rows leave the list, so always take the first 100 that still match.
+      // Corrections typed on the visible page are kept for those rows.
+      const edits = new Map($$("#sgList tr[data-id]").map((tr) => [tr.dataset.id, sgItem(tr)]));
+      for (;;) {
+        st.textContent = `${verb}ing… ${fmt(done)} of ${fmt(SG.total)}`;
+        const d = await api(`/admin/alignments?status=inferred&source=${SG.src}&limit=100&offset=0${SG.q ? `&q=${encodeURIComponent(SG.q)}` : ""}`);
+        if (!d.alignments.length) break;
+        const r = await api("/admin/alignments/bulk", { json: { action, items: d.alignments.map((a) => edits.get(a.id) || { id: a.id }) } });
+        if (!r.done) break;
+        done += r.done;
+      }
+    }
+  } catch (err) { failed = err.message; }
+  SG.busy = false;
+  st.textContent = `${action === "approve" ? "Approved" : "Rejected"} ${fmt(done)}${failed ? ` — stopped: ${failed}` : ""}`;
+  st.className = "ven-st " + (failed ? "bad" : action === "approve" ? "ok" : "");
+  SG.page = 0; loadSuggest();
 });
 
 /* ================= DOCUMENTS ================= */
