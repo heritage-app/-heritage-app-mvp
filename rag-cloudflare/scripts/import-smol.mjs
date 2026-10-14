@@ -77,6 +77,10 @@ for (const p of unique) {
 }
 // Re-runnable: clear the previous SMOL rows first.
 sql.unshift(`DELETE FROM corpus_pairs WHERE src = ${q(CORPUS_SRC)};`);
+// Human-translated sets get negative ids so every corpus scan (which runs in id
+// order and stops at its LIMIT) reaches them before the bulk sets
+// (src/db/prefer-human-corpus.sql).
+sql.push(`UPDATE corpus_pairs SET id = -id WHERE src = ${q(CORPUS_SRC)} AND id > 0;`);
 fs.writeFileSync(OUT, sql.join("\n") + "\n");
 console.log(`GATITOS: ${suggested} suggestions (skipped ${skippedFn} function words, ${skippedHave} already in the dictionary)`);
 console.log(`SMOL: ${unique.length} sentence pairs → datasets/ga-smol-sentences.jsonl and corpus_pairs`);

@@ -526,7 +526,12 @@ async function insideAPhraseAnswer(
   // A long sentence ("How do I know if a crop I want to plant needs a lot of
   // water…" for "i want water") teaches nothing about the phrase: only quote
   // short ones.
-  if (hitToks.size > (contains ? 14 : 8) && !bothQuestions) {
+  // "it will rain today" must never be answered with "…it will NOT rain
+  // today": a sentence that negates what was asked (or the reverse) says the
+  // opposite, so it's treated like an unusable hit.
+  const NEGATION = /\b(?:not|never|no|cannot|nothing|nobody|none|nowhere)\b|n['’]t\b/i;
+  const flipped = NEGATION.test(hit.eng) !== NEGATION.test(word);
+  if ((hitToks.size > (contains ? 14 : 8) && !bothQuestions) || flipped) {
     // The hit is a long statement that can't stand in for the asked question —
     // but a parallel QUESTION in the corpus can ("treat pests" → the archive's
     // "control pests" question is the same need). Quote it before gap-filling.
@@ -2018,7 +2023,7 @@ async function* askGeneral(
   // Scans below-threshold candidates too: Ga-word queries embed poorly with the
   // English embedding model, but an exact folded word match is the stronger signal. ---
 
-  const hits: Array<{ mc: number; extra: number; content: number; def: boolean; score: number; eng: string; ga: string; gaSide: boolean; cat: string; image: string }> = [];
+  const hits: Array<{ mc: number; extra: number; content: number; def: boolean; inflOnly: number; score: number; eng: string; ga: string; gaSide: boolean; cat: string; image: string }> = [];
   const seen = new Set<string>();
   // The corpus source keeps typographic spacing ("school .", trailing ")
   // — tidy it for display so quoted sentences read naturally.
@@ -2052,9 +2057,13 @@ async function* askGeneral(
     let mcEn = 0;
     let mcGa = 0;
     let matchedCount = 0;
+    // Query words this record matches only as another form ("raining" ~
+    // "RAIN!"): an exact "It is raining" must outrank it.
+    let inflOnly = 0;
     for (const w of queryWords) {
       let matched = false;
       if (engWords.has(w)) { mcEn++; matched = true; }
+      else if (!gaWords.has(w)) inflOnly++;
       if (!towardGa && gaWords.has(w)) { mcGa++; matched = true; }
       // Near-matches, each for a specific reason and no looser:
       //  - English: an inflection of the same word — "alphabets" ~ "alphabet",
@@ -2126,7 +2135,7 @@ async function* askGeneral(
           cat !== "corpus" &&
           queryWords.length > 0 &&
           (leadsEng || leadsGa);
-        hits.push({ mc, extra, content, def, score: n.score ?? 0, eng, ga, gaSide, cat, image: String(n.metadata?.image ?? "") });
+        hits.push({ mc, extra, content, def, inflOnly, score: n.score ?? 0, eng, ga, gaSide, cat, image: String(n.metadata?.image ?? "") });
       }
     }
   }
@@ -2138,7 +2147,7 @@ async function* askGeneral(
     // translation. Ga length, then score, break the rest.
     // Every hit matched ALL query content words — mc only differs by words
     // counted in both fields — so definitional records outrank before mc.
-    hits.sort((a, b) => Number(b.def) - Number(a.def) || b.mc - a.mc || Number(b.gaSide) - Number(a.gaSide) || a.extra - b.extra || a.ga.length - b.ga.length || b.score - a.score);
+    hits.sort((a, b) => Number(b.def) - Number(a.def) || b.mc - a.mc || Number(b.gaSide) - Number(a.gaSide) || a.inflOnly - b.inflOnly || a.extra - b.extra || a.ga.length - b.ga.length || b.score - a.score);
     const gaShown = modernizeGa(hits[0].ga);
     const definitional = hits[0].def;
     // When over ~40% of the record's meaning wasn't asked for, answer with
