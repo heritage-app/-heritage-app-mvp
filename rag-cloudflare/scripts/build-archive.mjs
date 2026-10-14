@@ -22,7 +22,7 @@ for (const f of WORD_SETS) for (const r of load(f)) {
 }
 
 // Stories: one per storybook, titled by its title record.
-const storyRows = load("ga-storybooks-ghana");
+const storyRows = [...load("ga-storybooks-ghana"), ...load("ga-storybooks-asb")];
 const stories = [...new Set(storyRows.map((r) => r.story))].map((id) => {
   const rows = storyRows.filter((r) => r.story === id);
   const title = rows.find((r) => /title/.test(r.topic || ""))?.english || rows[0].english;

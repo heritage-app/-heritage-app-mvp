@@ -36,6 +36,186 @@ export const STORIES = [
     "title": "I like to read!",
     "lines": 9,
     "source": "global-asp.github.io/storybooks-ghana (CC-BY 3.0)"
+  },
+  {
+    "id": "asb-51148",
+    "title": "Tortoise the hero",
+    "lines": 13,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Ntombifuthi Ncwayiba, Ga translation by Evans Korletey-Tene, illustrations by Language - Ga"
+  },
+  {
+    "id": "asb-22507",
+    "title": "Aku the Sun Maker",
+    "lines": 13,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Aisha Nelson, illustrations by Idowu Abayomi Oluwasegun"
+  },
+  {
+    "id": "asb-18337",
+    "title": "Magozwe (retold as Ankamafio)",
+    "lines": 17,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Lesley Koyi, Ga translation by Elizabeth Ocansey (OLE Ghana), illustrations by Wiehan de Jager"
+  },
+  {
+    "id": "asb-50088",
+    "title": "Ann interviews AI",
+    "lines": 13,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Nina Orange, Ga translation by Evans Korletey-Tene, illustrations by Kenneth Boyowa Okitikpi"
+  },
+  {
+    "id": "asb-24799",
+    "title": "How Ant saved Dove",
+    "lines": 29,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Judith Baker, Kholeka Mabeta, Ga translation by Aisha Nelson, illustrations by Wiehan de Jager"
+  },
+  {
+    "id": "asb-22165",
+    "title": "Cassava and Palm",
+    "lines": 16,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Divine Apedo, Elizabeth Nkrumah, Georgina Abbey, illustrations by Brian Wambi"
+  },
+  {
+    "id": "asb-50087",
+    "title": "Ella and the Apple Tree of Wisdom",
+    "lines": 9,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Nneoma Ejeagba, Ga translation by Evans Korletey-Tene, illustrations by Nneoma Ejeagba"
+  },
+  {
+    "id": "asb-49569",
+    "title": "Hospitality",
+    "lines": 13,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Alassane Sonta, Amadomo dit Issaka Kodio, Djénèba Ganesse, Sira Diakité, Ga translation by Evans Korletey-Tene, illustrations by Arthur Makali"
+  },
+  {
+    "id": "asb-51244",
+    "title": "Little Leaders: Keeping our environment clean",
+    "lines": 9,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Ruth Asuquo, Gideon Eyo, Ga translation by Evans Korletey-Tene, illustrations by Language - Ga"
+  },
+  {
+    "id": "asb-49570",
+    "title": "Five foolish men",
+    "lines": 9,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Chuol Dow Wich, Ga translation by Evans Korletey-Tene, illustrations by Kenneth Boyowa Okitikpi"
+  },
+  {
+    "id": "asb-51128",
+    "title": "Maṱodzi's kindness",
+    "lines": 13,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Tshedza Tlhako, Ga translation by Evans Korletey-Tene, illustrations by Busisiwe Ndlovu"
+  },
+  {
+    "id": "asb-18336",
+    "title": "King Kayanja and his daughter",
+    "lines": 17,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Amana Yunus, Ga translation by Divine Apedo (OLE Ghana), illustrations by Natalie Propa"
+  },
+  {
+    "id": "asb-51127",
+    "title": "Magezi's drum",
+    "lines": 9,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Hlekane Paulinah Baloyi, Ga translation by Evans Korletey-Tene, illustrations by Language - Ga"
+  },
+  {
+    "id": "asb-51147",
+    "title": "Mama Sophie, the brave one",
+    "lines": 13,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Thandiwe Dlodlo, Ga translation by Evans Korletey-Tene, illustrations by Simon Mokoena"
+  },
+  {
+    "id": "asb-51125",
+    "title": "Cat and Dog are friends",
+    "lines": 13,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Yamkela Mbhele, Ga translation by Evans Korletey-Tene, illustrations by Busisiwe Ndlovu"
+  },
+  {
+    "id": "asb-25743",
+    "title": "Why Ajao was not buried",
+    "lines": 13,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Taiwo Ẹhinẹni, Ga translation by Aisha Nelson, illustrations by Jesse Breytenbach"
+  },
+  {
+    "id": "asb-51126",
+    "title": "Clever Nomusa",
+    "lines": 13,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Zandile Malaza, Ga translation by Evans Korletey-Tene, illustrations by Simon Mokoena"
+  },
+  {
+    "id": "asb-51149",
+    "title": "Man with a serious problem",
+    "lines": 17,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Ursula Nafula, Ga translation by Evans Korletey-Tene, illustrations by Abraham Muzee"
+  },
+  {
+    "id": "asb-18295",
+    "title": "Pendo, our cow",
+    "lines": 13,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Ruth Odondi, Ga translation by Divine Apedo (OLE Ghana), illustrations by Catherine Groenewald, Rob Owen"
+  },
+  {
+    "id": "asb-18291",
+    "title": "Greedy Kiundu",
+    "lines": 13,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Mutugi Kamundi, Ga translation by Divine Apedo (OLE Ghana), illustrations by Zablon Alex Nguku"
+  },
+  {
+    "id": "asb-31679",
+    "title": "Sara's Canoe",
+    "lines": 13,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Little Zebra Books, Ga translation by Ezekiel Johnson, illustrations by Rachel Greer"
+  },
+  {
+    "id": "asb-18338",
+    "title": "Holidays with grandmother",
+    "lines": 13,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Violet Otieno, Ga translation by Divine Apedo (OLE Ghana), illustrations by Catherine Groenewald"
+  },
+  {
+    "id": "asb-51259",
+    "title": "Thakgalo's musical wheelchair",
+    "lines": 9,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Diana Tebeila, Ga translation by Evans Korletey-Tene, illustrations by Diana Tebeila"
+  },
+  {
+    "id": "asb-51258",
+    "title": "Tom the banana seller",
+    "lines": 13,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Humphreys Odunga, Ga translation by Evans Korletey-Tene, illustrations by Atilabachew Reda"
+  },
+  {
+    "id": "asb-50052",
+    "title": "Our special school",
+    "lines": 9,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Juwayiliya Bunaya, Zahira Suwedi, Ga translation by Evans Korletey-Tene, illustrations by Yankho Jere"
+  },
+  {
+    "id": "asb-50077",
+    "title": "We live in a skyscraper",
+    "lines": 13,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Nina Orange, Ursula Nafula, Ga translation by Evans Korletey-Tene, illustrations by Kenneth Boyowa Okitikpi"
+  },
+  {
+    "id": "asb-49831",
+    "title": "We live in a manyatta",
+    "lines": 13,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Nina Orange, Ursula Nafula, Ga translation by Evans Korletey-Tene, illustrations by Arthur Makali"
+  },
+  {
+    "id": "asb-49828",
+    "title": "We live in a nest",
+    "lines": 13,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Nina Orange, Ursula Nafula, Ga translation by Evans Korletey-Tene, illustrations by Kenneth Boyowa Okitikpi"
+  },
+  {
+    "id": "asb-49827",
+    "title": "We live in a rondavel",
+    "lines": 13,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Nina Orange, Ursula Nafula, Ga translation by Evans Korletey-Tene, illustrations by Vusi Malindi"
+  },
+  {
+    "id": "asb-49571",
+    "title": "Our home, your home",
+    "lines": 9,
+    "source": "African Storybook Initiative, africanstorybook.org (Attribution 4.0) — story by Vyandeh Terkule, Ga translation by Evans Korletey-Tene, illustrations by Vyandeh Terkule"
   }
 ];
 export const POEMS = [

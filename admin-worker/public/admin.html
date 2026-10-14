@@ -362,9 +362,9 @@ input.gaip{font:700 16px var(--display)}
 
     <!-- ============ SUGGESTED WORDS ============ -->
     <section class="view hidden" data-view="suggest">
-      <div class="hd"><h1>Suggested words</h1><p>English–Ga pairs that aren't in the checked dictionary yet. <b>GATITOS</b> is Google's list of professional translations (CC-BY 4.0). Check the Ga, correct either side if needed, then approve it into the dictionary or reject it. Nothing here shows to learners until approved.</p></div>
+      <div class="hd"><h1>Suggested words</h1><p>English–Ga pairs that aren't in the checked dictionary yet. <b>GATITOS</b> is Google's list of professional translations (CC-BY 4.0). <b>PanLex</b> words come from older dictionaries and word lists (CC0) — spellings can be dated, so check them; several English senses are separated by “;” and each becomes its own entry. Check the Ga, correct either side if needed, then approve it into the dictionary or reject it. Nothing here shows to learners until approved.</p></div>
       <div class="panel">
-        <h2><span class="tabs" role="tablist" id="sgTabs"><button role="tab" aria-selected="true" data-src="gatitos">GATITOS <span class="num" id="sgCountG"></span></button><button role="tab" aria-selected="false" data-src="corpus">Corpus guesses <span class="num" id="sgCountC"></span></button></span></h2>
+        <h2><span class="tabs" role="tablist" id="sgTabs"><button role="tab" aria-selected="true" data-src="gatitos">GATITOS <span class="num" id="sgCountG"></span></button><button role="tab" aria-selected="false" data-src="panlex">PanLex <span class="num" id="sgCountP"></span></button><button role="tab" aria-selected="false" data-src="corpus">Corpus guesses <span class="num" id="sgCountC"></span></button></span></h2>
         <input class="vsearch" id="sgSearch" type="search" placeholder="Find an English or Ga word" aria-label="Find a suggested word">
         <div class="sg-bulk" id="sgBulk">
           <span id="sgSel">0 selected</span>
@@ -1042,8 +1042,9 @@ async function loadSuggest() {
     d = await api(`/admin/alignments?status=inferred&source=${SG.src}&limit=${SG.size}&offset=${SG.page * SG.size}${SG.q ? `&q=${encodeURIComponent(SG.q)}` : ""}`);
   } catch (e) { $("sgList").innerHTML = `<tr><td colspan="4" class="empty">${esc(e.message)}</td></tr>`; return; }
   $("sgCountG").textContent = d.counts.gatitos ? `(${fmt(d.counts.gatitos)})` : "";
+  $("sgCountP").textContent = d.counts.panlex ? `(${fmt(d.counts.panlex)})` : "";
   $("sgCountC").textContent = d.counts.corpus ? `(${fmt(d.counts.corpus)})` : "";
-  $("ctSuggest").textContent = d.counts.gatitos || "";
+  $("ctSuggest").textContent = (d.counts.gatitos || 0) + (d.counts.panlex || 0) || "";
   $("sgList").innerHTML = d.alignments.length ? d.alignments.map((a) => {
     const note = a.existing?.length ? '<small class="muted">Dictionary already has: ' + a.existing.map((x) => '<b>' + esc(x.headword) + '</b>').join(', ') + ' — approve to add this as another way to say it.</small>' : '';
     return `<tr id="sg-${esc(a.id)}" data-id="${esc(a.id)}">
@@ -1101,7 +1102,7 @@ $("sgBulk").addEventListener("click", async (e) => {
   const b = e.target.closest("[data-bulk]"); if (!b || SG.busy) return;
   const action = b.dataset.bulk, all = b.dataset.scope === "all", st = $("sgBulkSt");
   const verb = action === "approve" ? "Approv" : "Reject";
-  const tab = SG.src === "gatitos" ? "GATITOS" : "corpus-guess";
+  const tab = SG.src === "gatitos" ? "GATITOS" : SG.src === "panlex" ? "PanLex" : "corpus-guess";
   if (all && !confirm(`${verb}${action === "approve" ? "e" : ""} all ${fmt(SG.total)} ${tab} suggestions${SG.q ? ` matching “${SG.q}”` : ""}?${action === "approve" ? "\n\nThey go straight into the checked dictionary that learners see." : ""}`)) return;
   SG.busy = true; $$("#sgBulk button").forEach((x) => (x.disabled = true)); st.className = "ven-st";
   let done = 0, failed = "";

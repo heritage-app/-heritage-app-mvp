@@ -1185,9 +1185,10 @@ app.post("/alignments/build", async (c) => {
   return c.json({ pairs_scanned: pairs.length, alignments: rows.length });
 });
 
-// Suggested words: GATITOS (Google, professional translations) and the older
-// co-occurrence guesses. ?source=gatitos|corpus narrows it, ?q= searches both
-// sides, ?offset pages through.
+// Suggested words: GATITOS (Google, professional translations), PanLex word
+// lists, and the older co-occurrence guesses. ?source=gatitos|panlex|corpus
+// narrows it, ?q= searches both sides, ?offset pages through.
+const NAMED_SOURCE = "(source LIKE 'gatitos%' OR source LIKE 'panlex%')";
 app.get("/alignments", async (c) => {
   const status = c.req.query("status") || "inferred";
   const minConf = parseFloat(c.req.query("min_confidence") ?? "0") || 0;
@@ -1197,23 +1198,24 @@ app.get("/alignments", async (c) => {
   const q = (c.req.query("q") || "").trim().toLowerCase();
   const where = ["status = ?", "confidence >= ?"], binds: unknown[] = [status, minConf];
   if (source === "gatitos") where.push("source LIKE 'gatitos%'");
-  else if (source === "corpus") where.push("(source IS NULL OR source NOT LIKE 'gatitos%')");
+  else if (source === "panlex") where.push("source LIKE 'panlex%'");
+  else if (source === "corpus") where.push(`(source IS NULL OR NOT ${NAMED_SOURCE})`);
   if (q) { where.push("(english_normalized LIKE ? OR ga_normalized LIKE ? OR lower(english_word) LIKE ? OR lower(ga_word) LIKE ?)"); binds.push(`%${q}%`, `%${foldGa(q)}%`, `%${q}%`, `%${q}%`); }
   const w = where.join(" AND ");
   const [rows, total, counts] = await Promise.all([
     c.env.DB.prepare(`SELECT * FROM word_alignments WHERE ${w}
        ORDER BY (source LIKE 'gatitos%') DESC, evidence_count DESC, confidence DESC, english_word LIMIT ? OFFSET ?`).bind(...binds, limit, offset).all(),
     c.env.DB.prepare(`SELECT COUNT(*) AS n FROM word_alignments WHERE ${w}`).bind(...binds).first<{ n: number }>(),
-    c.env.DB.prepare(`SELECT SUM(source LIKE 'gatitos%') AS gatitos, SUM(source IS NULL OR source NOT LIKE 'gatitos%') AS corpus FROM word_alignments WHERE status = ?`).bind(status).first<{ gatitos: number; corpus: number }>(),
+    c.env.DB.prepare(`SELECT SUM(source LIKE 'gatitos%') AS gatitos, SUM(source LIKE 'panlex%') AS panlex, SUM(source IS NULL OR NOT ${NAMED_SOURCE}) AS corpus FROM word_alignments WHERE status = ?`).bind(status).first<{ gatitos: number; panlex: number; corpus: number }>(),
   ]);
   const vocab = await vocabByEnglish(c.env.DB);
   const alignments = (rows.results ?? []).map((row: any) => ({
     ...row,
-    existing: (vocab.get(enKey(row.english_word)) ?? []).filter(
+    existing: (vocab.get(enKey(String(row.english_word).split(";")[0])) ?? []).filter(
       (x) => foldGa(x.headword.toLowerCase()) !== row.ga_normalized
     ),
   }));
-  return c.json({ alignments, total: total?.n ?? 0, counts: { gatitos: counts?.gatitos ?? 0, corpus: counts?.corpus ?? 0 } });
+  return c.json({ alignments, total: total?.n ?? 0, counts: { gatitos: counts?.gatitos ?? 0, panlex: counts?.panlex ?? 0, corpus: counts?.corpus ?? 0 } });
 });
 
 // The statements that approve one suggestion into the checked dictionary. The
@@ -1226,8 +1228,11 @@ function promoteStatements(
   const ga = normalizeGaCase((edits.ga ?? "").trim() || row.ga_word);
   const english = (edits.english ?? "").trim() || row.english_word;
   const fromGatitos = String(row.source || "").startsWith("gatitos");
+  const fromPanlex = String(row.source || "").startsWith("panlex");
+  // "collect; gather" — several senses become separate English entries.
+  const senses = english.split(/\s*;\s*/).filter(Boolean);
 
-  const existing = (byEnglish.get(enKey(english)) ?? []).filter(
+  const existing = (byEnglish.get(enKey(senses[0] ?? english)) ?? []).filter(
     (x) => foldGa(x.headword.toLowerCase()) !== foldGa(ga.toLowerCase())
   );
   const variation = existing.length
@@ -1247,11 +1252,11 @@ function promoteStatements(
       ga,
       foldGa(ga.toLowerCase()),
       null,
-      JSON.stringify([english]),
-      JSON.stringify([english]),
-      fromGatitos ? "[]" : row.examples,
-      fromGatitos
-        ? `Google GATITOS (SMOL), CC-BY 4.0 — reviewer-approved${ga !== row.ga_word || english !== row.english_word ? `, corrected from “${row.english_word}” → ${row.ga_word}` : ""}${variation}`
+      JSON.stringify(senses),
+      JSON.stringify(senses),
+      fromGatitos || fromPanlex ? "[]" : row.examples,
+      fromGatitos || fromPanlex
+        ? `${fromGatitos ? "Google GATITOS (SMOL), CC-BY 4.0" : "PanLex (CC0), via ChiKhaPo"} — reviewer-approved${ga !== row.ga_word || english !== row.english_word ? `, corrected from “${row.english_word}” → ${row.ga_word}` : ""}${variation}`
         : `corpus-alignment (inferred, confidence ${row.confidence}, n=${row.evidence_count}; reviewer-approved${ga !== row.ga_word ? `, corrected from ${row.ga_word}` : ""})${variation}`,
       adminId,
       now
