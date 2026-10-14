@@ -1033,11 +1033,11 @@ async function loadSuggest() {
   $("sgCountC").textContent = d.counts.corpus ? `(${fmt(d.counts.corpus)})` : "";
   $("ctSuggest").textContent = d.counts.gatitos || "";
   $("sgList").innerHTML = d.alignments.length ? d.alignments.map((a) => {
-    let note = ""; try { const ex = JSON.parse(a.examples || "[]"); if (ex[0]?.ga && /already has/.test(ex[0].ga)) note = '<small class="muted">The dictionary already has other Ga for this English — compare before approving.</small>'; } catch {}
+    const note = a.existing?.length ? '<small class="muted">Dictionary already has: ' + a.existing.map((x) => '<b>' + esc(x.headword) + '</b>').join(', ') + ' — approve to add this as another way to say it.</small>' : '';
     return `<tr id="sg-${esc(a.id)}">
       <td><input class="ven" data-sg-en value="${esc(a.english_word)}" aria-label="English">${note}</td>
       <td><input class="ven ga" data-sg-ga value="${esc(a.ga_word)}" aria-label="Ga"></td>
-      <td><div class="row-actions" style="flex-wrap:nowrap"><button class="btn sm ok" data-sg="approve" data-id="${esc(a.id)}">Approve</button><button class="btn sm bad" data-sg="reject" data-id="${esc(a.id)}">Reject</button></div><small class="ven-st" data-sg-st></small></td></tr>`;
+      <td><div class="row-actions" style="flex-wrap:nowrap"><button class="btn sm ok" data-sg="approve" data-id="${esc(a.id)}"${a.existing?.length ? ' data-var="1"' : ''}>${a.existing?.length ? "Add as variation" : "Approve"}</button><button class="btn sm bad" data-sg="reject" data-id="${esc(a.id)}">Reject</button></div><small class="ven-st" data-sg-st></small></td></tr>`;
   }).join("") : `<tr><td colspan="3" class="empty">${SG.q ? "No suggestion matches." : "Nothing to review here."}</td></tr>`;
   const pages = Math.ceil((d.total || 0) / SG.size);
   $("sgPager").innerHTML = pages > 1 ? `<span class="pinfo">Page ${SG.page + 1} of ${fmt(pages)} · ${fmt(d.total)} in all</span><button class="btn sm" id="sgPrev" ${SG.page ? "" : "disabled"}>Previous</button><button class="btn sm" id="sgNext" ${SG.page < pages - 1 ? "" : "disabled"}>Next</button>` : "";
@@ -1061,7 +1061,7 @@ $("sgList").addEventListener("click", async (e) => {
     await api(`/admin/alignments/${encodeURIComponent(b.dataset.id)}/${approve ? "promote" : "reject"}`, approve
       ? { json: { english: tr.querySelector("[data-sg-en]").value.trim(), ga: tr.querySelector("[data-sg-ga]").value.trim() } }
       : { method: "POST" });
-    tr.style.opacity = ".45"; st.textContent = approve ? "Added to the dictionary" : "Rejected"; st.className = "ven-st " + (approve ? "ok" : "");
+    tr.style.opacity = ".45"; st.textContent = approve ? (b.dataset.var === "1" ? "Added as another way to say it" : "Added to the dictionary") : "Rejected"; st.className = "ven-st " + (approve ? "ok" : "");
     setTimeout(() => { tr.remove(); if (!$("sgList").children.length) loadSuggest(); }, 900);
   } catch (err) { st.textContent = err.message; st.className = "ven-st bad"; $$("button", tr).forEach((x) => (x.disabled = false)); }
 });

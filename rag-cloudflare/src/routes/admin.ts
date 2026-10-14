@@ -1053,6 +1053,36 @@ function alignWords(s: string): string[] {
   return foldGa(s.toLowerCase()).match(/[\p{L}\p{N}'-]+/gu) ?? [];
 }
 
+// Reviewer aid: which checked Ga words already stand for the same English, so
+// a suggestion can be approved as a variation instead of rejected outright.
+function enKey(t: string): string {
+  return foldGa(String(t).toLowerCase()).replace(/[^\p{L}\p{N}' ]+/gu, " ").replace(/\s+/g, " ").trim();
+}
+async function vocabByEnglish(db: D1Database): Promise<Map<string, { id: string; headword: string }[]>> {
+  const rows = await db.prepare(
+    "SELECT id, headword, translations FROM vocabulary WHERE verified_at IS NOT NULL AND TRIM(verified_at) <> ''"
+  ).all<{ id: string; headword: string; translations: string | null }>();
+  const map = new Map<string, { id: string; headword: string }[]>();
+  const seen = new Set<string>();
+  for (const r of rows.results ?? []) {
+    let ts: unknown[] = [];
+    try { const v = JSON.parse(r.translations ?? "[]"); if (Array.isArray(v)) ts = v; } catch {}
+    for (const t of ts) {
+      const k = enKey(String(t));
+      const dedupe = `${k}${r.headword.toLowerCase()}`;
+      if (!k || seen.has(dedupe)) continue;
+      seen.add(dedupe);
+      const arr = map.get(k) ?? [];
+      arr.push({ id: r.id, headword: r.headword });
+      map.set(k, arr);
+    }
+  }
+  return map;
+}
+async function existingGaFor(db: D1Database, english: string): Promise<{ id: string; headword: string }[]> {
+  return (await vocabByEnglish(db)).get(enKey(english)) ?? [];
+}
+
 app.post("/alignments/build", async (c) => {
   const docs = await c.env.DB.prepare(
     "SELECT unique_path FROM documents WHERE category = 'heritage' AND unique_path LIKE '%.jsonl'"
@@ -1180,7 +1210,14 @@ app.get("/alignments", async (c) => {
     c.env.DB.prepare(`SELECT COUNT(*) AS n FROM word_alignments WHERE ${w}`).bind(...binds).first<{ n: number }>(),
     c.env.DB.prepare(`SELECT SUM(source LIKE 'gatitos%') AS gatitos, SUM(source IS NULL OR source NOT LIKE 'gatitos%') AS corpus FROM word_alignments WHERE status = ?`).bind(status).first<{ gatitos: number; corpus: number }>(),
   ]);
-  return c.json({ alignments: rows.results ?? [], total: total?.n ?? 0, counts: { gatitos: counts?.gatitos ?? 0, corpus: counts?.corpus ?? 0 } });
+  const vocab = await vocabByEnglish(c.env.DB);
+  const alignments = (rows.results ?? []).map((row: any) => ({
+    ...row,
+    existing: (vocab.get(enKey(row.english_word)) ?? []).filter(
+      (x) => foldGa(x.headword.toLowerCase()) !== row.ga_normalized
+    ),
+  }));
+  return c.json({ alignments, total: total?.n ?? 0, counts: { gatitos: counts?.gatitos ?? 0, corpus: counts?.corpus ?? 0 } });
 });
 
 app.post("/alignments/:id/promote", async (c) => {
@@ -1195,6 +1232,13 @@ app.post("/alignments/:id/promote", async (c) => {
   const ga = normalizeGaCase((body.ga ?? "").trim() || row.ga_word);
   const english = (body.english ?? "").trim() || row.english_word;
   const fromGatitos = String(row.source || "").startsWith("gatitos");
+
+  const existing = (await existingGaFor(c.env.DB, english)).filter(
+    (x) => foldGa(x.headword.toLowerCase()) !== foldGa(ga.toLowerCase())
+  );
+  const variation = existing.length
+    ? `; another way to say it alongside ${existing.map((x) => x.headword).join(", ")}`
+    : "";
 
   const now = nowIso();
   const vid = `vocab:align:${english}:${ga}`;
@@ -1213,8 +1257,8 @@ app.post("/alignments/:id/promote", async (c) => {
       JSON.stringify([english]),
       fromGatitos ? "[]" : row.examples,
       fromGatitos
-        ? `Google GATITOS (SMOL), CC-BY 4.0 — reviewer-approved${ga !== row.ga_word || english !== row.english_word ? `, corrected from “${row.english_word}” → ${row.ga_word}` : ""}`
-        : `corpus-alignment (inferred, confidence ${row.confidence}, n=${row.evidence_count}; reviewer-approved${ga !== row.ga_word ? `, corrected from ${row.ga_word}` : ""})`,
+        ? `Google GATITOS (SMOL), CC-BY 4.0 — reviewer-approved${ga !== row.ga_word || english !== row.english_word ? `, corrected from “${row.english_word}” → ${row.ga_word}` : ""}${variation}`
+        : `corpus-alignment (inferred, confidence ${row.confidence}, n=${row.evidence_count}; reviewer-approved${ga !== row.ga_word ? `, corrected from ${row.ga_word}` : ""})${variation}`,
       adminId,
       now
     ),
