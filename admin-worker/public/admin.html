@@ -241,6 +241,7 @@ input.gaip{font:700 16px var(--display)}
 .dropzone b{font-size:14px}
 .uploader{display:grid;grid-template-columns:1fr 240px;gap:16px}
 @media (max-width:760px){.uploader{grid-template-columns:1fr}}
+.bulkbar{display:flex;gap:10px;align-items:center;margin:8px 0;flex-wrap:wrap}
 .pager{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:12px;font-size:13px;color:var(--muted)}
 .pager .pinfo{flex:1}
 .toast{position:fixed;left:50%;bottom:22px;translate:-50% 0;z-index:60;padding:11px 16px;border-radius:12px;background:var(--ink);color:var(--bg);font-weight:700;font-size:13.5px;opacity:0;transform:translateY(10px);transition:.25s;pointer-events:none;max-width:92vw}
@@ -329,6 +330,14 @@ input.gaip{font:700 16px var(--display)}
         <button role="tab" aria-selected="false" data-q='{"status":"user_contributed"}'>Sent to review</button>
         <button role="tab" aria-selected="false" data-q='{"status":"resolved","sort":"newest"}'>Answered</button>
         <button role="tab" aria-selected="false" data-q='{"status":"dismissed","sort":"newest"}'>Dismissed</button>
+      </div>
+      <div class="bulkbar" id="qBulk">
+        <label><input type="checkbox" id="qAll"> Select all shown</label>
+        <span id="qSel" class="muted"></span>
+        <button class="btn sm ink" id="qBulkCheck">Check selected again</button>
+        <button class="btn sm" id="qBulkDismiss">Dismiss selected</button>
+        <button class="btn sm" id="qBulkReopen">Put selected back</button>
+        <span class="status" id="qBulkSt"></span>
       </div>
       <div class="panel" style="padding:4px 18px"><ul class="att" id="qList"></ul><div class="pager" id="qPager"></div></div>
     </section>
@@ -673,8 +682,71 @@ async function loadGaps() {
     $("qList").innerHTML = Q.rows.length ? Q.rows.map(gapRow).join("") : `<li class="empty" style="display:block">${st === "pending" ? "Nothing unanswered here." : "Nothing here yet."}</li>`;
     $("qPager").innerHTML = Q.rows.length < d.total ? `<span class="pinfo">${Q.rows.length} of ${fmt(d.total)}</span><button class="btn sm" id="qMore">Show more</button>` : (Q.rows.length ? `<span class="pinfo">${Q.rows.length} of ${fmt(d.total)}</span>` : "");
     $("qMore") && ($("qMore").onclick = () => { Q.offset += 25; loadGaps(); });
+    syncBulkBar();
   } catch (e) { $("qList").innerHTML = `<li class="empty" style="display:block">${esc(e.message)}</li>`; }
 }
+function syncBulkBar() {
+  const st = Q.params.status || "pending";
+  $("qBulk").style.display = st === "resolved" ? "none" : "";
+  $("qBulkCheck").style.display = st === "pending" ? "" : "none";
+  $("qBulkDismiss").style.display = st === "pending" ? "" : "none";
+  $("qBulkReopen").style.display = st === "dismissed" || st === "user_contributed" ? "" : "none";
+  $("qAll").checked = false;
+  updateSel();
+}
+const selectedIds = () => [...document.querySelectorAll("#qList .qck:checked")].map((x) => x.dataset.gapId);
+function updateSel() {
+  const n = selectedIds().length;
+  $("qSel").textContent = n ? `${n} selected` : "";
+  ["qBulkCheck", "qBulkDismiss", "qBulkReopen"].forEach((id) => { $(id).disabled = !n; });
+}
+$("qAll").addEventListener("change", () => {
+  document.querySelectorAll("#qList .qck").forEach((x) => { x.checked = $("qAll").checked; });
+  updateSel();
+});
+$("qList").addEventListener("change", (e) => { if (e.target.classList?.contains("qck")) updateSel(); });
+$("qBulkDismiss").addEventListener("click", async () => {
+  const ids = selectedIds(); if (!ids.length) return;
+  if (!(await confirmBox(`Dismiss ${ids.length} questions? They leave the inbox. You can put them back from the Dismissed tab.`, "Dismiss"))) return;
+  $("qBulkSt").textContent = "Dismissing…";
+  try {
+    for (let i = 0; i < ids.length; i += 50)
+      await api("/admin/console/gaps/bulk", { json: { action: "dismiss", ids: ids.slice(i, i + 50) } });
+    ids.forEach((id) => removeGap(id, null, true));
+    $("qBulkSt").textContent = ""; toast(`Dismissed ${ids.length}.`); updateSel(); refreshCounts();
+  } catch (err) { $("qBulkSt").textContent = err.message; }
+});
+$("qBulkReopen").addEventListener("click", async () => {
+  const ids = selectedIds(); if (!ids.length) return;
+  $("qBulkSt").textContent = "Putting back…";
+  try {
+    for (let i = 0; i < ids.length; i += 50)
+      await api("/admin/console/gaps/bulk", { json: { action: "reopen", ids: ids.slice(i, i + 50) } });
+    ids.forEach((id) => removeGap(id, null, true));
+    $("qBulkSt").textContent = ""; toast(`Put back ${ids.length}.`); updateSel(); refreshCounts();
+  } catch (err) { $("qBulkSt").textContent = err.message; }
+});
+$("qBulkCheck").addEventListener("click", async () => {
+  const ids = selectedIds(); if (!ids.length) return;
+  ["qBulkCheck", "qBulkDismiss", "qBulkReopen"].forEach((id) => { $(id).disabled = true; });
+  let done = 0, resolved = 0;
+  try {
+    for (let i = 0; i < ids.length; i += 6) {
+      const r = await api("/admin/console/gaps/bulk", { json: { action: "recheck", ids: ids.slice(i, i + 6) } });
+      for (const res of r.results) {
+        done++;
+        if (res.answered) { resolved++; removeGap(res.id, null, true); }
+        else {
+          const box = document.getElementById(`gx-${res.id}`);
+          if (box) box.innerHTML = `<div class="answer"><div class="note ${res.error ? "bad" : "warn"}">${res.error ? esc(res.error) : "Still no answer. Add one with Answer."}</div></div>`;
+        }
+      }
+      $("qBulkSt").textContent = `Checked ${done} of ${ids.length} · ${resolved} answer now and were closed`;
+    }
+    toast(`Checked ${done} · ${resolved} closed`); refreshCounts();
+  } catch (err) { $("qBulkSt").textContent = err.message; }
+  updateSel();
+});
 function gapRow(g) {
   const st = Q.params.status || "pending";
   const k = KIND[g.kind] || KIND.word;
@@ -682,8 +754,9 @@ function gapRow(g) {
   const acts = st === "pending"
     ? `<button class="btn sm ink" data-gap-answer="${esc(g.id)}">Answer</button><button class="btn sm" data-gap-check="${esc(g.id)}">Check again</button><button class="btn sm" data-gap-dismiss="${esc(g.id)}">Dismiss</button>`
     : st === "dismissed" || st === "user_contributed" ? `<button class="btn sm" data-gap-reopen="${esc(g.id)}">Put back</button>` : "";
+  const ck = st !== "resolved" ? `<input type="checkbox" class="qck" data-gap-id="${esc(g.id)}" aria-label="Select">` : "";
   return `<li id="gap-${esc(g.id)}">
-    <span class="pill ${g.kind === "flagged" ? "bad" : g.asked > 2 ? "warn" : ""} num lead">${g.asked}×</span>
+    ${ck}<span class="pill ${g.kind === "flagged" ? "bad" : g.asked > 2 ? "warn" : ""} num lead">${g.asked}×</span>
     <b class="t">“${esc(g.query)}”</b>
     <span class="act">${acts}</span>
     <span class="sub"><span class="pill ${k[1]}">${k[0]}</span>${g.answer ? `<span>Answer: <b>${esc(g.answer)}</b></span>` : ""}${g.answer_shown ? `<span>Shown: ${esc(g.answer_shown)}</span>` : ""}${has}<span>last asked ${esc(ago(g.last_asked))}</span></span>
@@ -702,9 +775,10 @@ document.addEventListener("click", async (e) => {
   }
   if (r) { try { await api(`/admin/console/gaps/${encodeURIComponent(r.dataset.gapReopen)}/reopen`, { json: {} }); removeGap(r.dataset.gapReopen, "Back in the inbox."); } catch (err) { toast(err.message); } }
 });
-function removeGap(id, msg) {
+function removeGap(id, msg, quiet) {
   Q.rows = Q.rows.filter((g) => g.id !== id); F.wrong = F.wrong.filter((g) => g.id !== id);
   document.querySelectorAll(`[id="gap-${CSS.escape(id)}"]`).forEach((el) => el.remove());
+  if (quiet) return;
   toast(msg); refreshCounts();
 }
 const CATS = ["general", "phrase", "greeting", "number", "time", "family", "food", "body", "household", "animals", "people", "weather", "bible", "samai"];

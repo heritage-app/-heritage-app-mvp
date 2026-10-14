@@ -271,6 +271,70 @@ app.get("/gaps", async (c) => {
   return c.json({ gaps, total: total?.n ?? 0, asks: total?.asks ?? 0 });
 });
 
+// Ask a gap question as a guest so nothing is saved. A miss logs the gap
+// again, so the count is put back afterwards: checking must not look like
+// another ask. Shared by the single recheck and the bulk one.
+async function recheckGap(
+  env: Env,
+  gap: { id: string; query: string; frequency: number; last_seen: string | null }
+): Promise<{ answered: boolean; response: string }> {
+  let text = "";
+  for await (const t of ask(env, { query: gap.query, conversationId: null, userId: "guest_admin-recheck", stream: false, mode: "agent" })) text += t;
+  text = text.replace(/\n__META__:\{[^\n]*\}\n?/g, "").trim();
+  await env.DB.prepare("UPDATE knowledge_gaps SET frequency = ?, last_seen = ? WHERE id = ?").bind(gap.frequency, gap.last_seen, gap.id).run();
+  return { answered: !!text && !isNotFoundResponse(text), response: text };
+}
+
+// Bulk inbox work: re-ask a handful (each question is a full archive lookup,
+// so the cap is small), or sweep many aside / back in one update.
+app.post("/gaps/bulk", async (c) => {
+  const adminId = c.get("adminId")!;
+  const body = await c.req.json<{ action?: string; ids?: unknown }>().catch(() => ({} as { action?: string; ids?: unknown }));
+  const action = body.action;
+  if (action !== "recheck" && action !== "dismiss" && action !== "reopen")
+    return c.json({ detail: "action must be recheck, dismiss or reopen." }, 400);
+  if (!Array.isArray(body.ids) || body.ids.some((x) => typeof x !== "string"))
+    return c.json({ detail: "ids must be an array of question ids." }, 400);
+  const ids = [...new Set(body.ids as string[])];
+  const cap = action === "recheck" ? 8 : 50;
+  if (!ids.length || ids.length > cap)
+    return c.json({ detail: `Send between 1 and ${cap} ids.` }, 400);
+
+  if (action === "dismiss" || action === "reopen") {
+    const marks = ids.map(() => "?").join(",");
+    const r = action === "dismiss"
+      ? await c.env.DB.prepare(`UPDATE knowledge_gaps SET status = 'dismissed' WHERE id IN (${marks}) AND status = 'pending'`).bind(...ids).run()
+      : await c.env.DB.prepare(`UPDATE knowledge_gaps SET status = 'pending' WHERE id IN (${marks}) AND status IN ('dismissed', 'user_contributed')`).bind(...ids).run();
+    const n = r.meta.changes ?? 0;
+    await logAction(c.env, adminId, action === "dismiss" ? "bulk_dismiss" : "bulk_reopen", "gap", ids.join(","), `${n} questions`);
+    return c.json({ status: "ok", changed: n });
+  }
+
+  const results: Array<{ id: string; answered: boolean; response: string; error?: string }> = new Array(ids.length);
+  let resolved = 0;
+  const worker = async (from: number) => {
+    for (let i = from; i < ids.length; i += 3) {
+      const id = ids[i];
+      try {
+        const gap = await c.env.DB.prepare("SELECT id, query, frequency, last_seen, status FROM knowledge_gaps WHERE id = ?")
+          .bind(id).first<{ id: string; query: string; frequency: number; last_seen: string | null; status: string }>();
+        if (!gap || gap.status !== "pending") { results[i] = { id, answered: false, response: "" }; continue; }
+        const r = await recheckGap(c.env, gap);
+        if (r.answered) {
+          resolved++;
+          await c.env.DB.prepare("UPDATE knowledge_gaps SET status = 'resolved' WHERE id = ?").bind(id).run();
+          await logAction(c.env, adminId, "recheck_resolved", "gap", id, "Answered correctly when checked again (bulk)");
+        }
+        results[i] = { id, answered: r.answered, response: r.response.slice(0, 300) };
+      } catch (e) {
+        results[i] = { id, answered: false, response: "", error: String(e).slice(0, 200) };
+      }
+    }
+  };
+  await Promise.all([worker(0), worker(1), worker(2)]);
+  return c.json({ status: "ok", results, resolved });
+});
+
 app.post("/gaps/:id/answer", async (c) => {
   const adminId = c.get("adminId")!;
   const gap = await c.env.DB.prepare("SELECT id, query FROM knowledge_gaps WHERE id = ?").bind(c.req.param("id")).first<{ id: string; query: string }>();
@@ -308,24 +372,16 @@ app.post("/gaps/:id/answer", async (c) => {
 });
 
 app.post("/gaps/:id/recheck", async (c) => {
-  const adminId = c.get("adminId")!;
   const gap = await c.env.DB.prepare("SELECT id, query, frequency, last_seen FROM knowledge_gaps WHERE id = ?")
     .bind(c.req.param("id")).first<{ id: string; query: string; frequency: number; last_seen: string | null }>();
   if (!gap) return c.json({ detail: "Question not found" }, 404);
 
-  // Ask as a guest so nothing is saved. A miss logs the gap again, so the
-  // count is put back afterwards: checking must not look like another ask.
-  let text = "";
   try {
-    for await (const t of ask(c.env, { query: gap.query, conversationId: null, userId: "guest_admin-recheck", stream: false, mode: "agent" })) text += t;
+    const r = await recheckGap(c.env, gap);
+    return c.json({ answered: r.answered, response: r.response.slice(0, 1200) });
   } catch (e) {
     return c.json({ detail: `Couldn't run the question: ${String(e).slice(0, 120)}` }, 502);
   }
-  text = text.replace(/\n__META__:\{[^\n]*\}\n?/g, "").trim();
-  await c.env.DB.prepare("UPDATE knowledge_gaps SET frequency = ?, last_seen = ? WHERE id = ?").bind(gap.frequency, gap.last_seen, gap.id).run();
-
-  const answered = !!text && !isNotFoundResponse(text);
-  return c.json({ answered, response: text.slice(0, 1200) });
 });
 
 app.post("/gaps/:id/resolve", async (c) => {
