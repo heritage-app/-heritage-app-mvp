@@ -176,7 +176,9 @@ async function* askBible(
   // model or give up, so the agent can take over with its tools.
   strict = false
 ): AsyncGenerator<string> {
-  const qLow = query.toLowerCase();
+  // Normalise common concatenations so a phone keyboard's "gastory" or "gastories"
+  // still triggers the story browse intent.
+  const qLow = query.toLowerCase().replace(/\bgastories\b/g, "ga stories").replace(/\bgastory\b/g, "ga story");
 
   // --- Archive overview: "what's in here / what do you have" → list indexed books ---
   const isOverview =
@@ -1713,7 +1715,10 @@ async function* askGeneral(
             // Bible/verse records carry `en`, not `english` — normalise so
             // every corpus record exposes the same field downstream.
             if (rec.english == null && rec.en != null) rec.english = rec.en;
-            if (String(rec.ga ?? "").trim() && String(rec.english ?? "").trim()) out.push(rec);
+            if (String(rec.ga ?? "").trim() && String(rec.english ?? "").trim()) {
+              rec._order = out.length;
+              out.push(rec);
+            }
           } catch { /* skip malformed lines */ }
         }
       }
@@ -1752,14 +1757,14 @@ async function* askGeneral(
   // low), so retrieval uses a canonical probe: intent kind + any topical content
   // words ("story about fishermen" → "story fishermen"). ---
   const browseIntent = ((): { topics: string[]; kind: "story" | "poem" | "song" } | null => {
-    if (/\b(stor(?:y|ies)|tale|folktale|legend)\b/.test(qLow))
+    if (/\b(stor(?:y|ies)|gastory|gastories|tale|folktale|legend)\b/.test(qLow))
       return { topics: ["storybooks-ghana", "storybooks-ghana-title"], kind: "story" };
     if (/\b(poem|poetry|wiemo|wiemɔ)\b/.test(qLow)) return { topics: ["poetry"], kind: "poem" };
     if (/\b(songs?|lala)\b/.test(qLow)) return { topics: ["music-heritage", "poetry"], kind: "song" };
     return null;
   })();
   const INTENT_WORDS = new Set([
-    "story", "stories", "tale", "folktale", "legend",
+    "story", "stories", "gastory", "gastories", "tale", "folktale", "legend",
     "poem", "poetry", "song", "songs", "lala", "wiemo", "wiemɔ",
   ]);
 
@@ -1936,10 +1941,12 @@ async function* askGeneral(
       return String(m.english ?? "").trim() !== "" && String(m.ga ?? "").trim() !== "";
     };
     let withPair = expandedNodes.filter((n) => browseOk(n.metadata ?? {}));
-    if (!withPair.length) {
-      // Semantic retrieval came back empty — serve straight from the archive.
-      // The file prefixes already scope the corpus, so the topic whitelist is
-      // relaxed here (e.g. song records tagged topic "heritage" still count).
+    const semanticWithPair = withPair; // keep semantic hits for ranking stories
+    if (!withPair.length || browseIntent.kind === "story") {
+      // Semantic retrieval may be empty, or for stories it returned only a
+      // title record — always load the full archive so the whole story can
+      // be served in original order. Songs/poems still fall back only when
+      // semantic retrieval is empty.
       const recs = await browseArchiveRecords(browseIntent.kind);
       let pool = recs;
       if (browseIntent.kind === "song") {
@@ -1972,7 +1979,13 @@ async function* askGeneral(
       const lines: string[] = [];
 
       if (browseIntent.kind === "story") {
-        // Group candidates by story id → serve up to 3 pairs from a single story.
+        // Group candidates by story id → serve the full story sequence
+        // (not just the top semantic record) in its original file order.
+        const semanticScores = new Map<string, number>();
+        for (const n of semanticWithPair) {
+          const k = String(n.metadata?.story ?? n.metadata?.title ?? "?");
+          semanticScores.set(k, Math.max(semanticScores.get(k) ?? 0, n.score ?? 0));
+        }
         const groups = new Map<string, typeof withPair>();
         for (const n of withPair) {
           const k = String(n.metadata?.story ?? n.metadata?.title ?? "?");
@@ -1980,7 +1993,11 @@ async function* askGeneral(
           g.push(n);
           groups.set(k, g);
         }
-        let glist = [...groups.values()].sort((a, b) => (b[0].score ?? 0) - (a[0].score ?? 0));
+        let glist = [...groups.values()].sort((a, b) => {
+          const ka = String(a[0].metadata?.story ?? a[0].metadata?.title ?? "?");
+          const kb = String(b[0].metadata?.story ?? b[0].metadata?.title ?? "?");
+          return (semanticScores.get(kb) ?? 0) - (semanticScores.get(ka) ?? 0);
+        });
         // Re-asking bare ("tell me a story" again, or "another") shouldn't repeat
         // the story just shown; topical queries keep their relevance pick.
         if ((another || !hasTopic) && prevTitle) {
@@ -1992,7 +2009,7 @@ async function* askGeneral(
         const grp = pick(glist);
         const title = String(grp[0].metadata?.title ?? "").trim();
         lines.push(title ? `Here is a Ga story from *${title}*:\n` : "Here is a Ga story:\n");
-        for (const n of grp) {
+        for (const n of grp.sort((a, b) => (a.metadata?._order ?? 0) - (b.metadata?._order ?? 0))) {
           pushPairLines(lines, String(n.metadata.ga ?? ""), String(n.metadata.english ?? ""));
           lines.push("");
         }
