@@ -11,8 +11,12 @@ workers_dev = true
 
 # Standalone admin console: serves admin.html/auth.html as static assets and
 # proxies /api/* to the main API worker so cookie auth stays same-origin.
+# run_worker_first: the worker gates the console pages (only signed-in admins
+# reach them) before the assets binding serves anything.
 [assets]
 directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/", "/admin", "/admin.html", "/auth", "/auth.html"]
 
 # Service binding: direct worker-to-worker fetch (workers.dev URLs can't be
 # fetched from inside a Worker — error 1042). env.API forwards to heritage-rag.
