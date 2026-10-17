@@ -92,6 +92,10 @@ a{color:inherit}
 .grid2{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px}
 .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 @media (max-width:1100px){.grid2,.grid3{grid-template-columns:1fr}}
+/* research progress: three cells across a full-width panel */
+.ov-rgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.ov-rcell{padding:14px;border-radius:14px;background:var(--sunk);box-shadow:inset 0 0 0 1px var(--line)}
+@media (max-width:900px){.ov-rgrid{grid-template-columns:1fr}}
 .pill{display:inline-flex;align-items:center;gap:5px;font:700 11.5px var(--sans);padding:3px 9px;border-radius:999px;white-space:nowrap;background:var(--sunk);color:var(--ink-2)}
 .pill.ok{background:var(--ok-soft);color:var(--ok)}.pill.warn{background:var(--warn-soft);color:var(--warn)}.pill.bad{background:var(--bad-soft);color:var(--bad)}.pill.info{background:var(--info-soft);color:var(--info)}
 .view{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;min-width:0;max-width:1120px;width:100%;justify-self:center}
@@ -375,11 +379,11 @@ input.gaip{font:700 16px var(--display)}
         <div class="panel"><h2>Needs your attention <small>most people affected first</small></h2><ul class="att" id="ovAttention"><li class="loading">Loading…</li></ul></div>
         <div class="panel chart"><h2>Questions saved <small>last 14 days</small><button class="link" data-go="usage">Learning →</button></h2><svg viewBox="0 0 420 210" role="img" id="ovChart" aria-label="Questions per day for the last 14 days"></svg><div class="legend" id="ovChartNote"></div></div>
       </div>
-      <div class="grid3">
+      <div class="grid2">
         <div class="panel"><h2>What's in the archive <small>live counts</small><button class="link" data-go="archive">Documents →</button></h2><div class="stack" id="ovArchive"></div><div class="legend" id="ovArchiveNote"></div></div>
         <div class="panel"><h2>Bible archive <small>verses per translation</small></h2><div class="stack" id="ovBible"></div><div class="legend" id="ovBibleNote"></div></div>
-        <div class="panel"><h2>Research progress</h2><div class="stack" id="ovResearch"></div></div>
       </div>
+      <div class="panel"><h2>Research progress</h2><div class="ov-rgrid" id="ovResearch"></div></div>
     </section>
 
     <!-- ============ UNANSWERED ============ -->
@@ -789,12 +793,12 @@ loaders.overview = async () => {
     ? o.bible.map((b) => `<div class="bar-row"><span>${esc(b.source)}</span><span class="track"><i style="width:${pct(b.n, maxB)};background:var(--info)"></i></span><b>${fmt(b.n)}</b></div>`).join("")
       + `<div class="bar-row" style="border-top:1px solid var(--line);padding-top:8px"><span style="font-weight:700">All translations</span><span class="track"><i style="width:100%;background:var(--gold)"></i></span><b>${fmt(bibleTotal)}</b></div>`
     : '<p class="muted">No Bible verses indexed yet.</p>';
-  $("ovBibleNote").innerHTML = `<span>${o.bible.map((b) => `${esc(b.source)} · ${Math.round(b.n / Math.max(bibleTotal, 1) * 100)}%`).join(" · ")}</span>`;
+  $("ovBibleNote").innerHTML = `<span>${fmt(bibleTotal)} verses across ${o.bible.length} translation${o.bible.length === 1 ? "" : "s"} — the app reads the Ga one</span>`;
   $("ovResearch").innerHTML = [
     ["Verified language data", "ok", "Under way", `${fmt(A.words_and_phrases || 0)} Ga words and phrases (${fmt(o.vocabulary.verified)} in the checked dictionary), ${fmt(bibleTotal)} Bible verses, ${fmt((A.stories || 0) + (A.poems_and_songs || 0))} stories, poems and songs. Grows with every approved contribution.`],
     ["Recorded speech", "bad", "Not started", "Needs funding and a recording plan. 0 hours so far."],
     ["Accuracy and evaluation", "warn", "Early", `${fmt(o.feedback.total)} ratings (${fmt(o.feedback.down)} thumbs-down) and ${fmt(o.gaps.total)} logged questions. A fixed test set would turn these into a benchmark.`],
-  ].map(([t, c, p, s]) => `<div><div style="display:flex;gap:10px;align-items:center;justify-content:space-between"><b>${t}</b><span class="pill ${c}">${p}</span></div><p class="muted" style="font-size:12.5px;margin-top:2px">${s}</p></div>`).join("");
+  ].map(([t, c, p, s]) => `<div class="ov-rcell"><div style="display:flex;gap:10px;align-items:center;justify-content:space-between"><b>${t}</b><span class="pill ${c}">${p}</span></div><p class="muted" style="font-size:12.5px;margin-top:4px">${s}</p></div>`).join("");
 };
 
 /* ================= UNANSWERED ================= */
