@@ -1473,6 +1473,68 @@ async function* askGeneral(
     } catch (e) { console.error("Sentence example lookup failed", e); }
     // No entry — fall through to the normal lookup/gap flow.
   }
+
+  // "The Ga word(s) for X", "words we use for/to X", "which words in ga do we
+  // use to refer to X" — long questions whose SUBJECT is a vocabulary term.
+  // The short lookup below only runs on queries of a few words, so these fell
+  // through to the LLM and logged gaps even though the dictionary has the word.
+  if (!asksToTell) {
+    const wordsForM =
+      qLow.match(/\bga\s+words?\s+(?:for|meaning)\s+(.+?)\s*$/) ||
+      (towardGa ? qLow.match(/\bwords?[\s\S]{0,40}?\b(?:for|to)\s+(?:say|call|describe|name|refer\s+to)?\s*(.+?)\s*$/) : null);
+    const subject = (wordsForM?.[1] ?? "")
+      .replace(/[?!.]+$/, "")
+      .replace(/^(?:a|an|the|some|any|my|our|their)\s+/, "")
+      .trim();
+    if (subject && subject.length <= 60) {
+      try {
+        const jArr = (s: string): string[] => {
+          try { const v = JSON.parse(s || "[]"); return Array.isArray(v) ? v.map(String) : []; } catch { return []; }
+        };
+        // Candidate terms: each "X and Y" part whole, then the content words inside.
+        const parts = subject.split(/\s+and\s+|\s*,\s*|\s+or\s+/).map((s: string) => s.trim()).filter(Boolean);
+        const terms = [
+          ...new Set(
+            parts.flatMap((p: string) => [
+              p,
+              ...norm(p).split(" ").filter((w: string) => w.length >= 3 && !stop.has(w)),
+            ])
+          ),
+        ].filter(Boolean).slice(0, 8);
+        const found: Array<{ term: string; hits: { ga: string; gloss: string }[] }> = [];
+        for (const term of terms) {
+          const n = norm(term);
+          if (!n) continue;
+          const res = await env.DB.prepare(
+            `SELECT headword, translations, meanings FROM vocabulary
+             WHERE (translations LIKE ? OR meanings LIKE ?)
+               AND source IS NOT NULL AND TRIM(source) <> ''
+               AND verified_at IS NOT NULL AND TRIM(verified_at) <> ''
+             ORDER BY LENGTH(translations) ASC LIMIT 30`
+          ).bind(`%${n}%`, `%${n}%`).all<{ headword: string; translations: string; meanings: string }>();
+          const hits: { ga: string; gloss: string }[] = [];
+          for (const r of res.results ?? []) {
+            const gloss =
+              jArr(r.translations).find((t: string) => norm(t) === n) ??
+              jArr(r.meanings).find((m: string) => norm(m) === n);
+            if (gloss && !hits.some((h) => h.ga === r.headword)) hits.push({ ga: r.headword, gloss });
+          }
+          if (hits.length) found.push({ term, hits: hits.slice(0, 4) });
+        }
+        if (found.length) {
+          // Whole-subject hits lead; word-level hits follow, named by their term.
+          const lines = found.map((f) =>
+            f.term === subject || parts.includes(f.term)
+              ? `- **${f.term}** → ${f.hits.map((h) => `**${h.ga}**`).join(" / ")}`
+              : `- “${f.term}” → ${f.hits.map((h) => `**${h.ga}**`).join(" / ")}`
+          );
+          yield `${lines.join("\n")}\n\n${parts.length > 1 ? "The archive covers these — " : ""}For a different sense, ask with more context or teach it below.`;
+          return;
+        }
+      } catch (e) { console.warn("[ask] words-for gloss sweep failed, falling through:", e); }
+    }
+  }
+
   if (!asksToTell && ((queryWords.length > 0 && queryWords.length <= 3) || (phraseWords > 0 && phraseWords <= 5))) {
     const qStr = queryWords.length ? queryWords.join(" ") : phrase;
     const foldedQ = foldGa(qStr);
