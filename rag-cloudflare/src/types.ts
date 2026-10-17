@@ -23,6 +23,10 @@ export interface Env {
   // Secrets
   JWT_SECRET: string;
   SUPER_ADMIN_PASSWORD?: string;
+  /** Resend API key (invite emails). Unset = invite links are shared manually. */
+  RESEND_API_KEY?: string;
+  /** Invite sender address, e.g. "SpeakGa <invite@speakga.org>" — must be a verified Resend domain. */
+  INVITE_EMAIL_FROM?: string;
   /** Google sign-in (OAuth client from Google Cloud Console). Both unset = no Google button. */
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;

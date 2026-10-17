@@ -1445,7 +1445,7 @@ $("invMake").addEventListener("click", async () => {
     $("invLink").value = d.url;
     $("invNew").classList.remove("hidden");
     $("invSt").textContent = "";
-    toast(`Invite link made — send it to them`);
+    toast(d.emailed ? `Invite emailed to ${d.email}` : d.email ? `Email didn't send (${d.email_error || "not configured"}) — share the link yourself` : "Invite link made — send it to them");
     loadInvites();
   } catch (e) { $("invSt").textContent = e.message; }
 });
