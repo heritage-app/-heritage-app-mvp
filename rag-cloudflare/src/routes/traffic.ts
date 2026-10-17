@@ -8,6 +8,7 @@
  * IP + browser + day, so it changes every day. Bots are dropped.
  */
 import { Hono } from "hono";
+import type { Context } from "hono";
 import type { Env, Variables } from "../types";
 import { requireAdmin } from "../auth/middleware";
 import { hostKind } from "./seo";
@@ -55,6 +56,57 @@ function utmOf(raw: string): string | null {
   } catch { return null; }
 }
 
+type CfMeta = { country?: string; city?: string };
+
+/** Shared insert for /e beacons AND server-side hits (the .com redirect). */
+async function insertEvent(
+  c: Context,
+  fields: { host: string; path: string; event: string; refHost?: string | null; query?: string }
+): Promise<void> {
+  const ua = c.req.header("User-Agent") || "";
+  if (!ua || BOT.test(ua)) return;
+  const cf = (c.req.raw as unknown as { cf?: CfMeta }).cf ?? {};
+  const now = new Date();
+  const day = now.toISOString().slice(0, 10);
+  const ip = c.req.header("CF-Connecting-IP") || "";
+  const lang = (c.req.header("Accept-Language") || "").split(",")[0].trim().slice(0, 16) || null;
+  const visitor = await visitorId(c.env.JWT_SECRET, day, ip, ua);
+  await c.env.DB.prepare(
+    "INSERT INTO site_events (ts, day, host, path, event, ref_host, country, city, lang, device, browser, os, utm, visitor) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+  ).bind(
+    now.toISOString(), day, fields.host, fields.path, fields.event, fields.refHost ?? null,
+    (cf.country || "").slice(0, 2) || null, (cf.city || "").slice(0, 80) || null, lang,
+    deviceOf(ua), browserOf(ua), osOf(ua), utmOf(fields.query ?? ""), visitor
+  ).run();
+}
+
+/**
+ * speakga.com (and www.) redirect to speakga.org at Cloudflare's edge — but only
+ * once the domain routes here. This worker logs the hit (host 'com' so the
+ * report can split it) then 301s, replacing the redirect rule.
+ */
+export function redirectFromCom(c: Context): Response | null {
+  const url = new URL(c.req.url);
+  const h = url.hostname;
+  if (h !== "speakga.com" && h !== "www.speakga.com") return null;
+  let refHost: string | null = null;
+  try {
+    const rh = c.req.header("Referer");
+    const hn = rh ? new URL(rh).hostname.replace(/^www\./, "") : "";
+    if (hn && !OWN_HOSTS.test(hn) && hn !== "speakga.com") refHost = hn.slice(0, 80);
+  } catch { /* not a URL */ }
+  c.executionCtx.waitUntil(
+    insertEvent(c, {
+      host: "com",
+      path: url.pathname.slice(0, 120) || "/",
+      event: "pageview",
+      refHost,
+      query: url.search,
+    }).catch(() => {})
+  );
+  return Response.redirect(`https://speakga.org${url.pathname}${url.search}`, 301);
+}
+
 async function visitorId(secret: string, day: string, ip: string, ua: string): Promise<string> {
   const data = new TextEncoder().encode(`${secret}|${day}|${ip}|${ua}`);
   const hash = await crypto.subtle.digest("SHA-256", data);
@@ -78,16 +130,8 @@ app.post("/e", async (c) => {
     if (h && !OWN_HOSTS.test(h)) refHost = h.slice(0, 80);
   } catch { /* not a URL */ }
 
-  const now = new Date();
-  const day = now.toISOString().slice(0, 10);
-  const ip = c.req.header("CF-Connecting-IP") || "";
-  const country = ((c.req.raw as unknown as { cf?: { country?: string } }).cf?.country || "").slice(0, 2) || null;
-  const visitor = await visitorId(c.env.JWT_SECRET, day, ip, ua);
-
   c.executionCtx.waitUntil(
-    c.env.DB.prepare(
-      "INSERT INTO site_events (ts, day, host, path, event, ref_host, country, device, browser, os, utm, visitor) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"
-    ).bind(now.toISOString(), day, kind, path, event, refHost, country, deviceOf(ua), browserOf(ua), osOf(ua), utmOf(String(body.u || "")), visitor).run().catch(() => {})
+    insertEvent(c, { host: kind, path, event, refHost, query: String(body.u || "") }).catch(() => {})
   );
   return c.body(null, 204);
 });
@@ -99,7 +143,7 @@ app.get("/analytics/traffic", requireAdmin, async (c) => {
   const all = <T>(sql: string) => db.prepare(sql).bind(since).all<T>().then((r) => r.results || []);
   const PV = "event='pageview' AND day >= ? AND host != 'other'";
 
-  const [totals, daily, pages, refs, countries, devices, events, funnel, browsers, oses, campaigns, hourly, bounce] = await Promise.all([
+  const [totals, daily, pages, refs, countries, devices, events, funnel, browsers, oses, campaigns, hourly, bounce, comVisits, landing, cities, langs] = await Promise.all([
     all<{ visitors: number; views: number }>(`SELECT COUNT(DISTINCT visitor||day) visitors, COUNT(*) views FROM site_events WHERE ${PV}`),
     all<{ day: string; visitors: number; views: number }>(`SELECT day, COUNT(DISTINCT visitor) visitors, COUNT(*) views FROM site_events WHERE ${PV} GROUP BY day ORDER BY day`),
     all<{ host: string; path: string; views: number }>(`SELECT host, path, COUNT(*) views FROM site_events WHERE ${PV} GROUP BY host, path ORDER BY views DESC LIMIT 8`),
@@ -108,7 +152,7 @@ app.get("/analytics/traffic", requireAdmin, async (c) => {
     all<{ device: string; visitors: number }>(`SELECT device, COUNT(DISTINCT visitor||day) visitors FROM site_events WHERE ${PV} GROUP BY device ORDER BY visitors DESC`),
     all<{ event: string; n: number }>(`SELECT event, COUNT(DISTINCT visitor||day) n FROM site_events WHERE event != 'pageview' AND day >= ? GROUP BY event`),
     all<{ site: number; app: number }>(`SELECT
-        COUNT(DISTINCT CASE WHEN host='site' THEN visitor||day END) site,
+        COUNT(DISTINCT CASE WHEN host IN ('site','com') THEN visitor||day END) site,
         COUNT(DISTINCT CASE WHEN host='app' THEN visitor||day END) app
       FROM site_events WHERE ${PV}`),
     all<{ browser: string; visitors: number }>(`SELECT COALESCE(browser,'Other') browser, COUNT(DISTINCT visitor||day) visitors FROM site_events WHERE ${PV} GROUP BY browser ORDER BY visitors DESC LIMIT 8`),
@@ -116,6 +160,15 @@ app.get("/analytics/traffic", requireAdmin, async (c) => {
     all<{ utm: string; visitors: number }>(`SELECT utm, COUNT(DISTINCT visitor||day) visitors FROM site_events WHERE ${PV} AND utm IS NOT NULL AND utm != '' GROUP BY utm ORDER BY visitors DESC LIMIT 8`),
     all<{ hh: string; visitors: number }>(`SELECT substr(ts,12,2) hh, COUNT(DISTINCT visitor||day) visitors FROM site_events WHERE ${PV} GROUP BY hh ORDER BY hh`),
     all<{ bounced: number }>(`SELECT COUNT(*) bounced FROM (SELECT visitor||day v, SUM(event='pageview') n FROM site_events WHERE day >= ? AND host != 'other' GROUP BY v) WHERE n = 1`),
+    all<{ com: number }>(`SELECT COUNT(DISTINCT visitor||day) com FROM site_events WHERE host = 'com' AND day >= ?`),
+    all<{ path: string; visitors: number }>(
+      `SELECT path, COUNT(*) visitors FROM (
+         SELECT visitor||day vd, path, ROW_NUMBER() OVER (PARTITION BY visitor||day ORDER BY ts) rn
+         FROM site_events WHERE event='pageview' AND day >= ? AND host IN ('site','com')
+       ) WHERE rn = 1 GROUP BY path ORDER BY visitors DESC LIMIT 8`
+    ),
+    all<{ city: string; visitors: number }>(`SELECT COALESCE(city,'Unknown') city, COUNT(DISTINCT visitor||day) visitors FROM site_events WHERE ${PV} GROUP BY city ORDER BY visitors DESC LIMIT 8`),
+    all<{ lang: string; visitors: number }>(`SELECT COALESCE(lang,'Unknown') lang, COUNT(DISTINCT visitor||day) visitors FROM site_events WHERE ${PV} GROUP BY lang ORDER BY visitors DESC LIMIT 8`),
   ]);
   // No `?` in this one — it can't go through `all` (which always binds `since`).
   const activeNow = await db.prepare("SELECT COUNT(DISTINCT visitor) n FROM site_events WHERE ts >= datetime('now','-15 minutes')").first<{ n: number }>().catch(() => null);
@@ -128,6 +181,18 @@ app.get("/analytics/traffic", requireAdmin, async (c) => {
   ]);
 
   const ev = Object.fromEntries(events.map((e) => [e.event, e.n]));
+  // Acquisition channels — GA-style grouping of the referrer hosts.
+  const channelOf = (ref: string): string => {
+    if (ref === "Direct") return "Direct";
+    if (/google|bing|yahoo|duckduckgo|baidu|yandex|ecosia|ask\.com|aol/.test(ref)) return "Search";
+    if (/facebook|instagram|t\.co$|x\.com|twitter|linkedin|whatsapp|telegram|tiktok|youtube|reddit|pinterest|snapchat|threads/.test(ref)) return "Social";
+    if (/mail\.|outlook|protonmail|yahoomail|newsletter/.test(ref)) return "Email";
+    return "Referral";
+  };
+  const chanMap = new Map<string, number>();
+  for (const r of refs) chanMap.set(channelOf(r.ref), (chanMap.get(channelOf(r.ref)) ?? 0) + r.visitors);
+  const channels = [...chanMap.entries()].map(([channel, visitors]) => ({ channel, visitors })).sort((a, b) => b.visitors - a.visitors);
+
   return c.json({
     days,
     since,
@@ -141,6 +206,11 @@ app.get("/analytics/traffic", requireAdmin, async (c) => {
     browsers,
     oses,
     campaigns,
+    channels,
+    landing_pages: landing,
+    cities,
+    langs,
+    com_visitors: comVisits[0]?.com ?? 0,
     hourly,
     bounced: bounce[0]?.bounced ?? 0,
     active_now: activeNow?.n ?? 0,

@@ -32,7 +32,7 @@ import { handleContribute, handleListContributions } from "./routes/contribute";
 import quiz from "./routes/quiz";
 import agent from "./routes/agent";
 import bible from "./routes/bible";
-import traffic from "./routes/traffic";
+import traffic, { redirectFromCom } from "./routes/traffic";
 import adminConsole from "./routes/console";
 import archiveStatsRoute from "./rag/archive-stats";
 import voicesRoute from "./routes/voices";
@@ -63,6 +63,9 @@ app.use("*", async (c, next) => {
   if (url.hostname === API_HOST && !url.pathname.startsWith("/api/") && url.pathname !== "/robots.txt") {
     return c.redirect(`https://app.speakga.org${url.pathname === "/" ? "/" : url.pathname}${url.search}`, 301);
   }
+  // speakga.com bounces to .org — counted first, so .com visits show in traffic.
+  const com = redirectFromCom(c);
+  if (com) return com;
   await next();
 });
 

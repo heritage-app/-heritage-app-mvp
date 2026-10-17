@@ -102,6 +102,10 @@ a{color:inherit}
 .kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
 @media (max-width:1300px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:560px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* traffic strip: flex so an odd card count fills rows evenly instead of
+   stranding one stretched card */
+#tKpis{display:flex;flex-wrap:wrap}
+#tKpis .kpi{flex:1 1 150px;min-width:140px}
 .kpi{padding:16px;border-radius:16px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);display:grid;gap:4px;align-content:start;min-width:0;border:0;text-align:left;font:inherit;color:inherit}
 button.kpi{cursor:pointer}button.kpi:hover{box-shadow:inset 0 0 0 1px var(--faint)}
 .kpi small{font:700 12px var(--sans);color:var(--muted)}
@@ -470,6 +474,11 @@ input.gaip{font:700 16px var(--display)}
         <div class="panel"><h2>Browsers</h2><div class="mini" id="tBrowsers"></div></div>
         <div class="panel"><h2>Operating systems</h2><div class="mini" id="tOs"></div></div>
         <div class="panel"><h2>Campaigns <small>UTM tags on the link</small></h2><div class="mini" id="tUtm"></div></div>
+      </div>
+      <div class="grid3">
+        <div class="panel"><h2>How they got here <small>referrer channels</small></h2><div class="mini" id="tChannels"></div></div>
+        <div class="panel"><h2>Landing pages <small>first page of each visit</small></h2><div class="mini" id="tLanding"></div></div>
+        <div class="panel"><h2>Cities &amp; languages</h2><div class="mini" id="tCities"></div><div class="mini" id="tLangs" style="margin-top:10px"></div></div>
       </div>
       <div class="grid2">
         <div class="panel chart"><h2>Visitors by hour <small>UTC</small></h2><svg viewBox="0 0 420 210" role="img" id="tHours" aria-label="Visitors by hour"></svg></div>
@@ -1451,8 +1460,9 @@ async function loadTraffic() {
       ["Landing to app", f.site_visitors ? `${Math.round(t.actions.start / f.site_visitors * 100)}%` : "—", `${fmt(t.actions.start)} clicked through`],
       ["App installs", t.actions.install, `${fmt(t.actions.install_click || 0)} taps on install`],
       ["Support clicks", t.actions.support, "in Support the research"], ["Contribution forms", t.actions.give, "sent from speakga.org"],
+      ["Via speakga.com", t.com_visitors || 0, "redirected to .org"],
     ].map(([k, v, s]) => `<div class="kpi"><small>${k}</small><b>${typeof v === "number" ? fmt(v) : v}</b><span>${s}</span></div>`).join("");
-    const steps = [["Visited speakga.org", f.site_visitors], ["Opened the app", f.app_visitors], ["Asked a question (accounts)", f.asked], ["Created an account", f.signed_up], ["Contributed", f.contributed]];
+    const steps = [["Visited speakga.org & .com", f.site_visitors], ["Opened the app", f.app_visitors], ["Asked a question (accounts)", f.asked], ["Created an account", f.signed_up], ["Contributed", f.contributed]];
     const top = Math.max(1, ...steps.map((s) => s[1]));
     $("tFunnel").innerHTML = steps.map(([k, v]) => `<div class="fn"><span>${k}</span><span class="track"><i style="width:${v / top * 100}%"></i></span><b>${fmt(v)}</b></div>`).join("");
     const days = lastDays(Math.min(T.days, 30)), map = Object.fromEntries(t.daily.map((d) => [d.day, d.visitors]));
@@ -1461,9 +1471,13 @@ async function loadTraffic() {
     mini($("tPages"), t.pages.map((p) => [`${p.host === "site" ? "speakga.org" : "app"} ${p.path}`, p.views]), "No page views yet.");
     mini($("tRefs"), t.referrers.map((r) => [r.ref, r.visitors]), "No visits yet.");
     mini($("tGeo"), t.countries.map((c) => [c.country === "??" ? "Unknown" : COUNTRY(c.country), c.visitors]), "No visits yet.");
-    mini($("tBrowsers"), (t.browsers || []).map((b) => [b.browser, b.visitors]), "No browser data yet.");
-    mini($("tOs"), (t.oses || []).map((o) => [o.os, o.visitors]), "No OS data yet.");
+    mini($("tBrowsers"), (t.browsers || []).map((b) => [b.browser === "Other" ? "Other / earlier" : b.browser, b.visitors]), "No browser data yet.");
+    mini($("tOs"), (t.oses || []).map((o) => [o.os === "Other" ? "Other / earlier" : o.os, o.visitors]), "No OS data yet.");
     mini($("tUtm"), (t.campaigns || []).map((u) => [u.utm, u.visitors]), "No UTM-tagged visits yet.");
+    mini($("tChannels"), (t.channels || []).map((c) => [c.channel, c.visitors]), "No referrer data yet.");
+    mini($("tLanding"), (t.landing_pages || []).map((p) => [p.path, p.visitors]), "No landing data yet.");
+    mini($("tCities"), (t.cities || []).slice(0, 4).map((c) => [c.city, c.visitors]), "No city data yet.");
+    mini($("tLangs"), (t.langs || []).slice(0, 4).map((l) => [l.lang, l.visitors]), "No language data yet.");
     const hvals = Array.from({ length: 24 }, (_, h) => (Object.fromEntries((t.hourly || []).map((r) => [+r.hh, r.visitors])) || {})[h] || 0);
     bars("tHours", Array.from({ length: 24 }, (_, h) => String(h).padStart(2, "0")), hvals, { hi: hvals.indexOf(Math.max(...hvals)), sub: hvals.map((_, h) => (h % 6 === 0 ? `${h}h` : "")) });
     const eng = [

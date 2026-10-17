@@ -10,6 +10,10 @@ routes = [
   { pattern = "app.speakga.org", custom_domain = true },
   { pattern = "speakga.org", custom_domain = true },
   { pattern = "www.speakga.org", custom_domain = true },
+  # .com lands here too: the visit is logged, then 301'd to .org (replaces the
+  # edge redirect so .com traffic counts in site analytics).
+  { pattern = "speakga.com", custom_domain = true },
+  { pattern = "www.speakga.com", custom_domain = true },
   # The API alone, for token clients (scripts, mobile, partners); see src/index.ts.
   { pattern = "api.speakga.org", custom_domain = true },
 ]
