@@ -89,7 +89,7 @@ async function sendInviteEmail(
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FBF7F1;padding:40px 16px"><tr><td align="center">
 <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background:#FFFFFF;border:1px solid #E9DFD0;border-radius:18px;overflow:hidden">
   <tr><td style="background:#16130F;padding:22px 28px">
-    <span style="font:800 13px system-ui,sans-serif;letter-spacing:.14em;color:#F2B33D;text-transform:uppercase">SpeakGa</span>
+    <img src="https://app.speakga.org/img/brand/speakga-logo-dark.png" width="140" alt="SpeakGa" style="display:block;height:auto;border:0" />
   </td></tr>
   <tr><td style="padding:32px 28px 28px">
     <h1 style="margin:0 0 12px;font:800 26px/1.2 system-ui,sans-serif;color:#16130F;letter-spacing:-.02em">You're invited.</h1>
