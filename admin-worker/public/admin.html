@@ -128,10 +128,19 @@ a{color:inherit}
 .vtime{font:700 11.5px var(--sans);color:var(--muted);font-variant-numeric:tabular-nums}
 .vdel{border:0;background:none;color:var(--muted);cursor:pointer;padding:2px;display:grid;place-items:center}
 .vdel:hover{color:var(--bad)}
-.kpi{padding:16px;border-radius:16px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);display:grid;gap:4px;align-content:start;min-width:0;border:0;text-align:left;font:inherit;color:inherit}
+.kpi{padding:14px 16px;border-radius:16px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);display:flex;gap:12px;align-items:flex-start;min-width:0;border:0;text-align:left;font:inherit;color:inherit}
+.kpi .kb{display:grid;gap:3px;min-width:0;flex:1}
 button.kpi{cursor:pointer}button.kpi:hover{box-shadow:inset 0 0 0 1px var(--faint)}
+.kic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;margin-top:2px}
+.kic svg{width:16px;height:16px}
+.kic.gold{background:var(--gold-soft);color:var(--gold-ink)}
+.kic.ok{background:var(--ok-soft);color:var(--ok)}
+.kic.info{background:var(--info-soft);color:var(--info)}
+.kic.warn{background:var(--warn-soft);color:var(--warn)}
+.kic.bad{background:var(--bad-soft);color:var(--bad)}
+.kic.mut{background:var(--sunk);color:var(--ink-2)}
 .kpi small{font:700 12px var(--sans);color:var(--muted)}
-.kpi b{font:800 30px/1.05 var(--display);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.kpi b{font:800 26px/1.05 var(--display);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
 .kpi span{font-size:12px;color:var(--muted)}
 .kpi.alert{box-shadow:inset 0 0 0 1.5px var(--bad)}.kpi.alert b{color:var(--bad)}
 
@@ -366,8 +375,9 @@ input.gaip{font:700 16px var(--display)}
         <div class="panel"><h2>Needs your attention <small>most people affected first</small></h2><ul class="att" id="ovAttention"><li class="loading">Loading…</li></ul></div>
         <div class="panel chart"><h2>Questions saved <small>last 14 days</small><button class="link" data-go="usage">Learning →</button></h2><svg viewBox="0 0 420 210" role="img" id="ovChart" aria-label="Questions per day for the last 14 days"></svg><div class="legend" id="ovChartNote"></div></div>
       </div>
-      <div class="grid2">
+      <div class="grid3">
         <div class="panel"><h2>What's in the archive <small>live counts</small><button class="link" data-go="archive">Documents →</button></h2><div class="stack" id="ovArchive"></div><div class="legend" id="ovArchiveNote"></div></div>
+        <div class="panel"><h2>Bible archive <small>verses per translation</small></h2><div class="stack" id="ovBible"></div><div class="legend" id="ovBibleNote"></div></div>
         <div class="panel"><h2>Research progress</h2><div class="stack" id="ovResearch"></div></div>
       </div>
     </section>
@@ -589,7 +599,20 @@ const ICON = {
   chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>',
   book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
   word: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>',
+  person: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+  dl: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>',
+  heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>',
+  pen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+  globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 0 20 15.3 15.3 0 0 1 0-20z"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+  arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
 };
+
+/* Shared stat-card inner markup: icon tile + label + figure + sub line. */
+const kpiInner = (k, v, s, ic, tone, d = "") =>
+  `${ic ? `<i class="kic ${tone || "mut"}">${ic}</i>` : ""}<span class="kb"><small>${k}</small><b>${typeof v === "number" ? fmt(v) : v}</b><span>${s}${d}</span></span>`;
 
 async function api(path, opts = {}) {
   const init = { credentials: "include", ...opts };
@@ -717,13 +740,12 @@ loaders.overview = async () => {
   if (!o) { $("ovKpis").innerHTML = '<div class="empty">Couldn\'t load the figures. Refresh to try again.</div>'; return; }
   const bibleTotal = o.bible.reduce((n, b) => n + b.n, 0);
   $("ovKpis").innerHTML = [
-    { k: "Questions this week", v: o.questions.week, s: `${fmt(o.questions.total)} saved in total`, go: "usage", d: dlt(o.questions.week, o.questions.prev_week || 0) },
-    { k: "Unanswered", v: o.gaps.open, s: `asked ${fmt(o.gaps.asks)} times`, go: "questions", alert: o.gaps.open > 0 },
-    { k: "Waiting for review", v: o.contributions.pending, s: `${fmt(o.contributions.total)} contributions so far`, go: "review" },
-    { k: "Words and phrases", v: o.archive?.words_and_phrases ?? o.vocabulary.verified, s: `${fmt(o.vocabulary.verified)} in the checked dictionary`, go: "archive" },
-    { k: "Bible verses", v: bibleTotal, s: o.bible.map((b) => b.source).join(" and "), go: "archive" },
-    { k: "Accounts", v: o.users.total, s: `${fmt(o.conversations.total)} conversations`, go: "users" },
-  ].map((x) => `<button class="kpi${x.alert ? " alert" : ""}" data-go="${x.go}"><small>${esc(x.k)}</small><b>${fmt(x.v)}</b><span>${esc(x.s)}${x.d || ""}</span></button>`).join("");
+    { k: "Questions this week", v: o.questions.week, s: `${fmt(o.questions.total)} saved in total`, go: "usage", d: dlt(o.questions.week, o.questions.prev_week || 0), ic: ICON.chart, tone: "gold" },
+    { k: "Unanswered", v: o.gaps.open, s: `asked ${fmt(o.gaps.asks)} times`, go: "questions", alert: o.gaps.open > 0, ic: ICON.q, tone: o.gaps.open > 0 ? "bad" : "warn" },
+    { k: "Waiting for review", v: o.contributions.pending, s: `${fmt(o.contributions.total)} contributions so far`, go: "review", ic: ICON.check, tone: "warn" },
+    { k: "Words and phrases", v: o.archive?.words_and_phrases ?? o.vocabulary.verified, s: `${fmt(o.vocabulary.verified)} in the checked dictionary`, go: "archive", ic: ICON.word, tone: "ok" },
+    { k: "Accounts", v: o.users.total, s: `${fmt(o.conversations.total)} conversations`, go: "users", ic: ICON.person, tone: "info" },
+  ].map((x) => `<button class="kpi${x.alert ? " alert" : ""}" data-go="${x.go}">${kpiInner(esc(x.k), x.v, esc(x.s), x.ic, x.tone, x.d)}</button>`).join("");
 
   const items = [];
   for (const g of top) {
@@ -753,7 +775,6 @@ loaders.overview = async () => {
   const maxB = Math.max(...o.bible.map((b) => b.n), 1);
   const pct = (n, of) => `${Math.max(n ? 1 : 0, Math.round(n / of * 100))}%`;
   $("ovArchive").innerHTML = [
-    ...o.bible.map((b) => `<div class="bar-row"><span>Bible · ${esc(b.source)}</span><span class="track"><i style="width:${pct(b.n, maxB)};background:var(--info)"></i></span><b>${fmt(b.n)}</b></div>`),
     `<div class="bar-row"><span>Words and phrases</span><span class="track"><i style="width:${pct(o.vocabulary.verified, A.words_and_phrases || 1)};background:var(--ok)"></i><i style="width:${pct((A.words_and_phrases || 0) - o.vocabulary.verified, A.words_and_phrases || 1)};background:color-mix(in srgb, var(--ok) 40%, transparent)"></i></span><b>${fmt(A.words_and_phrases || o.vocabulary.verified)}</b></div>`,
     `<div class="bar-row"><span>Numbers in Ga words</span><span class="track"><i style="width:100%;background:var(--gold)"></i></span><b>1–${fmt(A.numbers_in_words || 999)}</b></div>`,
     `<div class="bar-row"><span>Stories, poems, songs</span><span class="track"><i style="width:${pct((A.stories || 0) + (A.poems_and_songs || 0), 20)};background:var(--info)"></i></span><b>${fmt((A.stories || 0) + (A.poems_and_songs || 0))}</b></div>`,
@@ -762,6 +783,13 @@ loaders.overview = async () => {
     `<div class="bar-row"><span>Recorded speech</span><span class="track"></span><b style="color:var(--bad)">${o.speech_hours} hrs</b></div>`,
   ].join("");
   $("ovArchiveNote").innerHTML = `<span>Words: ${fmt(o.vocabulary.verified)} in the checked dictionary, the rest from imported guides and phrasebooks</span><span>${fmt(A.stories || 0)} stories, ${fmt(A.poems_and_songs || 0)} poems and songs</span><span>Documents: ${o.documents.map((d) => `${d.category === "none" ? "no category" : esc(d.category)} ${fmt(d.n)}`).join(" · ")}</span><span>Samai: ${o.samai.live} live, ${o.samai.ready} ready to import, ${o.samai.review} need a Ga reader</span>`;
+
+  // The Bible gets its own panel — verses per translation, with the mix.
+  $("ovBible").innerHTML = o.bible.length
+    ? o.bible.map((b) => `<div class="bar-row"><span>${esc(b.source)}</span><span class="track"><i style="width:${pct(b.n, maxB)};background:var(--info)"></i></span><b>${fmt(b.n)}</b></div>`).join("")
+      + `<div class="bar-row" style="border-top:1px solid var(--line);padding-top:8px"><span style="font-weight:700">All translations</span><span class="track"><i style="width:100%;background:var(--gold)"></i></span><b>${fmt(bibleTotal)}</b></div>`
+    : '<p class="muted">No Bible verses indexed yet.</p>';
+  $("ovBibleNote").innerHTML = `<span>${o.bible.map((b) => `${esc(b.source)} · ${Math.round(b.n / Math.max(bibleTotal, 1) * 100)}%`).join(" · ")}</span>`;
   $("ovResearch").innerHTML = [
     ["Verified language data", "ok", "Under way", `${fmt(A.words_and_phrases || 0)} Ga words and phrases (${fmt(o.vocabulary.verified)} in the checked dictionary), ${fmt(bibleTotal)} Bible verses, ${fmt((A.stories || 0) + (A.poems_and_songs || 0))} stories, poems and songs. Grows with every approved contribution.`],
     ["Recorded speech", "bad", "Not started", "Needs funding and a recording plan. 0 hours so far."],
@@ -1165,7 +1193,7 @@ async function loadVoicesView() {
     ["Waiting for review", s.pending, s.pending ? "listen below" : "nothing waiting", s.pending ? "alert" : ""],
     ["Need English", s.no_english, s.no_english ? "add it in the list below" : "every phrase has it"],
     ["Suggestions to check", s.to_check || 0, s.to_check ? "confirm or correct them below" : "nothing to check", s.to_check ? "alert" : ""],
-  ].map(([k, v, sub, cls]) => `<div class="kpi ${cls || ""}"><small>${esc(k)}</small><b>${fmt(v)}</b><span>${esc(sub)}</span></div>`).join("");
+  ].map(([k, v, sub, cls], ix) => `<div class="kpi ${cls || ""}">${kpiInner(esc(k), v, esc(sub), [ICON.word, ICON.dl, ICON.mic, ICON.clock, ICON.pen, ICON.check][ix], ["ok", "mut", "gold", "warn", "warn", "warn"][ix])}</div>`).join("");
   $("vPending").innerHTML = VD.pending.length ? VD.pending.map((p) => `
     <div class="vcard" id="vc-${esc(p.id)}">
       <div class="ph"><b>${esc(p.ga)}</b>${p.english ? `<span>“${esc(p.english)}”</span>` : ""}${!p.voices ? '<span class="pill info">First voice for this phrase</span>'
@@ -1612,7 +1640,11 @@ async function loadTraffic() {
       ["Support clicks", t.actions.support, "in Support the research", pa.support],
       ["Contribution forms", t.actions.give, "sent from speakga.org", pa.give],
       ["Via speakga.com", t.com_visitors || 0, "redirected to .org", pv.com_visitors],
-    ].map(([k, v, s, p0, dc]) => `<div class="kpi"><small>${k}</small><b>${typeof v === "number" ? fmt(v) : v}</b><span>${s}${p0 === null || p0 === undefined ? "" : ` ${dlt(dc !== undefined ? dc : (typeof v === "number" ? v : 0), p0)}`}</span></div>`).join("");
+    ].map(([k, v, s, p0, dc]) => {
+      const ics = { "Visitors": [ICON.person, "gold"], "Page views": [ICON.eye, "ok"], "Active now": [ICON.clock, "info"], "Landing to app": [ICON.arrow, "gold"], "App installs": [ICON.dl, "ok"], "Support clicks": [ICON.heart, "warn"], "Contribution forms": [ICON.pen, "mut"], "Via speakga.com": [ICON.globe, "info"] };
+      const [ic, tone] = ics[k] || [null, "mut"];
+      return `<div class="kpi">${kpiInner(k, v, `${s}${p0 === null || p0 === undefined ? "" : ` ${dlt(dc !== undefined ? dc : (typeof v === "number" ? v : 0), p0)}`}`, ic, tone)}</div>`;
+    }).join("");
     const steps = [["Visited speakga.org & .com", f.site_visitors, pv.site_visitors], ["Opened the app", f.app_visitors, pv.app_visitors], ["Asked a question (accounts)", f.asked, pv.asked], ["Created an account", f.signed_up, pv.signed_up], ["Contributed", f.contributed, pv.contributed]];
     const top = Math.max(1, ...steps.map((s) => s[1]));
     $("tFunnel").innerHTML = steps.map(([k, v, p0]) => `<div class="fn"><span>${k}</span><span class="track"><i style="width:${v / top * 100}%"></i></span><b>${fmt(v)} ${dlt(v, p0 || 0)}</b></div>`).join("");
@@ -1658,7 +1690,7 @@ loaders.usage = async () => {
       ["Contributions", p.contributions?.total ?? 0, `${p.contributions?.approved ?? 0} approved`, lp.contributions_total],
       ["Logged questions", p.gaps?.total ?? 0, `${p.gaps?.resolved ?? 0} answered`, lp.gaps_total],
       ["Period", p.period ?? "—", `${p.days ?? 0} days`, null],
-    ].map(([k, v, s, p0]) => `<div class="kpi"><small>${k}</small><b>${typeof v === "number" ? fmt(v) : esc(v)}</b><span>${s}${p0 === null || p0 === undefined ? "" : dlt(typeof v === "number" ? v : 0, p0)}</span></div>`).join("");
+    ].map(([k, v, s, p0], ix) => `<div class="kpi">${kpiInner(k, typeof v === "number" ? v : esc(v), `${s}${p0 === null || p0 === undefined ? "" : dlt(typeof v === "number" ? v : 0, p0)}`, [ICON.heart, ICON.pen, ICON.q, ICON.clock][ix], ["ok", "gold", "info", "mut"][ix])}</div>`).join("");
     const conf = cf.recentConflicts || [];
     $("conflictsEmpty").classList.toggle("hidden", !!conf.length);
     $("conflictsBody").innerHTML = conf.map((c) => `<tr><td style="font-weight:600">${esc(c.original_query)}</td><td class="num">${esc(c.answer_count)}</td><td><span class="pill info">Open</span></td></tr>`).join("");
@@ -1747,7 +1779,7 @@ loaders.users = async () => {
       ["Admins", admins, "console access"],
       ["Moderators", mods, "console access"],
       ["App members", mem, "sign in on the app"],
-    ].map(([k, v, s]) => `<div class="kpi"><small>${k}</small><b>${fmt(v)}</b><span>${s}</span></div>`).join("");
+    ].map(([k, v, s], ix) => `<div class="kpi">${kpiInner(k, v, s, ICON.person, ["gold", "info", "ok", "mut"][ix])}</div>`).join("");
     // Admins can invite app users; console seats are super_admin business.
     const invOpts = isSuper() ? [["super_admin", "Super admin"], ["admin", "Admin"], ["moderator", "Moderator"], ["member", "Member"], ["user", "User"]]
                               : [["member", "Member"], ["moderator", "Moderator"], ["user", "User"]];
