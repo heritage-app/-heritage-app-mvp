@@ -146,7 +146,11 @@ app.get("/analytics/traffic", requireAdmin, async (c) => {
   const [totals, daily, pages, refs, countries, devices, events, funnel, browsers, oses, campaigns, hourly, bounce, comVisits, landing, cities, langs, installDev] = await Promise.all([
     all<{ visitors: number; views: number }>(`SELECT COUNT(DISTINCT visitor||day) visitors, COUNT(*) views FROM site_events WHERE ${PV}`),
     all<{ day: string; visitors: number; views: number }>(`SELECT day, COUNT(DISTINCT visitor) visitors, COUNT(*) views FROM site_events WHERE ${PV} GROUP BY day ORDER BY day`),
-    all<{ host: string; path: string; views: number }>(`SELECT host, path, COUNT(*) views FROM site_events WHERE ${PV} GROUP BY host, path ORDER BY views DESC LIMIT 8`),
+    all<{ host: string; path: string; views: number }>(
+      `SELECT host, CASE WHEN host='app' THEN path
+                        WHEN instr(path,'#')>0 THEN substr(path,1,instr(path,'#')-1)
+                        ELSE path END path, COUNT(*) views
+         FROM site_events WHERE ${PV} GROUP BY host, 2 ORDER BY views DESC LIMIT 8`),
     all<{ ref: string; visitors: number }>(`SELECT COALESCE(ref_host,'Direct') ref, COUNT(DISTINCT visitor||day) visitors FROM site_events WHERE ${PV} GROUP BY ref ORDER BY visitors DESC LIMIT 8`),
     all<{ country: string; visitors: number }>(`SELECT COALESCE(country,'??') country, COUNT(DISTINCT visitor||day) visitors FROM site_events WHERE ${PV} GROUP BY country ORDER BY visitors DESC LIMIT 8`),
     all<{ device: string; visitors: number }>(`SELECT device, COUNT(DISTINCT visitor||day) visitors FROM site_events WHERE ${PV} GROUP BY device ORDER BY visitors DESC`),
@@ -162,10 +166,10 @@ app.get("/analytics/traffic", requireAdmin, async (c) => {
     all<{ bounced: number }>(`SELECT COUNT(*) bounced FROM (SELECT visitor||day v, SUM(event='pageview') n FROM site_events WHERE day >= ? AND host != 'other' GROUP BY v) WHERE n = 1`),
     all<{ com: number }>(`SELECT COUNT(DISTINCT visitor||day) com FROM site_events WHERE host = 'com' AND day >= ?`),
     all<{ path: string; visitors: number }>(
-      `SELECT path, COUNT(*) visitors FROM (
+      `SELECT CASE WHEN instr(path,'#')>0 THEN substr(path,1,instr(path,'#')-1) ELSE path END path, COUNT(*) visitors FROM (
          SELECT visitor||day vd, path, ROW_NUMBER() OVER (PARTITION BY visitor||day ORDER BY ts) rn
          FROM site_events WHERE event='pageview' AND day >= ? AND host IN ('site','com')
-       ) WHERE rn = 1 GROUP BY path ORDER BY visitors DESC LIMIT 8`
+       ) WHERE rn = 1 GROUP BY 1 ORDER BY visitors DESC LIMIT 8`
     ),
     all<{ city: string; visitors: number }>(`SELECT COALESCE(city,'Unknown') city, COUNT(DISTINCT visitor||day) visitors FROM site_events WHERE ${PV} GROUP BY city ORDER BY visitors DESC LIMIT 8`),
     all<{ lang: string; visitors: number }>(`SELECT COALESCE(lang,'Unknown') lang, COUNT(DISTINCT visitor||day) visitors FROM site_events WHERE ${PV} GROUP BY lang ORDER BY visitors DESC LIMIT 8`),

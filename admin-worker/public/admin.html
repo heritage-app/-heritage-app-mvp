@@ -484,7 +484,10 @@ input.gaip{font:700 16px var(--display)}
         <div class="panel chart"><h2>Visitors by hour <small>UTC</small></h2><svg viewBox="0 0 420 210" role="img" id="tHours" aria-label="Visitors by hour"></svg></div>
         <div class="panel"><h2>Engagement</h2><div class="stack" id="tEngage"></div><p class="muted" style="font-size:12.5px;margin-top:10px">Shares are out of the period's visitors, each counted once per day.</p></div>
       </div>
-      <div class="panel"><h2>Devices</h2><div class="stack" id="tDevices"></div></div>
+      <div class="grid2">
+        <div class="panel"><h2>Devices</h2><div class="stack" id="tDevices"></div></div>
+        <div class="panel"><h2>Installs by device <small>install / install taps / uninstalls, per platform</small></h2><div class="mini" id="tInst"></div></div>
+      </div>
     </section>
 
     <!-- ============ LEARNING ============ -->
@@ -1458,7 +1461,7 @@ async function loadTraffic() {
       ["Visitors", t.visitors, `${fmt(t.first_visit || 0)} brand new`], ["Page views", t.views, t.visitors ? `${(t.views / t.visitors).toFixed(1)} per visitor` : "—"],
       ["Active now", t.active_now || 0, "last 15 minutes"],
       ["Landing to app", f.site_visitors ? `${Math.round(t.actions.start / f.site_visitors * 100)}%` : "—", `${fmt(t.actions.start)} clicked through`],
-      ["App installs", t.actions.install, `${fmt(t.actions.install_click || 0)} taps on install`],
+      ["App installs", t.actions.install, `${fmt(t.actions.install_click || 0)} taps · ${fmt(t.actions.uninstall || 0)} uninstalls`],
       ["Support clicks", t.actions.support, "in Support the research"], ["Contribution forms", t.actions.give, "sent from speakga.org"],
       ["Via speakga.com", t.com_visitors || 0, "redirected to .org"],
     ].map(([k, v, s]) => `<div class="kpi"><small>${k}</small><b>${typeof v === "number" ? fmt(v) : v}</b><span>${s}</span></div>`).join("");
@@ -1468,7 +1471,7 @@ async function loadTraffic() {
     const days = lastDays(Math.min(T.days, 30)), map = Object.fromEntries(t.daily.map((d) => [d.day, d.visitors]));
     const vals = days.map((d) => map[d] || 0);
     bars("tChart", days.map(dayLabel), vals, { hi: vals.indexOf(Math.max(...vals)), sub: monthAt(days) });
-    mini($("tPages"), t.pages.map((p) => [`${p.host === "site" ? "speakga.org" : "app"} ${p.path}`, p.views]), "No page views yet.");
+    mini($("tPages"), t.pages.map((p) => [`${p.host === "site" ? "speakga.org" : p.host === "com" ? "speakga.com" : "app"} ${p.path}`, p.views]), "No page views yet.");
     mini($("tRefs"), t.referrers.map((r) => [r.ref, r.visitors]), "No visits yet.");
     mini($("tGeo"), t.countries.map((c) => [c.country === "??" ? "Unknown" : COUNTRY(c.country), c.visitors]), "No visits yet.");
     const notOther = (a, b) => (a[0] === "Other / earlier") - (b[0] === "Other / earlier") || b[1] - a[1];
@@ -1479,6 +1482,7 @@ async function loadTraffic() {
     mini($("tLanding"), (t.landing_pages || []).map((p) => [p.path, p.visitors]), "No landing data yet.");
     mini($("tCities"), (t.cities || []).slice(0, 4).map((c) => [c.city, c.visitors]), "No city data yet.");
     mini($("tLangs"), (t.langs || []).slice(0, 4).map((l) => [l.lang, l.visitors]), "No language data yet.");
+    mini($("tInst"), (t.install_devices || []).map((d) => [`${d.event === "install_click" ? "tap" : d.event}: ${d.os} ${d.browser} (${d.device})`, d.n]), "No install events yet.");
     const hvals = Array.from({ length: 24 }, (_, h) => (Object.fromEntries((t.hourly || []).map((r) => [+r.hh, r.visitors])) || {})[h] || 0);
     bars("tHours", Array.from({ length: 24 }, (_, h) => String(h).padStart(2, "0")), hvals, { hi: hvals.indexOf(Math.max(...hvals)), sub: hvals.map((_, h) => (h % 6 === 0 ? `${h}h` : "")) });
     const eng = [
