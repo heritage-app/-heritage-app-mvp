@@ -17,7 +17,8 @@ import { createAccessToken } from "../auth/jwt";
 import { getUserByEmail, createUser } from "../db/users";
 import { nowIso } from "../utils/time";
 
-const INVITE_ROLES = new Set(["admin", "member", "moderator", "user"]);
+const INVITE_ROLES = new Set(["super_admin", "admin", "member", "moderator", "user"]);
+const CONSOLE_INVITE_ROLES = new Set(["super_admin", "admin"]);
 const CONSOLE_AUTH_URL = "https://admin.speakga.org/auth";
 const APP_AUTH_URL = "https://app.speakga.org/auth";
 const TTL_MS = 7 * 24 * 60 * 60 * 1000; // a week
@@ -45,7 +46,7 @@ function newToken(): string {
 }
 
 function inviteUrl(role: string, token: string): string {
-  return `${role === "admin" ? CONSOLE_AUTH_URL : APP_AUTH_URL}?invite=${token}`;
+  return `${CONSOLE_INVITE_ROLES.has(role) ? CONSOLE_AUTH_URL : APP_AUTH_URL}?invite=${token}`;
 }
 
 async function logAction(env: Env, adminId: string, action: string, ref: string, detail: string) {
@@ -77,7 +78,7 @@ async function sendInviteEmail(
 ): Promise<string | null> {
   if (!env.RESEND_API_KEY) return "Resend isn't configured yet. Share the link yourself.";
   const from = env.INVITE_EMAIL_FROM || "SpeakGa <invite@mail.speakga.org>";
-  const isAdmin = role === "admin";
+  const isAdmin = CONSOLE_INVITE_ROLES.has(role);
   const subject = isAdmin ? "You're invited to the SpeakGa admin team" : "You're invited to SpeakGa";
   const what = isAdmin ? "the SpeakGa admin team" : "SpeakGa";
   const where = isAdmin
@@ -126,6 +127,10 @@ async function sendInviteEmail(
 invitesAdmin.post("/", async (c) => {
   const body = await c.req.json<{ role?: string; email?: string }>().catch(() => ({} as { role?: string; email?: string }));
   const role = INVITE_ROLES.has(body.role ?? "") ? body.role! : "member";
+  // Console seats are super_admin business: admins invite app users.
+  if (CONSOLE_INVITE_ROLES.has(role) && c.get("user")?.role !== "super_admin") {
+    return c.json({ detail: "Only a super admin can invite people to the team." }, 403);
+  }
   const email = (body.email ?? "").trim().toLowerCase() || null;
   if (email) {
     if (!/^\S+@\S+\.\S+$/.test(email)) return c.json({ detail: "That email isn't valid." }, 400);

@@ -26,6 +26,9 @@ interface SessionUser {
   role?: string;
 }
 
+/** Console seats: super_admin runs the show, admin works alongside. */
+const isConsoleRole = (role?: string) => role === "admin" || role === "super_admin";
+
 /** Ask the API who this cookie belongs to. Null = signed out or check failed. */
 async function whoami(request: Request, env: Env, origin: string): Promise<SessionUser | null> {
   try {
@@ -60,7 +63,7 @@ export default {
     if (url.pathname === "/" || url.pathname === "/admin" || url.pathname === "/admin.html") {
       const me = await whoami(request, env, url.origin);
       if (!me) return Response.redirect(url.origin + "/auth", 302);
-      if (me.role !== "admin") return Response.redirect(url.origin + "/auth?denied=1", 302);
+      if (!isConsoleRole(me.role)) return Response.redirect(url.origin + "/auth?denied=1", 302);
       if (url.pathname === "/") return Response.redirect(url.origin + "/admin", 302);
       // Fetch the canonical pretty path — the binding 307s *.html → /admin,
       // which would loop back through this gate.
@@ -70,7 +73,7 @@ export default {
     // The sign-in page: a signed-in admin has no business here.
     if (url.pathname === "/auth" || url.pathname === "/auth.html") {
       const me = await whoami(request, env, url.origin);
-      if (me?.role === "admin") return Response.redirect(url.origin + "/admin", 302);
+      if (me && isConsoleRole(me.role)) return Response.redirect(url.origin + "/admin", 302);
       return env.ASSETS.fetch(new Request(url.origin + "/auth", request));
     }
 

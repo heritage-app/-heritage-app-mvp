@@ -239,7 +239,7 @@ function busy(on) {
     const r = await fetch(API + "/auth/session", { credentials: "include" });
     if (r.ok) {
       const u = (await r.json()).user;
-      if (u && u.role === "admin") { location.href = "/admin.html"; return; }
+      if (u && (u.role === "admin" || u.role === "super_admin")) { location.href = "/admin.html"; return; }
       if (u) { await fetch(API + "/auth/logout", { method: "POST", credentials: "include" }).catch(() => {}); denied(u.email); }
     }
   } catch {}
@@ -258,7 +258,7 @@ if (invite) {
       const r = await fetch(`${API}/invites/${encodeURIComponent(invite)}`);
       const d = await r.json().catch(() => ({}));
       if (r.ok) {
-        if (d.role === "admin") {
+        if (d.role === "admin" || d.role === "super_admin") {
           inviteInfo = d;
           document.querySelector(".hello h1").textContent = "You're invited to the admin team.";
           document.querySelector(".hello p").textContent = `Invited by ${d.invited_by}. Set your password and you're in.`;
@@ -311,7 +311,7 @@ $("f").addEventListener("submit", async (e) => {
       if (r.status === 401) { say("err", "That email and password don't match. Check them and try again.", "pwLine"); $("pw").select(); return; }
       say("err", esc(d.detail || "Signing in didn't work. Try again.")); return;
     }
-    if (!d.user || d.user.role !== "admin") {
+    if (!d.user || (d.user.role !== "admin" && d.user.role !== "super_admin")) {
       await fetch(API + "/auth/logout", { method: "POST", credentials: "include" }).catch(() => {});
       busy(false); denied(d.user && d.user.email); return;
     }

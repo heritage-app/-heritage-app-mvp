@@ -63,6 +63,10 @@ a{color:inherit}
 .up{display:flex;align-items:center;gap:10px;min-width:0}
 .up b{display:block;overflow-wrap:anywhere;font-size:13.5px}
 .up span{display:block;color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.kpis.slim{display:flex;flex-wrap:wrap;gap:10px}
+.kpis.slim .kpi{flex:0 1 auto;min-width:140px;padding:12px 16px}
+.kpis.slim .kpi b{font-size:24px}
+.pill.owner{background:var(--gold-soft, rgba(242,179,61,.18));color:var(--gold-ink,#7A5200)}
 .me .out{border:0;background:none;color:var(--bad);font-weight:700;font-size:13px;padding:8px;border-radius:10px;cursor:pointer}
 .me .out:hover{background:var(--bad-soft)}
 .main{min-width:0;grid-template-columns:minmax(0,1fr);padding:22px clamp(16px,3vw,36px) 64px;display:grid;gap:22px;align-content:start}
@@ -457,7 +461,7 @@ input.gaip{font:700 16px var(--display)}
     <!-- ============ USERS ============ -->
     <section class="view hidden" data-view="users">
       <div class="hd"><h1>Users</h1><p>Accounts and roles. The team uses this console; everyone else signs in on the app.</p></div>
-      <div class="kpis" id="uKpis" style="grid-template-columns:repeat(4,minmax(0,1fr))"></div>
+      <div class="kpis slim" id="uKpis"></div>
       <div class="panel"><h2>Invite someone</h2>
         <div class="bulkbar">
           <select class="in" id="invRole" style="height:38px" aria-label="Role for the invite"><option value="admin">Admin</option><option value="member">Member</option><option value="moderator">Moderator</option><option value="user">User</option></select>
@@ -600,11 +604,13 @@ $$(".nav").forEach((b) => b.addEventListener("click", () => go(b.dataset.v)));
 document.addEventListener("click", (e) => { const t = e.target.closest("[data-go]"); if (t) go(t.dataset.go); });
 
 /* gate */
+let ME_ROLE = "admin";
 (async function guard() {
   let me = null;
   try { const r = await fetch(`${API}/auth/me`, { credentials: "include" }); if (r.ok) me = await r.json(); } catch {}
   if (!me) { location.href = "/auth"; return; }
-  if (me.role !== "admin") { location.href = "/auth?denied=1"; return; }
+  if (me.role !== "admin" && me.role !== "super_admin") { location.href = "/auth?denied=1"; return; }
+  ME_ROLE = me.role;
   $("gate").remove(); $("shell").classList.remove("hidden");
   const first = me.first_name || (me.email || "").split("@")[0];
   $("whoName").textContent = first || "Admin"; $("whoEmail").textContent = me.email || ""; $("whoAv").textContent = (first || "A").charAt(0);
@@ -1443,19 +1449,30 @@ loaders.usage = async () => {
 
 /* ================= USERS ================= */
 const U = { page: 0, size: 25, q: "" };
-const ROLES = ["admin", "moderator", "member", "user"];
+const ROLES_ALL = ["super_admin", "admin", "moderator", "member", "user"];
+const ROLES_MEMBER = ["member", "user", "moderator"];   // what an admin can hand out
+const ROLE_LABEL = { super_admin: "Super admin", admin: "Admin", moderator: "Moderator", member: "Member", user: "User" };
+const ROLE_PILL = { super_admin: "owner", admin: "bad", moderator: "warn", member: "info", user: "" };
+const isSuper = () => ME_ROLE === "super_admin";
 const uav = (u) => `<i class="uav">${esc((u.first_name || u.display_name || u.email || "?")[0] || "?")}</i>`;
 const ucell = (u) => {
   const name = [u.first_name, u.last_name].filter(Boolean).join(" ") || u.display_name || "";
   return `<div class="up">${uav(u)}<div><b>${esc(u.email)}</b><span>${esc(name || "—")}</span></div></div>`;
 };
-const urole = (u) => `<select class="in" style="height:34px;width:auto" data-role="${esc(u.id)}" data-email="${esc(u.email)}" data-prev="${esc(u.role)}">${ROLES.map((r) => `<option${r === u.role ? " selected" : ""}>${r}</option>`).join("")}</select>`;
+// The role cell: a select only where the viewer can actually change something.
+// super_admin locks, console seats need a super_admin, members stay members.
+const urole = (u) => {
+  if (u.role === "super_admin" || (!isSuper() && ["admin", "super_admin"].includes(u.role)))
+    return `<span class="pill ${ROLE_PILL[u.role] || ""}">${esc(ROLE_LABEL[u.role] || u.role)}</span>`;
+  const opts = isSuper() ? ROLES_ALL : ROLES_MEMBER;
+  return `<select class="in" style="height:34px;width:auto" data-role="${esc(u.id)}" data-email="${esc(u.email)}" data-prev="${esc(u.role)}">${opts.map((r) => `<option value="${r}"${r === u.role ? " selected" : ""}>${esc(ROLE_LABEL[r] || r)}</option>`).join("")}</select>`;
+};
 const urow = (u) => `<tr><td>${ucell(u)}</td><td>${urole(u)}</td><td class="muted" style="white-space:nowrap">${esc(u.created_at)}</td></tr>`;
 async function loadInvites() {
   try {
     const d = await api("/admin/invites");
     $("invEmpty").classList.toggle("hidden", !!d.invites.length);
-    $("invBody").innerHTML = d.invites.map((v) => `<tr><td><span class="pill ${v.role === "admin" ? "bad" : "info"}">${esc(v.role)}</span></td><td style="overflow-wrap:anywhere">${v.email ? esc(v.email) : '<span class="muted">anyone with the link</span>'}</td><td class="muted">${esc(v.invited_by)}</td><td class="muted" style="white-space:nowrap">${v.expired ? '<span style="color:var(--bad)">expired</span>' : esc(new Date(v.expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }))}</td><td><button class="btn sm bad" data-inv-rev="${esc(v.token)}">Revoke</button></td></tr>`).join("");
+    $("invBody").innerHTML = d.invites.map((v) => `<tr><td><span class="pill ${ROLE_PILL[v.role] || ""}">${esc(ROLE_LABEL[v.role] || v.role)}</span></td><td style="overflow-wrap:anywhere">${v.email ? esc(v.email) : '<span class="muted">anyone with the link</span>'}</td><td class="muted">${esc(v.invited_by)}</td><td class="muted" style="white-space:nowrap">${v.expired ? '<span style="color:var(--bad)">expired</span>' : esc(new Date(v.expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }))}</td><td><button class="btn sm bad" data-inv-rev="${esc(v.token)}">Revoke</button></td></tr>`).join("");
   } catch (e) { $("invBody").innerHTML = `<tr><td colspan="5" class="muted">${esc(e.message)}</td></tr>`; }
 }
 $("invMake").addEventListener("click", async () => {
@@ -1486,13 +1503,20 @@ loaders.users = async () => {
       api(`/admin/users?group=members&limit=${U.size}&offset=${U.page * U.size}${U.q ? `&q=${encodeURIComponent(U.q)}` : ""}`),
     ]);
     const counts = team.counts || members.counts || {};
-    const admins = counts.admin || 0, mods = counts.moderator || 0, mem = (counts.member || 0) + (counts.user || 0);
+    const sup = counts.super_admin || 0, admins = counts.admin || 0, mods = counts.moderator || 0, mem = (counts.member || 0) + (counts.user || 0);
     $("uKpis").innerHTML = [
+      ["Super admins", sup, "run the team"],
       ["Admins", admins, "console access"],
       ["Moderators", mods, "console access"],
       ["App members", mem, "sign in on the app"],
-      ["Total accounts", admins + mods + mem, ""],
     ].map(([k, v, s]) => `<div class="kpi"><small>${k}</small><b>${fmt(v)}</b><span>${s}</span></div>`).join("");
+    // Admins can invite app users; console seats are super_admin business.
+    const invOpts = isSuper() ? [["super_admin", "Super admin"], ["admin", "Admin"], ["moderator", "Moderator"], ["member", "Member"], ["user", "User"]]
+                              : [["member", "Member"], ["moderator", "Moderator"], ["user", "User"]];
+    if ($("invRole").dataset.init !== "1") {
+      $("invRole").innerHTML = invOpts.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+      $("invRole").dataset.init = "1";
+    }
 
     $("teamEmpty").classList.toggle("hidden", !!team.users.length);
     $("teamCount").textContent = `${team.total} · console access`;

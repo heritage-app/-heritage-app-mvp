@@ -86,7 +86,7 @@ app.get("/analytics/traffic", requireAdmin, async (c) => {
   const [asked, contributed, signups] = await Promise.all([
     db.prepare("SELECT COUNT(DISTINCT user_id) n FROM interactions WHERE date(created_at) >= ?").bind(since).first<{ n: number }>().catch(() => null),
     db.prepare("SELECT COUNT(DISTINCT COALESCE(contributor_id, id)) n FROM user_contributions WHERE date(timestamp) >= ?").bind(since).first<{ n: number }>().catch(() => null),
-    db.prepare("SELECT COUNT(*) n FROM users WHERE role != 'admin' AND date(created_at) >= ?").bind(since).first<{ n: number }>().catch(() => null),
+    db.prepare("SELECT COUNT(*) n FROM users WHERE role NOT IN ('admin','super_admin') AND date(created_at) >= ?").bind(since).first<{ n: number }>().catch(() => null),
   ]);
 
   const ev = Object.fromEntries(events.map((e) => [e.event, e.n]));

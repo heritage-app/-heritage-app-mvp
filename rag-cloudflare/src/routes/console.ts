@@ -197,7 +197,7 @@ app.get("/overview", async (c) => {
     one<{ verified: number; total: number }>(`SELECT SUM(verified_at IS NOT NULL AND TRIM(verified_at) <> '') verified, COUNT(*) total FROM vocabulary`),
     all<{ source: string; n: number }>(`SELECT COALESCE(ga_version_abbr,'other') source, COUNT(*) n FROM bible_verses GROUP BY 1 ORDER BY n DESC`),
     all<{ category: string; n: number }>(`SELECT COALESCE(category,'none') category, COUNT(*) n FROM documents GROUP BY 1 ORDER BY n DESC`),
-    one<{ total: number; admins: number }>(`SELECT COUNT(*) total, SUM(role='admin') admins FROM users`),
+    one<{ total: number; admins: number }>(`SELECT COUNT(*) total, SUM(role IN ('admin','super_admin')) admins FROM users`),
     one<{ n: number; people: number }>(`SELECT COUNT(*) n, COUNT(DISTINCT user_id) people FROM chat_sessions`),
     one<{ total: number; down: number }>(`SELECT COUNT(*) total, SUM(rating='not_helpful') down FROM response_feedback`),
     all<{ original_filename: string }>(`SELECT DISTINCT original_filename FROM documents WHERE original_filename LIKE 'ga-samai%'`),

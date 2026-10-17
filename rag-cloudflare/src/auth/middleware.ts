@@ -2,7 +2,11 @@
  * Auth middleware (ported from app/api/deps.py).
  * - requireUser:  401 unless a valid JWT cookie resolves to a real user.
  * - optionalUser: resolves user id from JWT, else falls back to X-Anonymous-ID guest id.
- * - requireAdmin: requireUser + role === 'admin'.
+ * - requireAdmin: requireUser + console role ('admin' or 'super_admin').
+ *
+ * Hierarchy: super_admin > admin > moderator > member/user.
+ * super_admin: the bootstrap account — can grant console roles, demote admins.
+ * admin: full console access, but cannot create or change console roles.
  */
 import type { Context, MiddlewareHandler } from "hono";
 import type { Env, Variables } from "../types";
@@ -34,8 +38,12 @@ export function fromAdminConsole(c: Context): boolean {
 /** Admin accounts belong to the console, not the app. A browser session
  *  (the cookie) for an admin is not honoured on the app's side. Scripts
  *  using a Bearer token are not browsers and are left alone. */
+export function isConsoleRole(role: string): boolean {
+  return role === "admin" || role === "super_admin";
+}
+
 export function adminBlockedHere(c: Context, role: string): boolean {
-  if (role !== "admin" || fromAdminConsole(c)) return false;
+  if (!isConsoleRole(role) || fromAdminConsole(c)) return false;
   return /(?:^|;\s*)access_token=/.test(c.req.header("Cookie") || "") && !c.req.header("Authorization");
 }
 
@@ -91,7 +99,7 @@ export const requireAdmin: MiddlewareHandler<AppEnv> = async (c, next) => {
 
   const user = await getUserById(c.env, payload.sub);
   if (!user) return c.json({ detail: "User not found" }, 401);
-  if (user.role !== "admin") {
+  if (!isConsoleRole(user.role)) {
     return c.json({ detail: "Forbidden: User does not have administrative privileges." }, 403);
   }
 

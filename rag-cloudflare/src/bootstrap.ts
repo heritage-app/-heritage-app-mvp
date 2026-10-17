@@ -18,10 +18,10 @@ export async function bootstrapSuperAdmin(env: Env): Promise<void> {
   try {
     const existing = await getUserByEmail(env, email);
     if (existing) {
-      if (existing.role !== "admin") await updateUserRole(env, existing.id, "admin");
+      if (existing.role !== "super_admin") await updateUserRole(env, existing.id, "super_admin");
       return;
     }
-    await createUser(env, email, password, "admin", "Super Admin");
+    await createUser(env, email, password, "super_admin", "Super Admin");
   } catch (e) {
     console.error("Super admin bootstrap failed:", e);
   }

@@ -6,7 +6,7 @@ import type { Env, Variables } from "../types";
 import { getUserByEmail, createUser } from "../db/users";
 import { verifyPassword } from "../auth/password";
 import { createAccessToken, buildAuthCookie, clearAuthCookie } from "../auth/jwt";
-import { requireUser, optionalUser, fromAdminConsole, fromApiHost, ADMIN_CONSOLE_URL } from "../auth/middleware";
+import { requireUser, optionalUser, fromAdminConsole, fromApiHost, isConsoleRole, ADMIN_CONSOLE_URL } from "../auth/middleware";
 import { getTokenFromRequest } from "../auth/jwt";
 import google, { googleEnabled } from "./google";
 
@@ -32,7 +32,7 @@ app.post("/signup", async (c) => {
   // Accounts are made in the app; the console only signs admins in.
   if (fromAdminConsole(c)) return c.json({ detail: "Accounts are created in the SpeakGa app." }, 403);
   const existing = await getUserByEmail(c.env, body.email);
-  if (existing?.role === "admin") {
+  if (existing && isConsoleRole(existing.role)) {
     return c.json({ detail: "This email belongs to an admin account. Use a different email for the app." }, 400);
   }
   if (existing) return c.json({ detail: "User with this email already exists" }, 400);
@@ -57,10 +57,10 @@ app.post("/login", async (c) => {
   // password so the answer reveals nothing about an address to a stranger.
   const console_ = fromAdminConsole(c);
   // api.speakga.org is for token clients (scripts), not the app: admins may sign in there.
-  if (user.role === "admin" && !console_ && !fromApiHost(c)) {
+  if (isConsoleRole(user.role) && !console_ && !fromApiHost(c)) {
     return c.json({ detail: "Admin accounts sign in to the admin console.", admin_console: `${ADMIN_CONSOLE_URL}/auth` }, 403);
   }
-  if (user.role !== "admin" && console_) {
+  if (!isConsoleRole(user.role) && console_) {
     return c.json({ detail: "This account isn't an admin.", app: "https://app.speakga.org/" }, 403);
   }
 

@@ -15,6 +15,7 @@ import type { Context } from "hono";
 import type { Env, Variables } from "../types";
 import { getUserByEmail, createUser } from "../db/users";
 import { createAccessToken, buildAuthCookie } from "../auth/jwt";
+import { isConsoleRole } from "../auth/middleware";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -115,7 +116,7 @@ app.get("/callback", async (c) => {
 
   let user = await getUserByEmail(c.env, claims.email);
   // Admins sign in to the admin console, same rule as the password sign-in.
-  if (user?.role === "admin") return back(c, "admin_console");
+  if (user && isConsoleRole(user.role)) return back(c, "admin_console");
   if (!user) {
     // No password is ever shown or needed: a long random one fills the required column.
     const unusable = crypto.randomUUID() + crypto.randomUUID();

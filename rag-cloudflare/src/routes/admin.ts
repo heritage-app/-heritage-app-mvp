@@ -13,7 +13,7 @@ import {
   countDocuments,
   deleteDocument,
 } from "../db/documents";
-import { getAllUsers, countUsers, countUsersByRole, updateUserRole } from "../db/users";
+import { getAllUsers, getUserById, countUsers, countUsersByRole, updateUserRole } from "../db/users";
 import { countSessions } from "../db/sessions";
 import { indexFromBytes, indexRefinedRecords, indexHeritageRecords, extractRawText } from "../rag/indexer";
 import { getRefinementPreview } from "../rag/refiner";
@@ -496,7 +496,7 @@ app.post("/heritage/commit", async (c) => {
 // else (the app's crowd). ?q= filters email/names. The response always carries
 // a per-role breakdown so the console can show counts without another call.
 const USER_GROUPS: Record<string, string[]> = {
-  team: ["admin", "moderator"],
+  team: ["super_admin", "admin", "moderator"],
   members: ["member", "user"],
 };
 app.get("/users", async (c) => {
@@ -527,11 +527,28 @@ app.get("/users", async (c) => {
 });
 
 // --- Update user role ---
+// Console roles (super_admin, admin) can only be granted by a super_admin, a
+// super_admin's role can't be changed at all, and nobody can demote themselves
+// — that last one stops the console locking everyone out.
+const ROLES_ALL = ["super_admin", "admin", "moderator", "member", "user"];
+const CONSOLE_ROLES = new Set(["super_admin", "admin"]);
 app.patch("/users/:target_user_id/role", async (c) => {
   const targetId = c.req.param("target_user_id");
   const role = c.req.query("role");
-  if (!role || !["admin", "moderator", "user", "member"].includes(role)) {
-    return c.json({ detail: "Invalid role. Must be 'admin', 'moderator', 'user', or 'member'." }, 400);
+  if (!role || !ROLES_ALL.includes(role)) {
+    return c.json({ detail: `Invalid role. Must be one of: ${ROLES_ALL.join(", ")}.` }, 400);
+  }
+  const actor = c.get("user")!;
+  if (actor.id === targetId) {
+    return c.json({ detail: "You can't change your own role." }, 400);
+  }
+  const target = await getUserById(c.env, targetId);
+  if (!target) return c.json({ detail: "User not found." }, 404);
+  if (target.role === "super_admin") {
+    return c.json({ detail: "The super admin's role can't be changed." }, 403);
+  }
+  if (CONSOLE_ROLES.has(role) && actor.role !== "super_admin") {
+    return c.json({ detail: "Only a super admin can grant console roles." }, 403);
   }
   const ok = await updateUserRole(c.env, targetId, role);
   if (!ok) return c.json({ detail: "User not found or role unchanged." }, 404);
