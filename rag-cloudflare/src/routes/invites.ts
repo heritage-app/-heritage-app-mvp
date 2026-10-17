@@ -37,6 +37,8 @@ type InviteRow = {
   expires_at: string;
   used_at: string | null;
   used_by: string | null;
+  use_count: number;
+  max_uses: number;
 };
 
 function newToken(): string {
@@ -59,7 +61,7 @@ async function logAction(env: Env, adminId: string, action: string, ref: string,
 
 async function loadInvite(env: Env, token: string): Promise<InviteRow | null> {
   const inv = await env.DB.prepare("SELECT * FROM invites WHERE token = ?").bind(token).first<InviteRow>();
-  if (!inv || inv.used_at) return null;
+  if (!inv || (inv.use_count ?? 0) >= (inv.max_uses ?? 1)) return null;
   if (Date.parse(inv.expires_at) < Date.now()) return null;
   return inv;
 }
@@ -98,7 +100,7 @@ async function sendInviteEmail(
     <p style="margin:0 0 26px;text-align:center">
       <a href="${url}" style="display:inline-block;background:#16130F;color:#FBF7F1;text-decoration:none;font:700 15px system-ui,sans-serif;padding:14px 34px;border-radius:999px">Accept the invite</a>
     </p>
-    <p style="margin:0;font:500 13px/1.6 system-ui,sans-serif;color:#8A7F70">The link works once and expires in 7 days. If the button doesn't open, paste this into your browser:<br>
+    <p style="margin:0;font:500 13px/1.6 system-ui,sans-serif;color:#8A7F70">The link works for up to 3 sign-ups and expires in 7 days. If the button doesn't open, paste this into your browser:<br>
       <a href="${url}" style="color:#7A5200;word-break:break-all">${url}</a>
     </p>
   </td></tr>
@@ -167,7 +169,7 @@ invitesAdmin.get("/", async (c) => {
   const rows = await c.env.DB.prepare(
     `SELECT i.*, COALESCE(u.display_name, u.email, 'admin') AS who
      FROM invites i LEFT JOIN users u ON u.id = i.invited_by
-     WHERE i.used_at IS NULL
+     WHERE i.use_count < i.max_uses
      ORDER BY i.created_at DESC LIMIT 100`
   ).all<InviteRow & { who: string }>();
   const now = Date.now();
@@ -180,6 +182,8 @@ invitesAdmin.get("/", async (c) => {
       created_at: r.created_at,
       expires_at: r.expires_at,
       expired: Date.parse(r.expires_at) < now,
+      use_count: r.use_count,
+      max_uses: r.max_uses,
       url: inviteUrl(r.role, r.token),
     })),
   });
@@ -187,8 +191,8 @@ invitesAdmin.get("/", async (c) => {
 
 invitesAdmin.delete("/:token", async (c) => {
   const token = c.req.param("token");
-  const r = await c.env.DB.prepare("DELETE FROM invites WHERE token = ? AND used_at IS NULL").bind(token).run();
-  if (!r.meta.changes) return c.json({ detail: "Invite not found or already used." }, 404);
+  const r = await c.env.DB.prepare("DELETE FROM invites WHERE token = ? AND use_count < max_uses").bind(token).run();
+  if (!r.meta.changes) return c.json({ detail: "Invite not found or already used up." }, 404);
   await logAction(c.env, c.get("adminId")!, "invite_revoked", token, "");
   return c.json({ status: "ok" });
 });
@@ -197,7 +201,7 @@ invitesAdmin.delete("/:token", async (c) => {
 
 invitesPublic.get("/:token", async (c) => {
   const inv = await loadInvite(c.env, c.req.param("token"));
-  if (!inv) return c.json({ detail: "That invite link is already used or expired. Ask for a fresh one." }, 410);
+  if (!inv) return c.json({ detail: "That invite link is already used up or expired. Ask for a fresh one." }, 410);
   let who = "the team";
   if (inv.invited_by) {
     const u = await c.env.DB.prepare("SELECT first_name, display_name, email FROM users WHERE id = ?")
@@ -205,12 +209,19 @@ invitesPublic.get("/:token", async (c) => {
       .first<{ first_name: string | null; display_name: string | null; email: string }>();
     who = u?.first_name || u?.display_name || u?.email?.split("@")[0] || "the team";
   }
-  return c.json({ status: "ok", role: inv.role, email: inv.email, invited_by: who, expires_at: inv.expires_at });
+  return c.json({
+    status: "ok",
+    role: inv.role,
+    email: inv.email,
+    invited_by: who,
+    expires_at: inv.expires_at,
+    uses_left: (inv.max_uses ?? 1) - (inv.use_count ?? 0),
+  });
 });
 
 invitesPublic.post("/:token/accept", async (c) => {
   const inv = await loadInvite(c.env, c.req.param("token"));
-  if (!inv) return c.json({ detail: "That invite link is already used or expired. Ask for a fresh one." }, 410);
+  if (!inv) return c.json({ detail: "That invite link is already used up or expired. Ask for a fresh one." }, 410);
 
   const body = await c.req.json<{ email?: string; password?: string; name?: string }>().catch(
     () => ({} as { email?: string; password?: string; name?: string })
@@ -225,20 +236,25 @@ invitesPublic.post("/:token/accept", async (c) => {
   const existing = await getUserByEmail(c.env, email);
   if (existing) return c.json({ detail: "That email already has an account. Sign in instead." }, 400);
 
-  // Claim the link before the account row goes in, so a double-click or a
-  // shared tab can't create two accounts off one invite.
-  const claimed = await c.env.DB.prepare("UPDATE invites SET used_at = ? WHERE token = ? AND used_at IS NULL")
+  // Claim one of the link's uses before the account row goes in, so a
+  // double-click or a shared tab can't overspend it. The link lives until
+  // use_count reaches max_uses — three sign-ups per invite by default.
+  const claimed = await c.env.DB.prepare(
+    "UPDATE invites SET use_count = use_count + 1, used_at = COALESCE(used_at, ?) WHERE token = ? AND use_count < max_uses"
+  )
     .bind(nowIso(), inv.token)
     .run();
-  if (!claimed.meta.changes) return c.json({ detail: "That invite was just used. Ask for a fresh one." }, 410);
+  if (!claimed.meta.changes) return c.json({ detail: "That invite was just used up. Ask for a fresh one." }, 410);
 
   let user;
   try {
     user = await createUser(c.env, email, password, inv.role, String(body.name ?? "").trim());
   } catch (e) {
     // Something raced us (e.g. the email registered mid-request): hand the
-    // link back so it isn't silently burned.
-    await c.env.DB.prepare("UPDATE invites SET used_at = NULL WHERE token = ?").bind(inv.token).run().catch(() => {});
+    // use back so it isn't silently burned.
+    await c.env.DB.prepare(
+      "UPDATE invites SET use_count = MAX(0, use_count - 1), used_at = CASE WHEN use_count <= 1 THEN NULL ELSE used_at END WHERE token = ?"
+    ).bind(inv.token).run().catch(() => {});
     throw e;
   }
   await c.env.DB.prepare("UPDATE invites SET used_by = ? WHERE token = ?").bind(user.id, inv.token).run().catch(() => {});

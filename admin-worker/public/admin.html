@@ -1538,7 +1538,7 @@ async function loadInvites() {
   try {
     const d = await api("/admin/invites");
     $("invEmpty").classList.toggle("hidden", !!d.invites.length);
-    $("invBody").innerHTML = d.invites.map((v) => `<tr><td><span class="pill ${ROLE_PILL[v.role] || ""}">${esc(ROLE_LABEL[v.role] || v.role)}</span></td><td style="overflow-wrap:anywhere">${v.email ? esc(v.email) : '<span class="muted">anyone with the link</span>'}</td><td class="muted">${esc(v.invited_by)}</td><td class="muted" style="white-space:nowrap">${v.expired ? '<span style="color:var(--bad)">expired</span>' : esc(new Date(v.expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }))}</td><td><button class="btn sm bad" data-inv-rev="${esc(v.token)}">Revoke</button></td></tr>`).join("");
+    $("invBody").innerHTML = d.invites.map((v) => `<tr><td><span class="pill ${ROLE_PILL[v.role] || ""}">${esc(ROLE_LABEL[v.role] || v.role)}</span></td><td style="overflow-wrap:anywhere">${v.email ? esc(v.email) : '<span class="muted">anyone with the link</span>'}<br><span class="muted" style="font-size:11.5px">${v.use_count || 0}/${v.max_uses || 1} used</span></td><td class="muted">${esc(v.invited_by)}</td><td class="muted" style="white-space:nowrap">${v.expired ? '<span style="color:var(--bad)">expired</span>' : esc(new Date(v.expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }))}</td><td><button class="btn sm bad" data-inv-rev="${esc(v.token)}">Revoke</button></td></tr>`).join("");
   } catch (e) { $("invBody").innerHTML = `<tr><td colspan="5" class="muted">${esc(e.message)}</td></tr>`; }
 }
 $("invEmail").addEventListener("input", () => {
