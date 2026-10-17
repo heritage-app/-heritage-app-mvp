@@ -871,6 +871,12 @@ function openAnswer(id) {
     <div class="f2"><label class="f">Category<select class="in" name="category">${CATS.map((c) => `<option${c === (g.kind === "bible" ? "bible" : "general") ? " selected" : ""}>${c}</option>`).join("")}</select></label>
     <label class="f">Then<select class="in" name="then"><option value="verified">Add it as verified now</option><option value="review">Send it to the review queue</option></select></label></div>
     <label class="f">Where it comes from<input class="in" name="source" placeholder="e.g. I'm a Ga speaker, Language Guide p. 12"></label>
+    <div class="f"><span style="font:700 12px var(--sans);color:var(--ink-2)">Voice (optional) — recorded as yours, goes live straight away</span>
+      <span class="vbox" data-voice style="display:flex;gap:8px;align-items:center;margin-top:5px">
+        <button type="button" class="btn sm" data-vbtn>&#9679; Record</button>
+        <audio data-vplay class="hidden" controls style="height:30px;flex:0 1 240px"></audio>
+        <span class="status muted" data-vst>say the Ga phrase aloud</span>
+      </span></div>
     <div class="row-actions"><button class="btn ok sm" type="submit">Save answer</button><button class="btn sm" type="button" data-gap-answer="${esc(id)}">Cancel</button><span class="status" data-st></span></div>
   </form>`;
   box.querySelector('[name="ga"]').focus();
@@ -882,7 +888,23 @@ document.addEventListener("submit", async (e) => {
   st.textContent = "Saving…"; f.querySelector('[type="submit"]').disabled = true;
   try {
     const r = await api(`/admin/console/gaps/${encodeURIComponent(id)}/answer`, { json: fd });
-    removeGap(id, r.verified ? `Saved. “${fd.english}” is now ${fd.ga}.` : "Sent to the review queue.");
+    let vmsg = "";
+    const vb = f.querySelector("[data-voice]");
+    if (vb && vb._vrec) await vrecStop(vb);
+    if (vb && vb._take) {
+      try {
+        const fd2 = new FormData();
+        fd2.append("audio", vb._take.blob, "voice.wav");
+        fd2.append("ga", String(fd.ga)); fd2.append("english", String(fd.english)); fd2.append("consent", "1");
+        const vr = await fetch(API + "/voices/record", { method: "POST", credentials: "include", body: fd2 });
+        const vd = await vr.json().catch(() => ({}));
+        if (vr.ok && vd.id) {
+          await api(`/admin/console/voices/${vd.id}/approve`, { json: {} });
+          vmsg = " Voice is live.";
+        } else vmsg = ` Voice not saved: ${vd.error || `HTTP ${vr.status}`}`;
+      } catch (err) { vmsg = ` Voice failed: ${err.message}`; }
+    }
+    removeGap(id, (r.verified ? `Saved. “${fd.english}” is now ${fd.ga}.` : "Sent to the review queue.") + vmsg);
   } catch (err) { st.textContent = err.message; f.querySelector('[type="submit"]').disabled = false; }
 });
 async function checkAgain(id, btn) {
@@ -904,6 +926,62 @@ document.addEventListener("click", async (e) => {
   b.disabled = true;
   try { await api(`/admin/console/gaps/${encodeURIComponent(b.dataset.gapResolve)}/resolve`, { json: {} }); removeGap(b.dataset.gapResolve, "Closed. It answers correctly now."); }
   catch (err) { toast(err.message); b.disabled = false; }
+});
+
+/* ---------- voice capture in the answer form ---------- */
+async function vrecStart(box) {
+  const btn = box.querySelector("[data-vbtn]"), st = box.querySelector("[data-vst]");
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!(navigator.mediaDevices?.getUserMedia && AC && window.OfflineAudioContext)) {
+    st.textContent = "This browser can't record."; return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } });
+    const ac = new AC(), src = ac.createMediaStreamSource(stream);
+    const proc = ac.createScriptProcessor(4096, 1, 1), mute = ac.createGain(), pcm = [];
+    mute.gain.value = 0;
+    proc.onaudioprocess = (e) => { pcm.push(new Float32Array(e.inputBuffer.getChannelData(0))); };
+    src.connect(proc); proc.connect(mute); mute.connect(ac.destination);
+    box._vrec = { stream, ac, proc, pcm, rate: ac.sampleRate };
+    btn.textContent = "■ Stop"; st.textContent = "Recording…";
+  } catch { st.textContent = "No microphone — check the browser permission."; }
+}
+async function vrecStop(box) {
+  const r = box._vrec, btn = box.querySelector("[data-vbtn]"), st = box.querySelector("[data-vst]");
+  if (!r) return;
+  r.proc.onaudioprocess = null; r.stream.getTracks().forEach((t) => t.stop());
+  const n = r.pcm.reduce((a, b) => a + b.length, 0);
+  const pcm = new Float32Array(n); let o = 0;
+  for (const p of r.pcm) { pcm.set(p, o); o += p.length; }
+  r.proc.disconnect(); r.ac.close().catch(() => {}); box._vrec = null;
+  btn.textContent = "● Record"; st.textContent = "";
+  if (n < r.rate * 0.4) { st.textContent = "Too short — say the whole phrase."; return; }
+  try {
+    const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(n / r.rate * 16000)), 16000);
+    const buf = off.createBuffer(1, n, r.rate); buf.copyToChannel(pcm, 0);
+    const src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start();
+    const s = (await off.startRendering()).getChannelData(0);
+    let max = 1e-4; for (const v of s) max = Math.max(max, Math.abs(v));
+    const g = 0.89 / max, wav = new DataView(new ArrayBuffer(44 + s.length * 2)), peaks = new Array(32).fill(0);
+    const str = (o, t) => [...t].forEach((ch, k) => wav.setUint8(o + k, ch.charCodeAt(0)));
+    str(0, "RIFF"); wav.setUint32(4, 36 + s.length * 2, true); str(8, "WAVE"); str(12, "fmt ");
+    wav.setUint32(16, 16, true); wav.setUint32(20, 1, true); wav.setUint16(22, 1, true); wav.setUint32(24, 16000, true);
+    wav.setUint32(28, 32000, true); wav.setUint16(32, 2, true); wav.setUint16(34, 16, true); str(36, "data"); wav.setUint32(40, s.length * 2, true);
+    for (let i = 0; i < s.length; i++) {
+      const v = Math.max(-1, Math.min(1, s[i] * g));
+      wav.setInt16(44 + i * 2, Math.round(v * 32767), true);
+      const k = Math.floor(i / s.length * 32); peaks[k] = Math.max(peaks[k], Math.abs(v));
+    }
+    box._take = { blob: new Blob([wav.buffer], { type: "audio/wav" }), secs: +(s.length / 16000).toFixed(1), peaks: peaks.map((p) => +p.toFixed(2)) };
+    const au = box.querySelector("[data-vplay]");
+    au.src = URL.createObjectURL(box._take.blob); au.classList.remove("hidden");
+    st.textContent = `${box._take.secs}s — listen back, or re-record.`;
+  } catch { st.textContent = "Couldn't prepare the recording."; }
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-vbtn]"); if (!b) return;
+  const box = b.closest("[data-voice]");
+  if (box._vrec) vrecStop(box); else { box._take = null; box.querySelector("[data-vplay]").classList.add("hidden"); vrecStart(box); }
 });
 
 /* ================= FLAGGED ================= */
