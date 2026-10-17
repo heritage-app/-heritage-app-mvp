@@ -461,7 +461,7 @@ input.gaip{font:700 16px var(--display)}
     <!-- ============ USERS ============ -->
     <section class="view hidden" data-view="users">
       <div class="hd"><h1>Users</h1><p>Accounts and roles. The team uses this console; everyone else signs in on the app.</p></div>
-      <div class="kpis slim" id="uKpis"></div>
+      <div class="kpis" id="uKpis" style="grid-template-columns:repeat(4,minmax(0,1fr))"></div>
       <div class="panel"><h2>Invite someone</h2>
         <div class="bulkbar">
           <select class="in" id="invRole" style="height:38px" aria-label="Role for the invite"><option value="admin">Admin</option><option value="member">Member</option><option value="moderator">Moderator</option><option value="user">User</option></select>
