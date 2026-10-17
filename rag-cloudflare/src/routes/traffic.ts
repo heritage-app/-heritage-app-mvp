@@ -139,9 +139,13 @@ app.post("/e", async (c) => {
 app.get("/analytics/traffic", requireAdmin, async (c) => {
   const days = Math.min(365, Math.max(1, parseInt(c.req.query("days") || "7", 10) || 7));
   const since = new Date(Date.now() - (days - 1) * 86400000).toISOString().slice(0, 10);
+  const prevSince = new Date(Date.now() - (days * 2 - 1) * 86400000).toISOString().slice(0, 10);
   const db = c.env.DB;
   const all = <T>(sql: string) => db.prepare(sql).bind(since).all<T>().then((r) => r.results || []);
+  // Same window, shifted back: [prevSince, since). Queries take two binds.
+  const prevAll = <T>(sql: string) => db.prepare(sql).bind(prevSince, since).all<T>().then((r) => r.results || []);
   const PV = "event='pageview' AND day >= ? AND host != 'other'";
+  const PPV = "event='pageview' AND day >= ? AND day < ? AND host != 'other'";
 
   const [totals, daily, pages, refs, countries, devices, events, funnel, browsers, oses, campaigns, hourly, bounce, comVisits, landing, cities, langs, installDev] = await Promise.all([
     all<{ visitors: number; views: number }>(`SELECT COUNT(DISTINCT visitor||day) visitors, COUNT(*) views FROM site_events WHERE ${PV}`),
@@ -179,6 +183,17 @@ app.get("/analytics/traffic", requireAdmin, async (c) => {
        GROUP BY event, os, browser, device ORDER BY event, n DESC`
     ),
   ]);
+
+  // The previous window, same length — for the +N% chips on the cards.
+  const [pTotals, pEvents, pCom, pFunnel] = await Promise.all([
+    prevAll<{ visitors: number; views: number }>(`SELECT COUNT(DISTINCT visitor||day) visitors, COUNT(*) views FROM site_events WHERE ${PPV}`),
+    prevAll<{ event: string; n: number }>(`SELECT event, COUNT(DISTINCT visitor||day) n FROM site_events WHERE event != 'pageview' AND day >= ? AND day < ? GROUP BY event`),
+    prevAll<{ com: number }>(`SELECT COUNT(DISTINCT visitor||day) com FROM site_events WHERE host = 'com' AND day >= ? AND day < ?`),
+    prevAll<{ site: number; app: number }>(`SELECT
+        COUNT(DISTINCT CASE WHEN host IN ('site','com') THEN visitor||day END) site,
+        COUNT(DISTINCT CASE WHEN host='app' THEN visitor||day END) app
+      FROM site_events WHERE ${PPV}`),
+  ]);
   // No `?` in this one — it can't go through `all` (which always binds `since`).
   const activeNow = await db.prepare("SELECT COUNT(DISTINCT visitor) n FROM site_events WHERE ts >= datetime('now','-15 minutes')").first<{ n: number }>().catch(() => null);
 
@@ -187,6 +202,11 @@ app.get("/analytics/traffic", requireAdmin, async (c) => {
     db.prepare("SELECT COUNT(DISTINCT user_id) n FROM interactions WHERE date(created_at) >= ?").bind(since).first<{ n: number }>().catch(() => null),
     db.prepare("SELECT COUNT(DISTINCT COALESCE(contributor_id, id)) n FROM user_contributions WHERE date(timestamp) >= ?").bind(since).first<{ n: number }>().catch(() => null),
     db.prepare("SELECT COUNT(*) n FROM users WHERE role NOT IN ('admin','super_admin') AND date(created_at) >= ?").bind(since).first<{ n: number }>().catch(() => null),
+  ]);
+  const [pAsked, pContributed, pSignups] = await Promise.all([
+    db.prepare("SELECT COUNT(DISTINCT user_id) n FROM interactions WHERE date(created_at) >= ? AND date(created_at) < ?").bind(prevSince, since).first<{ n: number }>().catch(() => null),
+    db.prepare("SELECT COUNT(DISTINCT COALESCE(contributor_id, id)) n FROM user_contributions WHERE date(timestamp) >= ? AND date(timestamp) < ?").bind(prevSince, since).first<{ n: number }>().catch(() => null),
+    db.prepare("SELECT COUNT(*) n FROM users WHERE role NOT IN ('admin','super_admin') AND date(created_at) >= ? AND date(created_at) < ?").bind(prevSince, since).first<{ n: number }>().catch(() => null),
   ]);
 
   const ev = Object.fromEntries(events.map((e) => [e.event, e.n]));
@@ -225,13 +245,34 @@ app.get("/analytics/traffic", requireAdmin, async (c) => {
     bounced: bounce[0]?.bounced ?? 0,
     active_now: activeNow?.n ?? 0,
     first_visit: ev.first_visit ?? 0,
-    actions: { start: ev.start ?? 0, support: ev.support ?? 0, give: ev.give ?? 0, install: ev.install ?? 0, install_click: ev.install_click ?? 0, signup: ev.signup ?? 0 },
+    actions: { start: ev.start ?? 0, support: ev.support ?? 0, give: ev.give ?? 0, install: ev.install ?? 0, install_click: ev.install_click ?? 0, uninstall: ev.uninstall ?? 0, signup: ev.signup ?? 0 },
     funnel: {
       site_visitors: funnel[0]?.site ?? 0,
       app_visitors: funnel[0]?.app ?? 0,
       asked: asked?.n ?? 0,
       signed_up: signups?.n ?? 0,
       contributed: contributed?.n ?? 0,
+    },
+    // Same metrics for the window just before — the UI turns these into
+    // "+N% vs the previous period" chips next to every real figure.
+    prev: {
+      visitors: pTotals[0]?.visitors ?? 0,
+      views: pTotals[0]?.views ?? 0,
+      site_visitors: pFunnel[0]?.site ?? 0,
+      app_visitors: pFunnel[0]?.app ?? 0,
+      com_visitors: pCom[0]?.com ?? 0,
+      asked: pAsked?.n ?? 0,
+      signed_up: pSignups?.n ?? 0,
+      contributed: pContributed?.n ?? 0,
+      actions: {
+        start: Object.fromEntries(pEvents.map((e) => [e.event, e.n])).start ?? 0,
+        support: Object.fromEntries(pEvents.map((e) => [e.event, e.n])).support ?? 0,
+        give: Object.fromEntries(pEvents.map((e) => [e.event, e.n])).give ?? 0,
+        install: Object.fromEntries(pEvents.map((e) => [e.event, e.n])).install ?? 0,
+        install_click: Object.fromEntries(pEvents.map((e) => [e.event, e.n])).install_click ?? 0,
+        uninstall: Object.fromEntries(pEvents.map((e) => [e.event, e.n])).uninstall ?? 0,
+        first_visit: Object.fromEntries(pEvents.map((e) => [e.event, e.n])).first_visit ?? 0,
+      },
     },
   });
 });

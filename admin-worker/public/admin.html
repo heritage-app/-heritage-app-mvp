@@ -106,6 +106,13 @@ a{color:inherit}
    stranding one stretched card */
 #tKpis{display:flex;flex-wrap:wrap}
 #tKpis .kpi{flex:1 1 150px;min-width:140px}
+.dlt{font-style:normal;font:800 11px var(--sans);padding:1px 7px;border-radius:999px;background:var(--sunk);color:var(--muted);white-space:nowrap;margin-left:4px}
+.dlt.up{background:var(--ok-soft);color:var(--ok)}
+.dlt.down{background:var(--bad-soft);color:var(--bad)}
+/* wider value columns where a delta chip rides along */
+#tFunnel .fn{grid-template-columns:170px minmax(0,1fr) 130px}
+#tEngage .bar-row{grid-template-columns:150px minmax(0,1fr) 150px}
+#tFunnel .fn b,#tEngage .bar-row b{white-space:nowrap;text-align:right}
 .kpi{padding:16px;border-radius:16px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);display:grid;gap:4px;align-content:start;min-width:0;border:0;text-align:left;font:inherit;color:inherit}
 button.kpi{cursor:pointer}button.kpi:hover{box-shadow:inset 0 0 0 1px var(--faint)}
 .kpi small{font:700 12px var(--sans);color:var(--muted)}
@@ -1534,18 +1541,27 @@ function mini(el, rows, label) {
 async function loadTraffic() {
   try {
     const t = await api(`/analytics/traffic?days=${T.days}`);
-    const f = t.funnel;
+    const f = t.funnel, pv = t.prev || {}, pa = pv.actions || {};
+    const dlt = (cur, prev) => {
+      if (!cur && !prev) return "";
+      if (!prev) return '<i class="dlt up">new</i>';
+      const pct = Math.round((cur - prev) / prev * 100);
+      if (!pct) return '<i class="dlt">± 0%</i>';
+      return `<i class="dlt ${pct > 0 ? "up" : "down"}">${pct > 0 ? "▲" : "▼"} ${Math.abs(pct)}%</i>`;
+    };
     $("tKpis").innerHTML = [
-      ["Visitors", t.visitors, `${fmt(t.first_visit || 0)} brand new`], ["Page views", t.views, t.visitors ? `${(t.views / t.visitors).toFixed(1)} per visitor` : "—"],
-      ["Active now", t.active_now || 0, "last 15 minutes"],
-      ["Landing to app", f.site_visitors ? `${Math.round(t.actions.start / f.site_visitors * 100)}%` : "—", `${fmt(t.actions.start)} clicked through`],
-      ["App installs", t.actions.install, `${fmt(t.actions.install_click || 0)} taps · ${fmt(t.actions.uninstall || 0)} uninstalls`],
-      ["Support clicks", t.actions.support, "in Support the research"], ["Contribution forms", t.actions.give, "sent from speakga.org"],
-      ["Via speakga.com", t.com_visitors || 0, "redirected to .org"],
-    ].map(([k, v, s]) => `<div class="kpi"><small>${k}</small><b>${typeof v === "number" ? fmt(v) : v}</b><span>${s}</span></div>`).join("");
-    const steps = [["Visited speakga.org & .com", f.site_visitors], ["Opened the app", f.app_visitors], ["Asked a question (accounts)", f.asked], ["Created an account", f.signed_up], ["Contributed", f.contributed]];
+      ["Visitors", t.visitors, `${fmt(t.first_visit || 0)} brand new`, pv.visitors],
+      ["Page views", t.views, t.visitors ? `${(t.views / t.visitors).toFixed(1)} per visitor` : "—", pv.views],
+      ["Active now", t.active_now || 0, "last 15 minutes", null],
+      ["Landing to app", f.site_visitors ? `${Math.round(t.actions.start / f.site_visitors * 100)}%` : "—", `${fmt(t.actions.start)} clicked through`, pa.start, t.actions.start],
+      ["App installs", t.actions.install, `${fmt(t.actions.install_click || 0)} taps · ${fmt(t.actions.uninstall || 0)} uninstalls`, pa.install],
+      ["Support clicks", t.actions.support, "in Support the research", pa.support],
+      ["Contribution forms", t.actions.give, "sent from speakga.org", pa.give],
+      ["Via speakga.com", t.com_visitors || 0, "redirected to .org", pv.com_visitors],
+    ].map(([k, v, s, p0, dc]) => `<div class="kpi"><small>${k}</small><b>${typeof v === "number" ? fmt(v) : v}</b><span>${s}${p0 === null || p0 === undefined ? "" : ` ${dlt(dc !== undefined ? dc : (typeof v === "number" ? v : 0), p0)}`}</span></div>`).join("");
+    const steps = [["Visited speakga.org & .com", f.site_visitors, pv.site_visitors], ["Opened the app", f.app_visitors, pv.app_visitors], ["Asked a question (accounts)", f.asked, pv.asked], ["Created an account", f.signed_up, pv.signed_up], ["Contributed", f.contributed, pv.contributed]];
     const top = Math.max(1, ...steps.map((s) => s[1]));
-    $("tFunnel").innerHTML = steps.map(([k, v]) => `<div class="fn"><span>${k}</span><span class="track"><i style="width:${v / top * 100}%"></i></span><b>${fmt(v)}</b></div>`).join("");
+    $("tFunnel").innerHTML = steps.map(([k, v, p0]) => `<div class="fn"><span>${k}</span><span class="track"><i style="width:${v / top * 100}%"></i></span><b>${fmt(v)} ${dlt(v, p0 || 0)}</b></div>`).join("");
     const days = lastDays(Math.min(T.days, 30)), map = Object.fromEntries(t.daily.map((d) => [d.day, d.visitors]));
     const vals = days.map((d) => map[d] || 0);
     bars("tChart", days.map(dayLabel), vals, { hi: vals.indexOf(Math.max(...vals)), sub: monthAt(days) });
@@ -1564,14 +1580,14 @@ async function loadTraffic() {
     const hvals = Array.from({ length: 24 }, (_, h) => (Object.fromEntries((t.hourly || []).map((r) => [+r.hh, r.visitors])) || {})[h] || 0);
     bars("tHours", Array.from({ length: 24 }, (_, h) => String(h).padStart(2, "0")), hvals, { hi: hvals.indexOf(Math.max(...hvals)), sub: hvals.map((_, h) => (h % 6 === 0 ? `${h}h` : "")) });
     const eng = [
-      ["New visitors", t.first_visit || 0, "first visit ever, per device"],
-      ["Saw just one page", t.bounced || 0, "one pageview and out"],
-      ["Opened the app", t.actions.start, "tapped through from the site"],
-      ["Installed the app", t.actions.install, "added to a home screen"],
+      ["New visitors", t.first_visit || 0, "first visit ever, per device", pa.first_visit],
+      ["Saw just one page", t.bounced || 0, "one pageview and out", null],
+      ["Opened the app", t.actions.start, "tapped through from the site", pa.start],
+      ["Installed the app", t.actions.install, "added to a home screen", pa.install],
     ];
-    $("tEngage").innerHTML = eng.map(([k, v, s]) => {
+    $("tEngage").innerHTML = eng.map(([k, v, s, p0]) => {
       const p = t.visitors ? Math.min(100, Math.round(v / t.visitors * 100)) : 0;
-      return `<div class="bar-row"><span title="${esc(s)}">${esc(k)}</span><span class="track"><i style="width:${p}%;background:var(--gold)"></i></span><b>${fmt(v)} · ${p}%</b></div>`;
+      return `<div class="bar-row"><span title="${esc(s)}">${esc(k)}</span><span class="track"><i style="width:${p}%;background:var(--gold)"></i></span><b>${fmt(v)} · ${p}%${p0 === null || p0 === undefined ? "" : ` ${dlt(v, p0)}`}</b></div>`;
     }).join("");
     const dt = t.devices.reduce((n, d) => n + d.visitors, 0) || 1;
     $("tDevices").innerHTML = t.devices.length ? t.devices.map((d) => `<div class="bar-row"><span style="text-transform:capitalize">${esc(d.device)}</span><span class="track"><i style="width:${d.visitors / dt * 100}%;background:var(--gold)"></i></span><b>${Math.round(d.visitors / dt * 100)}%</b></div>`).join("") : '<p class="muted">No visits yet.</p>';
