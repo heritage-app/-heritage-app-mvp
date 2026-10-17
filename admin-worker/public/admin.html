@@ -59,6 +59,10 @@ a{color:inherit}
 .me .who{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:var(--sunk);font-size:13px;min-width:0}
 .me .who i{width:30px;height:30px;border-radius:50%;background:var(--gold);color:#1a1205;display:grid;place-items:center;font:800 13px var(--display);font-style:normal;flex:none;text-transform:uppercase}
 .me .who div{min-width:0}.me .who b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.uav{width:30px;height:30px;border-radius:50%;background:var(--gold);color:#1a1205;display:inline-grid;place-items:center;font:800 12px var(--display);text-transform:uppercase;flex:none;font-style:normal}
+.up{display:flex;align-items:center;gap:10px;min-width:0}
+.up b{display:block;overflow-wrap:anywhere;font-size:13.5px}
+.up span{display:block;color:var(--muted);font-size:12px;overflow-wrap:anywhere}
 .me .out{border:0;background:none;color:var(--bad);font-weight:700;font-size:13px;padding:8px;border-radius:10px;cursor:pointer}
 .me .out:hover{background:var(--bad-soft)}
 .main{min-width:0;grid-template-columns:minmax(0,1fr);padding:22px clamp(16px,3vw,36px) 64px;display:grid;gap:22px;align-content:start}
@@ -452,7 +456,8 @@ input.gaip{font:700 16px var(--display)}
 
     <!-- ============ USERS ============ -->
     <section class="view hidden" data-view="users">
-      <div class="hd"><h1>Users</h1><p>Accounts and roles. Admins use this console; everyone else uses the app.</p></div>
+      <div class="hd"><h1>Users</h1><p>Accounts and roles. The team uses this console; everyone else signs in on the app.</p></div>
+      <div class="kpis" id="uKpis" style="grid-template-columns:repeat(4,minmax(0,1fr))"></div>
       <div class="panel"><h2>Invite someone</h2>
         <div class="bulkbar">
           <select class="in" id="invRole" style="height:38px" aria-label="Role for the invite"><option value="admin">Admin</option><option value="member">Member</option><option value="moderator">Moderator</option><option value="user">User</option></select>
@@ -464,7 +469,15 @@ input.gaip{font:700 16px var(--display)}
         <div class="tbl-wrap" style="margin-top:14px"><table><thead><tr><th>Role</th><th>For</th><th>Invited by</th><th>Expires</th><th></th></tr></thead><tbody id="invBody"></tbody></table></div>
         <div class="empty hidden" id="invEmpty">No open invites.</div>
       </div>
-      <div class="panel"><div class="tbl-wrap"><table><thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Joined</th></tr></thead><tbody id="usersBody"></tbody></table></div><div class="empty hidden" id="usersEmpty">No users.</div><div class="pager" id="usersPager"></div></div>
+      <div class="panel"><h2>The team <small id="teamCount"></small></h2>
+        <div class="tbl-wrap"><table><thead><tr><th>User</th><th>Role</th><th>Joined</th></tr></thead><tbody id="teamBody"></tbody></table></div>
+        <div class="empty hidden" id="teamEmpty">No team members yet. Invite one above.</div>
+      </div>
+      <div class="panel"><h2>App users <small id="membersCount"></small><span style="margin-left:auto"><input class="in" id="uSearch" type="search" placeholder="Search email or name" style="width:210px;height:34px" /></span></h2>
+        <div class="tbl-wrap"><table><thead><tr><th>User</th><th>Role</th><th>Joined</th></tr></thead><tbody id="usersBody"></tbody></table></div>
+        <div class="empty hidden" id="usersEmpty">No users match.</div>
+        <div class="pager" id="usersPager"></div>
+      </div>
     </section>
 
     <!-- ============ SYSTEM ============ -->
@@ -1429,8 +1442,15 @@ loaders.usage = async () => {
 };
 
 /* ================= USERS ================= */
-const U = { page: 0, size: 25 };
+const U = { page: 0, size: 25, q: "" };
 const ROLES = ["admin", "moderator", "member", "user"];
+const uav = (u) => `<i class="uav">${esc((u.first_name || u.display_name || u.email || "?")[0] || "?")}</i>`;
+const ucell = (u) => {
+  const name = [u.first_name, u.last_name].filter(Boolean).join(" ") || u.display_name || "";
+  return `<div class="up">${uav(u)}<div><b>${esc(u.email)}</b><span>${esc(name || "—")}</span></div></div>`;
+};
+const urole = (u) => `<select class="in" style="height:34px;width:auto" data-role="${esc(u.id)}" data-email="${esc(u.email)}" data-prev="${esc(u.role)}">${ROLES.map((r) => `<option${r === u.role ? " selected" : ""}>${r}</option>`).join("")}</select>`;
+const urow = (u) => `<tr><td>${ucell(u)}</td><td>${urole(u)}</td><td class="muted" style="white-space:nowrap">${esc(u.created_at)}</td></tr>`;
 async function loadInvites() {
   try {
     const d = await api("/admin/invites");
@@ -1459,25 +1479,48 @@ $("invBody").addEventListener("click", async (e) => {
   catch (err) { toast(err.message); }
 });
 loaders.users = async () => {
+  loadInvites();
   try {
-    const d = await api(`/admin/users?limit=${U.size}&offset=${U.page * U.size}`);
-    $("usersEmpty").classList.toggle("hidden", !!d.users.length);
-    $("usersBody").innerHTML = d.users.map((u) => `<tr><td style="font-weight:600;overflow-wrap:anywhere">${esc(u.email)}</td><td class="muted">${esc([u.first_name, u.last_name].filter(Boolean).join(" ") || u.display_name || "—")}</td><td><select class="in" style="height:34px;width:auto" data-role="${esc(u.id)}" data-email="${esc(u.email)}" data-prev="${esc(u.role)}">${ROLES.map((r) => `<option${r === u.role ? " selected" : ""}>${r}</option>`).join("")}</select></td><td class="muted" style="white-space:nowrap">${esc(u.created_at)}</td></tr>`).join("");
-    const pages = Math.ceil((d.total || 0) / U.size);
+    const [team, members] = await Promise.all([
+      api("/admin/users?group=team&limit=100"),
+      api(`/admin/users?group=members&limit=${U.size}&offset=${U.page * U.size}${U.q ? `&q=${encodeURIComponent(U.q)}` : ""}`),
+    ]);
+    const counts = team.counts || members.counts || {};
+    const admins = counts.admin || 0, mods = counts.moderator || 0, mem = (counts.member || 0) + (counts.user || 0);
+    $("uKpis").innerHTML = [
+      ["Admins", admins, "console access"],
+      ["Moderators", mods, "console access"],
+      ["App members", mem, "sign in on the app"],
+      ["Total accounts", admins + mods + mem, ""],
+    ].map(([k, v, s]) => `<div class="kpi"><small>${k}</small><b>${fmt(v)}</b><span>${s}</span></div>`).join("");
+
+    $("teamEmpty").classList.toggle("hidden", !!team.users.length);
+    $("teamCount").textContent = `${team.total} · console access`;
+    $("teamBody").innerHTML = team.users.map(urow).join("");
+
+    $("membersCount").textContent = `${members.total} · app accounts`;
+    $("usersEmpty").classList.toggle("hidden", !!members.users.length);
+    $("usersBody").innerHTML = members.users.map(urow).join("");
+    const pages = Math.ceil((members.total || 0) / U.size);
     $("usersPager").innerHTML = pages > 1 ? `<span class="pinfo">Page ${U.page + 1} of ${pages}</span><button class="btn sm" id="uPrev" ${U.page ? "" : "disabled"}>Previous</button><button class="btn sm" id="uNext" ${U.page < pages - 1 ? "" : "disabled"}>Next</button>` : "";
     $("uPrev") && ($("uPrev").onclick = () => { U.page--; loaders.users(); });
     $("uNext") && ($("uNext").onclick = () => { U.page++; loaders.users(); });
-  } catch (e) { $("usersBody").innerHTML = `<tr><td colspan="4" class="muted">${esc(e.message)}</td></tr>`; }
-  loadInvites();
+  } catch (e) { $("usersBody").innerHTML = `<tr><td colspan="3" class="muted">${esc(e.message)}</td></tr>`; }
 };
-$("usersBody").addEventListener("change", async (e) => {
+// Role changes are the same on either table — listen at the view level.
+document.querySelector('[data-view="users"]').addEventListener("change", async (e) => {
   const s = e.target.closest("[data-role]"); if (!s) return;
   const role = s.value, prev = s.dataset.prev;
   if (!(await confirmBox(`Change ${s.dataset.email}'s role to ${role}?`, "Change role"))) { s.value = prev; return; }
   s.disabled = true;
-  try { await api(`/admin/users/${encodeURIComponent(s.dataset.role)}/role?role=${encodeURIComponent(role)}`, { method: "PATCH" }); s.dataset.prev = role; toast("Role changed."); }
+  try { await api(`/admin/users/${encodeURIComponent(s.dataset.role)}/role?role=${encodeURIComponent(role)}`, { method: "PATCH" }); s.dataset.prev = role; toast("Role changed."); loaders.users(); }
   catch (err) { s.value = prev; toast(err.message); }
   s.disabled = false;
+});
+let uSearchT = 0;
+$("uSearch").addEventListener("input", (e) => {
+  clearTimeout(uSearchT);
+  uSearchT = setTimeout(() => { U.q = e.target.value.trim(); U.page = 0; loaders.users(); }, 300);
 });
 
 /* ================= SYSTEM ================= */

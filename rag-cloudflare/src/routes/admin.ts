@@ -13,7 +13,7 @@ import {
   countDocuments,
   deleteDocument,
 } from "../db/documents";
-import { getAllUsers, countUsers, updateUserRole } from "../db/users";
+import { getAllUsers, countUsers, countUsersByRole, updateUserRole } from "../db/users";
 import { countSessions } from "../db/sessions";
 import { indexFromBytes, indexRefinedRecords, indexHeritageRecords, extractRawText } from "../rag/indexer";
 import { getRefinementPreview } from "../rag/refiner";
@@ -492,10 +492,24 @@ app.post("/heritage/commit", async (c) => {
 });
 
 // --- Users list ---
+// ?group=team → console roles (admin, moderator); ?group=members → everyone
+// else (the app's crowd). ?q= filters email/names. The response always carries
+// a per-role breakdown so the console can show counts without another call.
+const USER_GROUPS: Record<string, string[]> = {
+  team: ["admin", "moderator"],
+  members: ["member", "user"],
+};
 app.get("/users", async (c) => {
   const limit = Math.min(Math.max(parseInt(c.req.query("limit") ?? "50", 10) || 50, 1), 100);
   const offset = Math.max(parseInt(c.req.query("offset") ?? "0", 10) || 0, 0);
-  const [users, total] = await Promise.all([getAllUsers(c.env, limit, offset), countUsers(c.env)]);
+  const group = USER_GROUPS[c.req.query("group") ?? ""];
+  const q = (c.req.query("q") ?? "").trim() || undefined;
+  const filter = { roles: group, q };
+  const [users, total, counts] = await Promise.all([
+    getAllUsers(c.env, limit, offset, filter),
+    countUsers(c.env, filter),
+    countUsersByRole(c.env),
+  ]);
   return c.json({
     users: users.map((u) => ({
       id: u.id,
@@ -508,6 +522,7 @@ app.get("/users", async (c) => {
       created_at: humanizeTimestamp(u.created_at),
     })),
     total,
+    counts,
   });
 });
 

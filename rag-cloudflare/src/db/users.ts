@@ -15,18 +15,45 @@ export async function getUserById(env: Env, id: string): Promise<UserRow | null>
   return env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(id).first<UserRow>();
 }
 
-export async function getAllUsers(env: Env, limit = 50, offset = 0): Promise<UserRow[]> {
+export type UserFilter = { roles?: string[]; q?: string };
+
+function userWhere(f?: UserFilter): { where: string; binds: unknown[] } {
+  const clauses: string[] = [];
+  const binds: unknown[] = [];
+  if (f?.roles?.length) {
+    clauses.push(`role IN (${f.roles.map(() => "?").join(",")})`);
+    binds.push(...f.roles);
+  }
+  if (f?.q) {
+    clauses.push("(email LIKE ? OR display_name LIKE ? OR first_name LIKE ? OR last_name LIKE ?)");
+    const like = `%${f.q}%`;
+    binds.push(like, like, like, like);
+  }
+  return { where: clauses.length ? ` WHERE ${clauses.join(" AND ")}` : "", binds };
+}
+
+export async function getAllUsers(env: Env, limit = 50, offset = 0, filter?: UserFilter): Promise<UserRow[]> {
+  const { where, binds } = userWhere(filter);
   const res = await env.DB.prepare(
-    "SELECT * FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?"
+    `SELECT * FROM users${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`
   )
-    .bind(limit, offset)
+    .bind(...binds, limit, offset)
     .all<UserRow>();
   return res.results ?? [];
 }
 
-export async function countUsers(env: Env): Promise<number> {
-  const row = await env.DB.prepare("SELECT COUNT(*) AS c FROM users").first<{ c: number }>();
+export async function countUsers(env: Env, filter?: UserFilter): Promise<number> {
+  const { where, binds } = userWhere(filter);
+  const row = await env.DB.prepare(`SELECT COUNT(*) AS c FROM users${where}`).bind(...binds).first<{ c: number }>();
   return row?.c ?? 0;
+}
+
+/** role → count, for the console's team/members split. */
+export async function countUsersByRole(env: Env): Promise<Record<string, number>> {
+  const res = await env.DB.prepare("SELECT role, COUNT(*) AS c FROM users GROUP BY role").all<{ role: string; c: number }>();
+  const out: Record<string, number> = {};
+  for (const r of res.results ?? []) out[r.role] = r.c;
+  return out;
 }
 
 export async function createUser(
