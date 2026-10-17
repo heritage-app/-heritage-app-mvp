@@ -113,6 +113,22 @@ a{color:inherit}
 #tFunnel .fn{grid-template-columns:170px minmax(0,1fr) 130px}
 #tEngage .bar-row{grid-template-columns:150px minmax(0,1fr) 150px}
 #tFunnel .fn b,#tEngage .bar-row b{white-space:nowrap;text-align:right}
+
+/* voice recorder in the answer form */
+.vrec{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:999px;border:0;background:var(--bad);color:#fff;font:700 12.5px var(--sans);cursor:pointer}
+.vrec i{width:9px;height:9px;border-radius:50%;background:#fff}
+.vrec.on{animation:vrec-pulse 1.4s ease-out infinite}
+.vrec.on i{border-radius:2px}
+@keyframes vrec-pulse{0%{box-shadow:0 0 0 0 rgba(198,60,52,.45)}70%{box-shadow:0 0 0 9px rgba(198,60,52,0)}100%{box-shadow:0 0 0 0 rgba(198,60,52,0)}}
+.vtake{display:inline-flex;align-items:center;gap:9px;padding:4px 10px 4px 5px;border-radius:999px;background:var(--sunk)}
+.vplay{width:26px;height:26px;border-radius:50%;border:0;background:var(--ink);color:var(--panel);display:grid;place-items:center;cursor:pointer;flex:none}
+.vplay svg{margin-left:1px}
+.vplay.on svg{margin-left:0}
+.vwave{display:inline-flex;align-items:center;gap:1.5px;height:18px;min-width:60px}
+.vwave i{display:block;width:2.5px;border-radius:2px;background:var(--ink-2)}
+.vtime{font:700 11.5px var(--sans);color:var(--muted);font-variant-numeric:tabular-nums}
+.vdel{border:0;background:none;color:var(--muted);cursor:pointer;padding:2px;display:grid;place-items:center}
+.vdel:hover{color:var(--bad)}
 .kpi{padding:16px;border-radius:16px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);display:grid;gap:4px;align-content:start;min-width:0;border:0;text-align:left;font:inherit;color:inherit}
 button.kpi{cursor:pointer}button.kpi:hover{box-shadow:inset 0 0 0 1px var(--faint)}
 .kpi small{font:700 12px var(--sans);color:var(--muted)}
@@ -555,6 +571,15 @@ const $ = (id) => document.getElementById(id);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
 const fmt = (n) => Number(n || 0).toLocaleString("en-GB");
+/* Period-over-period delta chip: ▲ +N% / ▼ N% / ±0% / "new" when the previous
+   window had nothing. Returns "" when both are zero. */
+const dlt = (cur, prev) => {
+  if (!cur && !prev) return "";
+  if (!prev) return ' <i class="dlt up">new</i>';
+  const pct = Math.round((cur - prev) / prev * 100);
+  if (!pct) return ' <i class="dlt">± 0%</i>';
+  return ` <i class="dlt ${pct > 0 ? "up" : "down"}">${pct > 0 ? "▲" : "▼"} ${Math.abs(pct)}%</i>`;
+};
 const GA_LETTERS = ["ɛ", "ɔ", "ŋ", "Ɛ", "Ɔ", "Ŋ"];
 const ICON = {
   flag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4a1 1 0 0 1 1-1h12l-2 4 2 4H5"/></svg>',
@@ -693,13 +718,13 @@ loaders.overview = async () => {
   if (!o) { $("ovKpis").innerHTML = '<div class="empty">Couldn\'t load the figures. Refresh to try again.</div>'; return; }
   const bibleTotal = o.bible.reduce((n, b) => n + b.n, 0);
   $("ovKpis").innerHTML = [
-    { k: "Questions this week", v: o.questions.week, s: `${fmt(o.questions.total)} saved in total`, go: "usage" },
+    { k: "Questions this week", v: o.questions.week, s: `${fmt(o.questions.total)} saved in total`, go: "usage", d: dlt(o.questions.week, o.questions.prev_week || 0) },
     { k: "Unanswered", v: o.gaps.open, s: `asked ${fmt(o.gaps.asks)} times`, go: "questions", alert: o.gaps.open > 0 },
     { k: "Waiting for review", v: o.contributions.pending, s: `${fmt(o.contributions.total)} contributions so far`, go: "review" },
     { k: "Words and phrases", v: o.archive?.words_and_phrases ?? o.vocabulary.verified, s: `${fmt(o.vocabulary.verified)} in the checked dictionary`, go: "archive" },
     { k: "Bible verses", v: bibleTotal, s: o.bible.map((b) => b.source).join(" and "), go: "archive" },
     { k: "Accounts", v: o.users.total, s: `${fmt(o.conversations.total)} conversations`, go: "users" },
-  ].map((x) => `<button class="kpi${x.alert ? " alert" : ""}" data-go="${x.go}"><small>${esc(x.k)}</small><b>${fmt(x.v)}</b><span>${esc(x.s)}</span></button>`).join("");
+  ].map((x) => `<button class="kpi${x.alert ? " alert" : ""}" data-go="${x.go}"><small>${esc(x.k)}</small><b>${fmt(x.v)}</b><span>${esc(x.s)}${x.d || ""}</span></button>`).join("");
 
   const items = [];
   for (const g of top) {
@@ -879,9 +904,14 @@ function openAnswer(id) {
     <label class="f">Then<select class="in" name="then"><option value="verified">Add it as verified now</option><option value="review">Send it to the review queue</option></select></label></div>
     <label class="f">Where it comes from<input class="in" name="source" placeholder="e.g. I'm a Ga speaker, Language Guide p. 12"></label>
     <div class="f"><span style="font:700 12px var(--sans);color:var(--ink-2)">Voice (optional) — recorded as yours, goes live straight away</span>
-      <span class="vbox" data-voice style="display:flex;gap:8px;align-items:center;margin-top:5px">
-        <button type="button" class="btn sm" data-vbtn>&#9679; Record</button>
-        <audio data-vplay class="hidden" controls style="height:30px;flex:0 1 240px"></audio>
+      <span class="vbox" data-voice style="display:flex;gap:10px;align-items:center;margin-top:6px;flex-wrap:wrap">
+        <button type="button" class="vrec" data-vbtn><i></i><span data-vlab>Record</span></button>
+        <span class="vtake hidden" data-vtake>
+          <button type="button" class="vplay" data-vplay aria-label="Play take"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+          <span class="vwave" data-vwave></span>
+          <span class="vtime" data-vtime></span>
+          <button type="button" class="vdel" data-vdel title="Discard this take" aria-label="Discard take"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+        </span>
         <span class="status muted" data-vst>say the Ga phrase aloud</span>
       </span></div>
     <div class="row-actions"><button class="btn ok sm" type="submit">Save answer</button><button class="btn sm" type="button" data-gap-answer="${esc(id)}">Cancel</button><span class="status" data-st></span></div>
@@ -936,8 +966,10 @@ document.addEventListener("click", async (e) => {
 });
 
 /* ---------- voice capture in the answer form ---------- */
+const VPLAY = '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+const VPAUSE = '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
 async function vrecStart(box) {
-  const btn = box.querySelector("[data-vbtn]"), st = box.querySelector("[data-vst]");
+  const btn = box.querySelector("[data-vbtn]"), lab = box.querySelector("[data-vlab]"), st = box.querySelector("[data-vst]");
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!(navigator.mediaDevices?.getUserMedia && AC && window.OfflineAudioContext)) {
     st.textContent = "This browser can't record."; return;
@@ -949,19 +981,24 @@ async function vrecStart(box) {
     mute.gain.value = 0;
     proc.onaudioprocess = (e) => { pcm.push(new Float32Array(e.inputBuffer.getChannelData(0))); };
     src.connect(proc); proc.connect(mute); mute.connect(ac.destination);
-    box._vrec = { stream, ac, proc, pcm, rate: ac.sampleRate };
-    btn.textContent = "■ Stop"; st.textContent = "Recording…";
+    const t0 = Date.now();
+    const timer = setInterval(() => {
+      const s = Math.floor((Date.now() - t0) / 1000);
+      lab.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    }, 500);
+    box._vrec = { stream, ac, proc, pcm, rate: ac.sampleRate, timer };
+    btn.classList.add("on"); lab.textContent = "0:00"; st.textContent = "Recording… tap stop when done.";
   } catch { st.textContent = "No microphone — check the browser permission."; }
 }
 async function vrecStop(box) {
-  const r = box._vrec, btn = box.querySelector("[data-vbtn]"), st = box.querySelector("[data-vst]");
+  const r = box._vrec, btn = box.querySelector("[data-vbtn]"), lab = box.querySelector("[data-vlab]"), st = box.querySelector("[data-vst]");
   if (!r) return;
-  r.proc.onaudioprocess = null; r.stream.getTracks().forEach((t) => t.stop());
+  clearInterval(r.timer); r.proc.onaudioprocess = null; r.stream.getTracks().forEach((t) => t.stop());
   const n = r.pcm.reduce((a, b) => a + b.length, 0);
   const pcm = new Float32Array(n); let o = 0;
   for (const p of r.pcm) { pcm.set(p, o); o += p.length; }
   r.proc.disconnect(); r.ac.close().catch(() => {}); box._vrec = null;
-  btn.textContent = "● Record"; st.textContent = "";
+  btn.classList.remove("on"); lab.textContent = "Record"; st.textContent = "";
   if (n < r.rate * 0.4) { st.textContent = "Too short — say the whole phrase."; return; }
   try {
     const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(n / r.rate * 16000)), 16000);
@@ -980,15 +1017,40 @@ async function vrecStop(box) {
       const k = Math.floor(i / s.length * 32); peaks[k] = Math.max(peaks[k], Math.abs(v));
     }
     box._take = { blob: new Blob([wav.buffer], { type: "audio/wav" }), secs: +(s.length / 16000).toFixed(1), peaks: peaks.map((p) => +p.toFixed(2)) };
-    const au = box.querySelector("[data-vplay]");
-    au.src = URL.createObjectURL(box._take.blob); au.classList.remove("hidden");
-    st.textContent = `${box._take.secs}s — listen back, or re-record.`;
+    box._audio = new Audio(URL.createObjectURL(box._take.blob));
+    const take = box.querySelector("[data-vtake]");
+    take.querySelector("[data-vwave]").innerHTML = box._take.peaks.map((p) => `<i style="height:${Math.max(3, Math.round(p * 18))}px"></i>`).join("");
+    take.querySelector("[data-vtime]").textContent = `${box._take.secs}s`;
+    take.classList.remove("hidden");
+    st.textContent = "Listen back, re-record, or bin it.";
   } catch { st.textContent = "Couldn't prepare the recording."; }
 }
+function vrecDiscard(box) {
+  box._take = null;
+  if (box._audio) { box._audio.pause(); box._audio = null; }
+  const take = box.querySelector("[data-vtake]"), play = take.querySelector("[data-vplay]");
+  take.classList.add("hidden"); play.classList.remove("on"); play.innerHTML = VPLAY;
+  box.querySelector("[data-vst]").textContent = "say the Ga phrase aloud";
+}
 document.addEventListener("click", (e) => {
-  const b = e.target.closest("[data-vbtn]"); if (!b) return;
-  const box = b.closest("[data-voice]");
-  if (box._vrec) vrecStop(box); else { box._take = null; box.querySelector("[data-vplay]").classList.add("hidden"); vrecStart(box); }
+  const vb = e.target.closest("[data-vbtn]");
+  const vp = e.target.closest("[data-vplay]");
+  const vd = e.target.closest("[data-vdel]");
+  if (vb) {
+    const box = vb.closest("[data-voice]");
+    if (box._vrec) vrecStop(box); else vrecStart(box);
+    return;
+  }
+  if (vp) {
+    const box = vp.closest("[data-voice]");
+    const au = box?._audio; if (!au) return;
+    if (au.paused) {
+      au.play(); vp.classList.add("on"); vp.innerHTML = VPAUSE;
+      au.onended = () => { vp.classList.remove("on"); vp.innerHTML = VPLAY; };
+    } else { au.pause(); au.currentTime = 0; vp.classList.remove("on"); vp.innerHTML = VPLAY; }
+    return;
+  }
+  if (vd) vrecDiscard(vd.closest("[data-voice]"));
 });
 
 /* ================= FLAGGED ================= */
@@ -1542,13 +1604,6 @@ async function loadTraffic() {
   try {
     const t = await api(`/analytics/traffic?days=${T.days}`);
     const f = t.funnel, pv = t.prev || {}, pa = pv.actions || {};
-    const dlt = (cur, prev) => {
-      if (!cur && !prev) return "";
-      if (!prev) return '<i class="dlt up">new</i>';
-      const pct = Math.round((cur - prev) / prev * 100);
-      if (!pct) return '<i class="dlt">± 0%</i>';
-      return `<i class="dlt ${pct > 0 ? "up" : "down"}">${pct > 0 ? "▲" : "▼"} ${Math.abs(pct)}%</i>`;
-    };
     $("tKpis").innerHTML = [
       ["Visitors", t.visitors, `${fmt(t.first_visit || 0)} brand new`, pv.visitors],
       ["Page views", t.views, t.visitors ? `${(t.views / t.visitors).toFixed(1)} per visitor` : "—", pv.views],
@@ -1598,12 +1653,13 @@ async function loadTraffic() {
 loaders.usage = async () => {
   try {
     const [p, cf, cy] = await Promise.all([api("/analytics/progress"), api("/conflicts/stats"), api("/analytics/cycles")]);
+    const lp = p.prev || {};
     $("lKpis").innerHTML = [
-      ["Ratings", p.feedback?.total ?? 0, `${Math.round((p.feedback?.ratio ?? 0) * 100)}% helpful`],
-      ["Contributions", p.contributions?.total ?? 0, `${p.contributions?.approved ?? 0} approved`],
-      ["Logged questions", p.gaps?.total ?? 0, `${p.gaps?.resolved ?? 0} answered`],
-      ["Period", p.period ?? "—", `${p.days ?? 0} days`],
-    ].map(([k, v, s]) => `<div class="kpi"><small>${k}</small><b>${typeof v === "number" ? fmt(v) : esc(v)}</b><span>${s}</span></div>`).join("");
+      ["Ratings", p.feedback?.total ?? 0, `${Math.round((p.feedback?.ratio ?? 0) * 100)}% helpful`, lp.feedback_total],
+      ["Contributions", p.contributions?.total ?? 0, `${p.contributions?.approved ?? 0} approved`, lp.contributions_total],
+      ["Logged questions", p.gaps?.total ?? 0, `${p.gaps?.resolved ?? 0} answered`, lp.gaps_total],
+      ["Period", p.period ?? "—", `${p.days ?? 0} days`, null],
+    ].map(([k, v, s, p0]) => `<div class="kpi"><small>${k}</small><b>${typeof v === "number" ? fmt(v) : esc(v)}</b><span>${s}${p0 === null || p0 === undefined ? "" : dlt(typeof v === "number" ? v : 0, p0)}</span></div>`).join("");
     const conf = cf.recentConflicts || [];
     $("conflictsEmpty").classList.toggle("hidden", !!conf.length);
     $("conflictsBody").innerHTML = conf.map((c) => `<tr><td style="font-weight:600">${esc(c.original_query)}</td><td class="num">${esc(c.answer_count)}</td><td><span class="pill info">Open</span></td></tr>`).join("");

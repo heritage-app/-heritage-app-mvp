@@ -188,7 +188,7 @@ app.get("/overview", async (c) => {
   const since7 = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
 
   const [q, daily, gaps, flagged, contrib, vocab, bible, docs, users, sessions, feedback, samaiDocs, archive, failed, searchPending, voices] = await Promise.all([
-    one<{ total: number; week: number }>(`SELECT COUNT(*) total, SUM(date(created_at) >= ?) week FROM interactions`, since7),
+    one<{ total: number; week: number; prev_week: number }>(`SELECT COUNT(*) total, SUM(date(created_at) >= ?) week, SUM(date(created_at) >= ? AND date(created_at) < ?) prev_week FROM interactions`, since7, new Date(Date.now() - 13 * 86400000).toISOString().slice(0, 10), since7),
     all<{ day: string; n: number }>(`SELECT date(created_at) day, COUNT(*) n FROM interactions WHERE date(created_at) >= ? GROUP BY 1 ORDER BY 1`, since14),
     one<{ open: number; asks: number; total: number }>(`SELECT SUM(status='pending') open, SUM(CASE WHEN status='pending' THEN frequency ELSE 0 END) asks, COUNT(*) total FROM knowledge_gaps`),
     one<{ n: number }>(`SELECT COUNT(*) n FROM response_feedback f WHERE f.rating = 'not_helpful'
@@ -215,7 +215,7 @@ app.get("/overview", async (c) => {
   const samaiReady = Object.entries(SAMAI_DATASETS).filter(([f]) => f !== "ga-samai-okaikoi-review.jsonl" && !imported.has(f)).reduce((n, [, v]) => n + v, 0);
 
   return c.json({
-    questions: { total: q?.total ?? 0, week: q?.week ?? 0, daily, since: since14 },
+    questions: { total: q?.total ?? 0, week: q?.week ?? 0, prev_week: q?.prev_week ?? 0, daily, since: since14 },
     gaps: { open: gaps?.open ?? 0, asks: gaps?.asks ?? 0, total: gaps?.total ?? 0 },
     flagged_open: (flagged?.n ?? 0),
     contributions: { pending: contrib?.pending ?? 0, total: contrib?.total ?? 0, approved: contrib?.approved ?? 0 },

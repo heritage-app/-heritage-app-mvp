@@ -8,6 +8,7 @@ export async function getLearningProgress(request: Request, env: Env): Promise<R
     const period = new URL(request.url).searchParams.get("period") || "30d";
     const days = period === "7d" ? 7 : period === "90d" ? 90 : 30;
     const since = new Date(Date.now() - days * 86400000).toISOString();
+    const prevSince = new Date(Date.now() - 2 * days * 86400000).toISOString();
 
     const [feedbackStats, contributionStats, gapStats, trendData] = await Promise.all([
       env.DB.prepare(
@@ -82,6 +83,22 @@ export async function getLearningProgress(request: Request, env: Env): Promise<R
       dailyTrend[row.date][row.metric_name] = row.count;
     }
 
+    // The window just before this one — powers the delta chips on the cards.
+    const [pFeedback, pContrib, pGaps] = await Promise.all([
+      env.DB.prepare(
+        `SELECT COUNT(*) as total, COUNT(CASE WHEN rating = 'helpful' THEN 1 END) as helpful
+         FROM response_feedback WHERE created_at >= ? AND created_at < ?`
+      ).bind(prevSince, since).first<{ total: number; helpful: number }>().catch(() => null),
+      env.DB.prepare(
+        `SELECT COUNT(*) as total, COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved
+         FROM user_contributions WHERE timestamp >= ? AND timestamp < ?`
+      ).bind(prevSince, since).first<{ total: number; approved: number }>().catch(() => null),
+      env.DB.prepare(
+        `SELECT COUNT(*) as total, COUNT(CASE WHEN status = 'resolved' THEN 1 END) as resolved
+         FROM knowledge_gaps WHERE timestamp >= ? AND timestamp < ?`
+      ).bind(prevSince, since).first<{ total: number; resolved: number }>().catch(() => null),
+    ]);
+
     return json({
       period,
       days,
@@ -89,6 +106,14 @@ export async function getLearningProgress(request: Request, env: Env): Promise<R
       contributions,
       gaps,
       dailyTrend,
+      prev: {
+        feedback_total: pFeedback?.total ?? 0,
+        feedback_helpful: pFeedback?.helpful ?? 0,
+        contributions_total: pContrib?.total ?? 0,
+        contributions_approved: pContrib?.approved ?? 0,
+        gaps_total: pGaps?.total ?? 0,
+        gaps_resolved: pGaps?.resolved ?? 0,
+      },
     });
   } catch (error) {
     console.error("Error fetching learning progress:", error);
