@@ -466,7 +466,7 @@ input.gaip{font:700 16px var(--display)}
         <div class="bulkbar">
           <select class="in" id="invRole" style="height:38px" aria-label="Role for the invite"><option value="admin">Admin</option><option value="member">Member</option><option value="moderator">Moderator</option><option value="user">User</option></select>
           <input class="in" id="invEmail" type="email" placeholder="Email (optional; blank means anyone with the link)" style="flex:1;min-width:220px" />
-          <button class="btn ink" id="invMake">Create invite link</button>
+          <button class="btn ink" id="invMake">Send invite</button>
           <span class="status" id="invSt"></span>
         </div>
         <div class="bulkbar hidden" id="invNew" style="margin-top:10px"><input class="in" id="invLink" readonly style="flex:1;min-width:0" aria-label="Invite link" /><button class="btn sm" id="invCopy">Copy link</button></div>
@@ -1475,13 +1475,17 @@ async function loadInvites() {
     $("invBody").innerHTML = d.invites.map((v) => `<tr><td><span class="pill ${ROLE_PILL[v.role] || ""}">${esc(ROLE_LABEL[v.role] || v.role)}</span></td><td style="overflow-wrap:anywhere">${v.email ? esc(v.email) : '<span class="muted">anyone with the link</span>'}</td><td class="muted">${esc(v.invited_by)}</td><td class="muted" style="white-space:nowrap">${v.expired ? '<span style="color:var(--bad)">expired</span>' : esc(new Date(v.expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }))}</td><td><button class="btn sm bad" data-inv-rev="${esc(v.token)}">Revoke</button></td></tr>`).join("");
   } catch (e) { $("invBody").innerHTML = `<tr><td colspan="5" class="muted">${esc(e.message)}</td></tr>`; }
 }
+$("invEmail").addEventListener("input", () => {
+  $("invMake").textContent = $("invEmail").value.trim() ? "Send invite" : "Create invite link";
+});
 $("invMake").addEventListener("click", async () => {
-  $("invSt").textContent = "Making…";
+  const hasEmail = !!$("invEmail").value.trim();
+  $("invSt").textContent = hasEmail ? "Sending…" : "Making…";
   try {
     const d = await api("/admin/invites", { json: { role: $("invRole").value, email: $("invEmail").value.trim() } });
     $("invLink").value = d.url;
     $("invNew").classList.remove("hidden");
-    $("invSt").textContent = "";
+    $("invSt").textContent = d.emailed ? "Sent" : "";
     toast(d.emailed ? `Invite emailed to ${d.email}` : d.email ? `Email didn't send (${d.email_error || "not configured"}), share the link yourself` : "Invite link made, send it to them");
     loadInvites();
   } catch (e) { $("invSt").textContent = e.message; }
