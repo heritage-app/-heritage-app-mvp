@@ -974,7 +974,7 @@ async function vrecStart(box) {
     st.textContent = "This browser can't record."; return;
   }
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } });
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     const ac = new AC(), src = ac.createMediaStreamSource(stream);
     const proc = ac.createScriptProcessor(4096, 1, 1), mute = ac.createGain(), pcm = [];
     mute.gain.value = 0;
