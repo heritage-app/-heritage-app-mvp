@@ -167,7 +167,26 @@ button.kpi{cursor:pointer}button.kpi:hover{box-shadow:inset 0 0 0 1px var(--fain
 .att .act{grid-row:1/3;grid-column:3;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .att .extra{grid-column:1/-1}
 @media (max-width:640px){.att>li{grid-template-columns:auto minmax(0,1fr)}.att .act{grid-row:3;grid-column:2;justify-content:flex-start;margin-top:6px}}
-.hasit{display:inline-flex;gap:6px;align-items:center;color:var(--ok);font-weight:700}
+.hasit{display:inline-flex;gap:6px;align-items:center;color:var(--ok);font-weight:700;background:var(--ok-soft);padding:4px 10px;border-radius:999px;font-size:12px}
+
+/* unanswered cards */
+.gaps{display:grid;gap:10px;list-style:none;padding:0;margin:0}
+.gap{position:relative;display:grid;grid-template-columns:auto 40px minmax(0,1fr);gap:12px;align-items:start;padding:14px 16px;border-radius:14px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line)}
+.gap.nocb{grid-template-columns:40px minmax(0,1fr)}
+.gap .qck{width:16px;height:16px;margin-top:12px}
+.gap-ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--sunk);color:var(--ink-2)}
+.gap-ic svg{width:18px;height:18px}
+.gap-ic.bible{background:var(--info-soft);color:var(--info)}
+.gap-ic.flagged{background:var(--bad-soft);color:var(--bad)}
+.gap-main{min-width:0;padding-right:56px}
+.gap-q{display:block;font:700 15px var(--sans);line-height:1.4;overflow-wrap:anywhere}
+.gap-meta{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:12.5px;color:var(--muted);margin-top:5px}
+.gap-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.gap-x{position:absolute;top:14px;right:14px;font:800 12px var(--sans);padding:3px 9px;border-radius:999px;background:var(--sunk);color:var(--muted)}
+.gap-x.warn{background:var(--warn-soft);color:var(--warn)}
+.gap-x.bad{background:var(--bad-soft);color:var(--bad)}
+.gap .extra{grid-column:1/-1}
+@media (max-width:640px){.gap-main{padding-right:44px}.gap .qck{margin-top:8px}}
 
 /* chart */
 .chart svg{width:100%;height:auto;display:block}
@@ -347,7 +366,7 @@ input.gaip{font:700 16px var(--display)}
         <button class="btn sm" id="qBulkReopen">Put selected back</button>
         <span class="status" id="qBulkSt"></span>
       </div>
-      <div class="panel" style="padding:4px 18px"><ul class="att" id="qList"></ul><div class="pager" id="qPager"></div></div>
+      <div class="panel" style="padding:14px"><ul class="gaps" id="qList"></ul><div class="pager" id="qPager"></div></div>
     </section>
 
     <!-- ============ FLAGGED ============ -->
@@ -525,6 +544,8 @@ const ICON = {
   up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>',
   tag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>',
   chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>',
+  book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+  word: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>',
 };
 
 async function api(path, opts = {}) {
@@ -786,19 +807,25 @@ $("qBulkCheck").addEventListener("click", async () => {
   } catch (err) { $("qBulkSt").textContent = err.message; }
   updateSel();
 });
+const KIND_IC = { word: ["word", ICON.word], bible: ["bible", ICON.book], flagged: ["flagged", ICON.flag] };
 function gapRow(g) {
   const st = Q.params.status || "pending";
   const k = KIND[g.kind] || KIND.word;
-  const has = g.archive_has ? `<span class="hasit">${ICON.check.replace("<svg", '<svg width="14" height="14"')}Archive has ${esc(g.archive_has.ga)}${g.archive_has.meaning ? ` (${esc(g.archive_has.meaning)})` : ""}</span>` : "";
+  const [ick, icv] = KIND_IC[g.kind] || KIND_IC.word;
+  const has = g.archive_has ? `<span class="hasit">${ICON.check.replace("<svg", '<svg width="13" height="13"')}Archive has <b>${esc(g.archive_has.ga)}</b>${g.archive_has.meaning ? ` (${esc(g.archive_has.meaning)})` : ""}</span>` : "";
   const acts = st === "pending"
     ? `<button class="btn sm ink" data-gap-answer="${esc(g.id)}">Answer</button><button class="btn sm" data-gap-check="${esc(g.id)}">Check again</button><button class="btn sm" data-gap-dismiss="${esc(g.id)}">Dismiss</button>`
     : st === "dismissed" || st === "user_contributed" ? `<button class="btn sm" data-gap-reopen="${esc(g.id)}">Put back</button>` : "";
   const ck = st !== "resolved" ? `<input type="checkbox" class="qck" data-gap-id="${esc(g.id)}" aria-label="Select">` : "";
-  return `<li id="gap-${esc(g.id)}">
-    ${ck}<span class="pill ${g.kind === "flagged" ? "bad" : g.asked > 2 ? "warn" : ""} num lead">${g.asked}×</span>
-    <b class="t">“${esc(g.query)}”</b>
-    <span class="act">${acts}</span>
-    <span class="sub"><span class="pill ${k[1]}">${k[0]}</span>${g.answer ? `<span>Answer: <b>${esc(g.answer)}</b></span>` : ""}${g.answer_shown ? `<span>Shown: ${esc(g.answer_shown)}</span>` : ""}${has}<span>last asked ${esc(ago(g.last_asked))}</span></span>
+  const x = g.asked >= 5 ? "bad" : g.asked >= 3 ? "warn" : "";
+  return `<li class="gap${ck ? "" : " nocb"}" id="gap-${esc(g.id)}">
+    <span class="gap-x ${x}" title="asked ${g.asked} time${g.asked === 1 ? "" : "s"}">${g.asked}×</span>
+    ${ck}<span class="gap-ic ${ick}">${icv}</span>
+    <div class="gap-main">
+      <b class="gap-q">${esc(g.query)}</b>
+      <div class="gap-meta"><span class="pill ${k[1]}">${k[0]}</span><span>last asked ${esc(ago(g.last_asked))}</span>${g.answer ? `<span>Answer: <b>${esc(g.answer)}</b></span>` : ""}${g.answer_shown ? `<span>Shown: ${esc(g.answer_shown)}</span>` : ""}${has}</div>
+      ${acts ? `<div class="gap-acts">${acts}</div>` : ""}
+    </div>
     <div class="extra" id="gx-${esc(g.id)}"></div>
   </li>`;
 }
