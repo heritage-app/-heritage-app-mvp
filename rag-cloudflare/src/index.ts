@@ -20,6 +20,7 @@ import user from "./routes/user";
 import chat from "./routes/chat";
 import conversations from "./routes/conversations";
 import admin from "./routes/admin";
+import { invitesAdmin, invitesPublic } from "./routes/invites";
 import { requireAdmin, requireUser, API_HOST } from "./auth/middleware";
 import { handleGetAttachment } from "./routes/attachments";
 import { handleSuggestions } from "./routes/suggestions";
@@ -83,6 +84,8 @@ api.route("/user", user);
 api.route("/", chat);
 api.route("/", conversations);
 api.route("/admin/console", adminConsole);
+api.route("/admin/invites", invitesAdmin);
+api.route("/invites", invitesPublic);
 api.route("/admin", admin);
 
 // Admin-only gates for the raw (Request, Env) handlers below — these bypass

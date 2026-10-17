@@ -453,6 +453,17 @@ input.gaip{font:700 16px var(--display)}
     <!-- ============ USERS ============ -->
     <section class="view hidden" data-view="users">
       <div class="hd"><h1>Users</h1><p>Accounts and roles. Admins use this console; everyone else uses the app.</p></div>
+      <div class="panel"><h2>Invite someone</h2>
+        <div class="bulkbar">
+          <select class="in" id="invRole" style="height:38px" aria-label="Role for the invite"><option value="admin">Admin</option><option value="member">Member</option><option value="moderator">Moderator</option><option value="user">User</option></select>
+          <input class="in" id="invEmail" type="email" placeholder="Email — optional; blank means anyone with the link" style="flex:1;min-width:220px" />
+          <button class="btn ink" id="invMake">Create invite link</button>
+          <span class="status" id="invSt"></span>
+        </div>
+        <div class="bulkbar hidden" id="invNew" style="margin-top:10px"><input class="in" id="invLink" readonly style="flex:1;min-width:0" aria-label="Invite link" /><button class="btn sm" id="invCopy">Copy link</button></div>
+        <div class="tbl-wrap" style="margin-top:14px"><table><thead><tr><th>Role</th><th>For</th><th>Invited by</th><th>Expires</th><th></th></tr></thead><tbody id="invBody"></tbody></table></div>
+        <div class="empty hidden" id="invEmpty">No open invites.</div>
+      </div>
       <div class="panel"><div class="tbl-wrap"><table><thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Joined</th></tr></thead><tbody id="usersBody"></tbody></table></div><div class="empty hidden" id="usersEmpty">No users.</div><div class="pager" id="usersPager"></div></div>
     </section>
 
@@ -1420,6 +1431,33 @@ loaders.usage = async () => {
 /* ================= USERS ================= */
 const U = { page: 0, size: 25 };
 const ROLES = ["admin", "moderator", "member", "user"];
+async function loadInvites() {
+  try {
+    const d = await api("/admin/invites");
+    $("invEmpty").classList.toggle("hidden", !!d.invites.length);
+    $("invBody").innerHTML = d.invites.map((v) => `<tr><td><span class="pill ${v.role === "admin" ? "bad" : "info"}">${esc(v.role)}</span></td><td style="overflow-wrap:anywhere">${v.email ? esc(v.email) : '<span class="muted">anyone with the link</span>'}</td><td class="muted">${esc(v.invited_by)}</td><td class="muted" style="white-space:nowrap">${v.expired ? '<span style="color:var(--bad)">expired</span>' : esc(new Date(v.expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }))}</td><td><button class="btn sm bad" data-inv-rev="${esc(v.token)}">Revoke</button></td></tr>`).join("");
+  } catch (e) { $("invBody").innerHTML = `<tr><td colspan="5" class="muted">${esc(e.message)}</td></tr>`; }
+}
+$("invMake").addEventListener("click", async () => {
+  $("invSt").textContent = "Making…";
+  try {
+    const d = await api("/admin/invites", { json: { role: $("invRole").value, email: $("invEmail").value.trim() } });
+    $("invLink").value = d.url;
+    $("invNew").classList.remove("hidden");
+    $("invSt").textContent = "";
+    toast(`Invite link made — send it to them`);
+    loadInvites();
+  } catch (e) { $("invSt").textContent = e.message; }
+});
+$("invCopy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText($("invLink").value); toast("Link copied"); }
+  catch { $("invLink").select(); }
+});
+$("invBody").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-inv-rev]"); if (!b) return;
+  try { await api(`/admin/invites/${encodeURIComponent(b.dataset.invRev)}`, { method: "DELETE" }); toast("Invite revoked"); loadInvites(); }
+  catch (err) { toast(err.message); }
+});
 loaders.users = async () => {
   try {
     const d = await api(`/admin/users?limit=${U.size}&offset=${U.page * U.size}`);
@@ -1430,6 +1468,7 @@ loaders.users = async () => {
     $("uPrev") && ($("uPrev").onclick = () => { U.page--; loaders.users(); });
     $("uNext") && ($("uNext").onclick = () => { U.page++; loaders.users(); });
   } catch (e) { $("usersBody").innerHTML = `<tr><td colspan="4" class="muted">${esc(e.message)}</td></tr>`; }
+  loadInvites();
 };
 $("usersBody").addEventListener("change", async (e) => {
   const s = e.target.closest("[data-role]"); if (!s) return;

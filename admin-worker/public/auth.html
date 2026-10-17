@@ -245,6 +245,34 @@ function busy(on) {
   } catch {}
   if (new URLSearchParams(location.search).get("denied") && $("msg").hidden) denied("");
 })();
+// Admin invites land here: ?invite=<token> turns the sign-in form into a
+// one-step join. Member invites are pointed back at the app.
+const invite = new URLSearchParams(location.search).get("invite");
+let inviteInfo = null;
+if (invite) {
+  (async () => {
+    try {
+      const r = await fetch(`${API}/invites/${encodeURIComponent(invite)}`);
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) {
+        if (d.role === "admin") {
+          inviteInfo = d;
+          document.querySelector(".hello h1").textContent = "You're invited to the admin team.";
+          document.querySelector(".hello p").textContent = `Invited by ${d.invited_by}. Set your password and you're in.`;
+          $("go").firstChild.textContent = "Create admin account ";
+          $("pw").placeholder = "Choose a password (8+ characters)";
+          $("pw").setAttribute("autocomplete", "new-password");
+          if (d.email) { $("email").value = d.email; $("email").readOnly = true; $("email").style.opacity = ".6"; }
+          const alt = document.querySelector(".alt"); if (alt) alt.style.display = "none";
+        } else {
+          say("err", `This invite is for the SpeakGa app, not the console. <a href="https://app.speakga.org/auth?invite=${esc(invite)}">Open it there</a>.`);
+        }
+      } else {
+        say("err", esc(d.detail || "That invite link is used up or expired. Ask for a fresh one."));
+      }
+    } catch { say("err", "Couldn't check that invite link — try opening it again."); }
+  })();
+}
 $("f").addEventListener("submit", async (e) => {
   e.preventDefault();
   const email = $("email").value.trim(), password = $("pw").value;
@@ -252,6 +280,22 @@ $("f").addEventListener("submit", async (e) => {
   if (!password) { say("err", "Enter your password.", "pwLine"); $("pw").focus(); return; }
   say(""); busy(true);
   try {
+    if (inviteInfo) {
+      if (password.length < 8) { busy(false); say("err", "Choose a password of at least 8 characters.", "pwLine"); $("pw").focus(); return; }
+      const r = await fetch(`${API}/invites/${encodeURIComponent(invite)}/accept`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        busy(false);
+        if (r.status === 410) { inviteInfo = null; say("err", esc(d.detail || "That invite is gone. You can still sign in if you already have an account.")); return; }
+        say("err", esc(d.detail || "Couldn't create the account."), "emailLine"); return;
+      }
+      say("ok", "Account created. Opening the console…");
+      location.href = "/admin.html";
+      return;
+    }
     const r = await fetch(API + "/auth/login", {
       method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
       body: JSON.stringify({ email, password }),

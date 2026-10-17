@@ -425,6 +425,30 @@ document.fonts?.ready.then(moveBar);
 moveBar();
 if (/[?&]signup\b/.test(location.search)) setKind("signup", true);
 
+// Member invites land here: ?invite=<token> opens "Create account" with the
+// invite attached — accepting it signs the person up with the invited role.
+// Admin invites get sent across to the console instead.
+const invite = new URLSearchParams(location.search).get("invite");
+let inviteInfo = null;
+if (invite) {
+  (async () => {
+    try {
+      const r = await fetch(`${API}/invites/${encodeURIComponent(invite)}`);
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) {
+        if (d.role === "admin") { location.replace(`https://admin.speakga.org/auth?invite=${encodeURIComponent(invite)}`); return; }
+        inviteInfo = d;
+        setKind("signup", true);
+        swapIn($("title"), "You're invited to SpeakGa.");
+        swapIn($("subtitle"), `Invited by ${d.invited_by} — set your password and you're in.`);
+        if (d.email) { $("email").value = d.email; $("email").readOnly = true; $("email").style.opacity = ".6"; }
+      } else {
+        setStatus("err", d.detail || "That invite link is used up or expired. Ask for a fresh one.");
+      }
+    } catch { /* leave the normal sign-in form */ }
+  })();
+}
+
 $("peek").onclick = () => {
   const show = $("password").type === "password";
   $("password").type = show ? "text" : "password";
@@ -442,7 +466,7 @@ $("form").onsubmit = async (e) => {
   setStatus("wait", kind === "login" ? "Signing you in…" : "Creating your account…");
   $("submitBtn").disabled = true;
   try {
-    const r = await fetch(`${API}/auth/${kind}`, {
+    const r = await fetch(inviteInfo && kind === "signup" ? `${API}/invites/${encodeURIComponent(invite)}/accept` : `${API}/auth/${kind}`, {
       method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
       body: JSON.stringify({ email, password }),
     });
