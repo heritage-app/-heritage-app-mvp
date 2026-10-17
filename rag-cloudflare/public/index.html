@@ -4130,10 +4130,19 @@ window.addEventListener("beforeinstallprompt", (e) => {
 window.addEventListener("appinstalled", () => {
   installPrompt = null;
   window.sgTrack && sgTrack("install");
+  try { localStorage.setItem("sg_pwa_run", String(Date.now())); } catch {}
   $("installBtn").classList.add("hidden");
   closeOverlays();
   toast("Installed — SpeakGa is on your home screen");
 });
+// Standalone launches keep the marker fresh; a later browser-mode visit with
+// the marker still set means the app is (probably) gone — heuristic, there is
+// no real uninstall signal for a PWA.
+if (isStandalone()) { try { localStorage.setItem("sg_pwa_run", String(Date.now())); } catch {} }
+else if (localStorage.getItem("sg_pwa_run")) {
+  try { localStorage.removeItem("sg_pwa_run"); } catch {}
+  window.sgTrack && sgTrack("uninstall");
+}
 if (!isStandalone() && isIOS) { $("installBtn").classList.remove("hidden"); maybeOfferInstall(); }
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => { navigator.serviceWorker.register("/sw.js").catch(() => {}); });

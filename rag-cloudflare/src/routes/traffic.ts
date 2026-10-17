@@ -15,7 +15,7 @@ import { hostKind } from "./seo";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-const EVENTS = new Set(["pageview", "start", "support", "give", "install", "install_click", "signup", "first_visit"]);
+const EVENTS = new Set(["pageview", "start", "support", "give", "install", "install_click", "uninstall", "signup", "first_visit"]);
 const BOT = /bot|crawl|spider|slurp|preview|headless|lighthouse|facebookexternalhit|whatsapp\/|curl|wget|python|httpclient/i;
 const OWN_HOSTS = /(^|\.)speakga\.(org|com)$|workers\.dev$|^localhost$|^127\./;
 
@@ -143,7 +143,7 @@ app.get("/analytics/traffic", requireAdmin, async (c) => {
   const all = <T>(sql: string) => db.prepare(sql).bind(since).all<T>().then((r) => r.results || []);
   const PV = "event='pageview' AND day >= ? AND host != 'other'";
 
-  const [totals, daily, pages, refs, countries, devices, events, funnel, browsers, oses, campaigns, hourly, bounce, comVisits, landing, cities, langs] = await Promise.all([
+  const [totals, daily, pages, refs, countries, devices, events, funnel, browsers, oses, campaigns, hourly, bounce, comVisits, landing, cities, langs, installDev] = await Promise.all([
     all<{ visitors: number; views: number }>(`SELECT COUNT(DISTINCT visitor||day) visitors, COUNT(*) views FROM site_events WHERE ${PV}`),
     all<{ day: string; visitors: number; views: number }>(`SELECT day, COUNT(DISTINCT visitor) visitors, COUNT(*) views FROM site_events WHERE ${PV} GROUP BY day ORDER BY day`),
     all<{ host: string; path: string; views: number }>(`SELECT host, path, COUNT(*) views FROM site_events WHERE ${PV} GROUP BY host, path ORDER BY views DESC LIMIT 8`),
@@ -169,6 +169,11 @@ app.get("/analytics/traffic", requireAdmin, async (c) => {
     ),
     all<{ city: string; visitors: number }>(`SELECT COALESCE(city,'Unknown') city, COUNT(DISTINCT visitor||day) visitors FROM site_events WHERE ${PV} GROUP BY city ORDER BY visitors DESC LIMIT 8`),
     all<{ lang: string; visitors: number }>(`SELECT COALESCE(lang,'Unknown') lang, COUNT(DISTINCT visitor||day) visitors FROM site_events WHERE ${PV} GROUP BY lang ORDER BY visitors DESC LIMIT 8`),
+    all<{ event: string; os: string; browser: string; device: string; n: number }>(
+      `SELECT event, COALESCE(os,'?') os, COALESCE(browser,'?') browser, device, COUNT(*) n
+       FROM site_events WHERE event IN ('install','install_click','uninstall') AND day >= ?
+       GROUP BY event, os, browser, device ORDER BY event, n DESC`
+    ),
   ]);
   // No `?` in this one — it can't go through `all` (which always binds `since`).
   const activeNow = await db.prepare("SELECT COUNT(DISTINCT visitor) n FROM site_events WHERE ts >= datetime('now','-15 minutes')").first<{ n: number }>().catch(() => null);
@@ -211,6 +216,7 @@ app.get("/analytics/traffic", requireAdmin, async (c) => {
     cities,
     langs,
     com_visitors: comVisits[0]?.com ?? 0,
+    install_devices: installDev,
     hourly,
     bounced: bounce[0]?.bounced ?? 0,
     active_now: activeNow?.n ?? 0,
