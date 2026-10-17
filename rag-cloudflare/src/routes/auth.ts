@@ -52,6 +52,7 @@ app.post("/login", async (c) => {
 
   const ok = await verifyPassword(body.password, user.hashed_password);
   if (!ok) return c.json({ detail: "Invalid credentials" }, 401);
+  if (user.status === "suspended") return c.json({ detail: "Your account has been suspended. Contact the SpeakGa team." }, 403);
 
   // Admins use the console; everyone else uses the app. Checked after the
   // password so the answer reveals nothing about an address to a stranger.

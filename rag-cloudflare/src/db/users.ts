@@ -126,3 +126,17 @@ export async function updateUserRole(env: Env, id: string, role: string): Promis
     .run();
   return (res.meta.changes ?? 0) > 0;
 }
+
+export async function setUserStatus(env: Env, id: string, status: "active" | "suspended"): Promise<boolean> {
+  const res = await env.DB.prepare("UPDATE users SET status = ? WHERE id = ?")
+    .bind(status, id)
+    .run();
+  return (res.meta.changes ?? 0) > 0;
+}
+
+/** Remove the account and every session it has open. */
+export async function deleteUser(env: Env, id: string): Promise<boolean> {
+  await env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(id).run().catch(() => {});
+  const res = await env.DB.prepare("DELETE FROM users WHERE id = ?").bind(id).run();
+  return (res.meta.changes ?? 0) > 0;
+}

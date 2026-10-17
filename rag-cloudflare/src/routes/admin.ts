@@ -13,7 +13,7 @@ import {
   countDocuments,
   deleteDocument,
 } from "../db/documents";
-import { getAllUsers, getUserById, countUsers, countUsersByRole, updateUserRole } from "../db/users";
+import { getAllUsers, getUserById, countUsers, countUsersByRole, updateUserRole, setUserStatus, deleteUser } from "../db/users";
 import { countSessions } from "../db/sessions";
 import { indexFromBytes, indexRefinedRecords, indexHeritageRecords, extractRawText } from "../rag/indexer";
 import { getRefinementPreview } from "../rag/refiner";
@@ -519,6 +519,7 @@ app.get("/users", async (c) => {
       first_name: u.first_name,
       last_name: u.last_name,
       dob: u.dob,
+      status: u.status || "active",
       created_at: humanizeTimestamp(u.created_at),
     })),
     total,
@@ -527,11 +528,21 @@ app.get("/users", async (c) => {
 });
 
 // --- Update user role ---
-// Console roles (super_admin, admin) can only be granted by a super_admin, a
-// super_admin's role can't be changed at all, and nobody can demote themselves
-// — that last one stops the console locking everyone out.
+// Console roles (super_admin, admin) can only be granted or taken by a
+// super_admin, a super_admin's role can't be changed at all, and nobody can
+// demote themselves — that last one stops the console locking everyone out.
 const ROLES_ALL = ["super_admin", "admin", "moderator", "member", "user"];
 const CONSOLE_ROLES = new Set(["super_admin", "admin"]);
+
+/** Reason the actor can't act on this account, or null when they can. */
+function manageBlock(actor: { id: string; role: string }, target: { role: string }): string | null {
+  if (actor.id === (target as { id?: string }).id) return "You can't do that to your own account.";
+  if (target.role === "super_admin") return "The super admin can't be changed, suspended or removed.";
+  if (actor.role !== "super_admin" && CONSOLE_ROLES.has(target.role))
+    return "Only a super admin can manage team accounts.";
+  return null;
+}
+
 app.patch("/users/:target_user_id/role", async (c) => {
   const targetId = c.req.param("target_user_id");
   const role = c.req.query("role");
@@ -539,20 +550,50 @@ app.patch("/users/:target_user_id/role", async (c) => {
     return c.json({ detail: `Invalid role. Must be one of: ${ROLES_ALL.join(", ")}.` }, 400);
   }
   const actor = c.get("user")!;
-  if (actor.id === targetId) {
-    return c.json({ detail: "You can't change your own role." }, 400);
-  }
   const target = await getUserById(c.env, targetId);
   if (!target) return c.json({ detail: "User not found." }, 404);
-  if (target.role === "super_admin") {
-    return c.json({ detail: "The super admin's role can't be changed." }, 403);
-  }
+  const blocked = manageBlock(actor, target);
+  if (blocked) return c.json({ detail: blocked }, 403);
   if (CONSOLE_ROLES.has(role) && actor.role !== "super_admin") {
     return c.json({ detail: "Only a super admin can grant console roles." }, 403);
   }
   const ok = await updateUserRole(c.env, targetId, role);
   if (!ok) return c.json({ detail: "User not found or role unchanged." }, 404);
   return c.json({ status: "success", message: `User role updated to ${role}.` });
+});
+
+// --- Suspend / unsuspend ---
+// Suspended accounts can't sign in and existing tokens stop working at the
+// next request (requireUser/optionalUser check status on every call).
+app.patch("/users/:target_user_id/status", async (c) => {
+  const targetId = c.req.param("target_user_id");
+  const status = c.req.query("status");
+  if (status !== "active" && status !== "suspended") {
+    return c.json({ detail: "Invalid status. Must be 'active' or 'suspended'." }, 400);
+  }
+  const actor = c.get("user")!;
+  const target = await getUserById(c.env, targetId);
+  if (!target) return c.json({ detail: "User not found." }, 404);
+  const blocked = manageBlock(actor, target);
+  if (blocked) return c.json({ detail: blocked }, 403);
+  const ok = await setUserStatus(c.env, targetId, status);
+  if (!ok) return c.json({ detail: "User not found or status unchanged." }, 404);
+  return c.json({ status: "success", message: status === "suspended" ? "Account suspended." : "Account active again." });
+});
+
+// --- Delete account ---
+// Permanent: the user row and every session it has open go with it.
+// Only a super_admin can remove a team account.
+app.delete("/users/:target_user_id", async (c) => {
+  const targetId = c.req.param("target_user_id");
+  const actor = c.get("user")!;
+  const target = await getUserById(c.env, targetId);
+  if (!target) return c.json({ detail: "User not found." }, 404);
+  const blocked = manageBlock(actor, target);
+  if (blocked) return c.json({ detail: blocked }, 403);
+  const ok = await deleteUser(c.env, targetId);
+  if (!ok) return c.json({ detail: "User not found." }, 404);
+  return c.json({ status: "success", message: `Deleted ${target.email}.` });
 });
 
 // --- Contribution review ---

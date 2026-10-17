@@ -44,6 +44,8 @@ export interface UserRow {
   email: string;
   hashed_password: string;
   role: string;
+  /** 'active' | 'suspended' — absent before the status migration ran. */
+  status?: string;
   display_name: string | null;
   first_name: string | null;
   last_name: string | null;

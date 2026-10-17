@@ -56,6 +56,7 @@ export const requireUser: MiddlewareHandler<AppEnv> = async (c, next) => {
 
   const user = await getUserById(c.env, payload.sub);
   if (!user) return c.json({ detail: "User not found" }, 401);
+  if (user.status === "suspended") return c.json({ detail: "Your account has been suspended." }, 403);
   if (adminBlockedHere(c, user.role)) {
     return c.json({ detail: "Admin accounts sign in to the admin console, not the app." }, 401);
   }
@@ -71,8 +72,8 @@ export const optionalUser: MiddlewareHandler<AppEnv> = async (c, next) => {
     const payload = await verifyAccessToken(c.env, token);
     if (payload) {
       const user = await getUserById(c.env, payload.sub);
-      // An admin's app-side session counts as signed out: they get the guest experience.
-      if (user && !adminBlockedHere(c, user.role)) {
+      // Admins and suspended accounts count as signed out: the guest experience.
+      if (user && user.status !== "suspended" && !adminBlockedHere(c, user.role)) {
         c.set("user", user);
         c.set("userId", user.id);
         await next();

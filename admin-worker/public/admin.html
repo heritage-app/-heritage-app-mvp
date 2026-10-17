@@ -94,7 +94,7 @@ a{color:inherit}
 @media (max-width:1100px){.grid2,.grid3{grid-template-columns:1fr}}
 .pill{display:inline-flex;align-items:center;gap:5px;font:700 11.5px var(--sans);padding:3px 9px;border-radius:999px;white-space:nowrap;background:var(--sunk);color:var(--ink-2)}
 .pill.ok{background:var(--ok-soft);color:var(--ok)}.pill.warn{background:var(--warn-soft);color:var(--warn)}.pill.bad{background:var(--bad-soft);color:var(--bad)}.pill.info{background:var(--info-soft);color:var(--info)}
-.view{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;min-width:0}
+.view{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;min-width:0;max-width:1120px;width:100%;justify-self:center}
 .empty{color:var(--muted);padding:26px 8px;text-align:center}
 .loading{color:var(--faint);padding:18px 4px}
 
@@ -474,11 +474,11 @@ input.gaip{font:700 16px var(--display)}
         <div class="empty hidden" id="invEmpty">No open invites.</div>
       </div>
       <div class="panel"><h2>The team <small id="teamCount"></small></h2>
-        <div class="tbl-wrap"><table><thead><tr><th>User</th><th>Role</th><th>Joined</th></tr></thead><tbody id="teamBody"></tbody></table></div>
+        <div class="tbl-wrap"><table><thead><tr><th>User</th><th>Role</th><th>Joined</th><th></th></tr></thead><tbody id="teamBody"></tbody></table></div>
         <div class="empty hidden" id="teamEmpty">No team members yet. Invite one above.</div>
       </div>
       <div class="panel"><h2>App users <small id="membersCount"></small><span style="margin-left:auto"><input class="in" id="uSearch" type="search" placeholder="Search email or name" style="width:210px;height:34px" /></span></h2>
-        <div class="tbl-wrap"><table><thead><tr><th>User</th><th>Role</th><th>Joined</th></tr></thead><tbody id="usersBody"></tbody></table></div>
+        <div class="tbl-wrap"><table><thead><tr><th>User</th><th>Role</th><th>Joined</th><th></th></tr></thead><tbody id="usersBody"></tbody></table></div>
         <div class="empty hidden" id="usersEmpty">No users match.</div>
         <div class="pager" id="usersPager"></div>
       </div>
@@ -604,13 +604,13 @@ $$(".nav").forEach((b) => b.addEventListener("click", () => go(b.dataset.v)));
 document.addEventListener("click", (e) => { const t = e.target.closest("[data-go]"); if (t) go(t.dataset.go); });
 
 /* gate */
-let ME_ROLE = "admin";
+let ME_ROLE = "admin", ME_EMAIL = "";
 (async function guard() {
   let me = null;
   try { const r = await fetch(`${API}/auth/me`, { credentials: "include" }); if (r.ok) me = await r.json(); } catch {}
   if (!me) { location.href = "/auth"; return; }
   if (me.role !== "admin" && me.role !== "super_admin") { location.href = "/auth?denied=1"; return; }
-  ME_ROLE = me.role;
+  ME_ROLE = me.role; ME_EMAIL = me.email || "";
   $("gate").remove(); $("shell").classList.remove("hidden");
   const first = me.first_name || (me.email || "").split("@")[0];
   $("whoName").textContent = first || "Admin"; $("whoEmail").textContent = me.email || ""; $("whoAv").textContent = (first || "A").charAt(0);
@@ -1467,7 +1467,20 @@ const urole = (u) => {
   const opts = isSuper() ? ROLES_ALL : ROLES_MEMBER;
   return `<select class="in" style="height:34px;width:auto" data-role="${esc(u.id)}" data-email="${esc(u.email)}" data-prev="${esc(u.role)}">${opts.map((r) => `<option value="${r}"${r === u.role ? " selected" : ""}>${esc(ROLE_LABEL[r] || r)}</option>`).join("")}</select>`;
 };
-const urow = (u) => `<tr><td>${ucell(u)}</td><td>${urole(u)}</td><td class="muted" style="white-space:nowrap">${esc(u.created_at)}</td></tr>`;
+// Who the viewer may touch — mirrors the server's manageBlock: never self,
+// never the super_admin, and only a super_admin touches team accounts.
+const canAct = (u) => {
+  if (u.email === ME_EMAIL) return false;
+  if (u.role === "super_admin") return false;
+  if (!isSuper() && ["admin", "super_admin"].includes(u.role)) return false;
+  return true;
+};
+const uact = (u) => {
+  if (!canAct(u)) return `<span class="muted" style="font-size:12px">—</span>`;
+  const susp = u.status === "suspended";
+  return `<div style="display:flex;gap:6px;justify-content:flex-end"><button class="btn sm" data-susp="${esc(u.id)}" data-email="${esc(u.email)}" data-to="${susp ? "active" : "suspended"}">${susp ? "Restore" : "Suspend"}</button><button class="btn sm bad" data-del="${esc(u.id)}" data-email="${esc(u.email)}">Delete</button></div>`;
+};
+const urow = (u) => `<tr><td>${ucell(u)}${u.status === "suspended" ? ' <span class="pill bad">Suspended</span>' : ""}</td><td>${urole(u)}</td><td class="muted" style="white-space:nowrap">${esc(u.created_at)}</td><td>${uact(u)}</td></tr>`;
 async function loadInvites() {
   try {
     const d = await api("/admin/invites");
@@ -1533,7 +1546,7 @@ loaders.users = async () => {
     $("usersPager").innerHTML = pages > 1 ? `<span class="pinfo">Page ${U.page + 1} of ${pages}</span><button class="btn sm" id="uPrev" ${U.page ? "" : "disabled"}>Previous</button><button class="btn sm" id="uNext" ${U.page < pages - 1 ? "" : "disabled"}>Next</button>` : "";
     $("uPrev") && ($("uPrev").onclick = () => { U.page--; loaders.users(); });
     $("uNext") && ($("uNext").onclick = () => { U.page++; loaders.users(); });
-  } catch (e) { $("usersBody").innerHTML = `<tr><td colspan="3" class="muted">${esc(e.message)}</td></tr>`; }
+  } catch (e) { $("usersBody").innerHTML = `<tr><td colspan="4" class="muted">${esc(e.message)}</td></tr>`; }
 };
 // Role changes are the same on either table — listen at the view level.
 document.querySelector('[data-view="users"]').addEventListener("change", async (e) => {
@@ -1544,6 +1557,23 @@ document.querySelector('[data-view="users"]').addEventListener("change", async (
   try { await api(`/admin/users/${encodeURIComponent(s.dataset.role)}/role?role=${encodeURIComponent(role)}`, { method: "PATCH" }); s.dataset.prev = role; toast("Role changed."); loaders.users(); }
   catch (err) { s.value = prev; toast(err.message); }
   s.disabled = false;
+});
+// Suspend/restore/delete — same click delegation as the role selects.
+document.querySelector('[data-view="users"]').addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-susp],[data-del]"); if (!b) return;
+  if (b.dataset.susp) {
+    const to = b.dataset.to;
+    const label = to === "suspended" ? "Suspend" : "Restore";
+    if (!(await confirmBox(`${label} ${b.dataset.email}?${to === "suspended" ? " They can't sign in again until you restore them." : ""}`, `${label} account`))) return;
+    b.disabled = true;
+    try { await api(`/admin/users/${b.dataset.susp}/status?status=${to}`, { method: "PATCH" }); toast(to === "suspended" ? "Suspended." : "Restored."); loaders.users(); }
+    catch (err) { toast(err.message); b.disabled = false; }
+    return;
+  }
+  if (!(await confirmBox(`Delete ${b.dataset.email} for good? The account and its sign-ins are removed. This can't be undone.`, "Delete account"))) return;
+  b.disabled = true;
+  try { await api(`/admin/users/${b.dataset.del}`, { method: "DELETE" }); toast("Account deleted."); loaders.users(); }
+  catch (err) { toast(err.message); b.disabled = false; }
 });
 let uSearchT = 0;
 $("uSearch").addEventListener("input", (e) => {
