@@ -194,6 +194,12 @@ app.get("/analytics/traffic", requireAdmin, async (c) => {
         COUNT(DISTINCT CASE WHEN host='app' THEN visitor||day END) app
       FROM site_events WHERE ${PPV}`),
   ]);
+  // Per-day series for the chart's metric tabs: app opens and installs, and
+  // the previous window's visitors/views for the dashed comparison line.
+  const [dailyEvents, prevDaily] = await Promise.all([
+    all<{ day: string; event: string; n: number }>(`SELECT day, event, COUNT(DISTINCT visitor) n FROM site_events WHERE event IN ('start','install') AND day >= ? GROUP BY day, event ORDER BY day`),
+    prevAll<{ day: string; visitors: number; views: number }>(`SELECT day, COUNT(DISTINCT visitor) visitors, COUNT(*) views FROM site_events WHERE ${PPV} GROUP BY day ORDER BY day`),
+  ]);
   // No `?` in this one — it can't go through `all` (which always binds `since`).
   const activeNow = await db.prepare("SELECT COUNT(DISTINCT visitor) n FROM site_events WHERE ts >= datetime('now','-15 minutes')").first<{ n: number }>().catch(() => null);
 
@@ -228,6 +234,7 @@ app.get("/analytics/traffic", requireAdmin, async (c) => {
     visitors: totals[0]?.visitors ?? 0,
     views: totals[0]?.views ?? 0,
     daily,
+    daily_events: dailyEvents,
     pages,
     referrers: refs,
     countries,
@@ -264,6 +271,7 @@ app.get("/analytics/traffic", requireAdmin, async (c) => {
       asked: pAsked?.n ?? 0,
       signed_up: pSignups?.n ?? 0,
       contributed: pContributed?.n ?? 0,
+      daily: prevDaily,
       actions: {
         start: Object.fromEntries(pEvents.map((e) => [e.event, e.n])).start ?? 0,
         support: Object.fromEntries(pEvents.map((e) => [e.event, e.n])).support ?? 0,

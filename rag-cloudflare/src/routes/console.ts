@@ -206,6 +206,14 @@ app.get("/overview", async (c) => {
     one<{ n: number }>(`SELECT COUNT(*) n FROM documents WHERE json_extract(metadata, '$.vector_pending') = 1 AND status = 'indexed'`),
     one<{ pending: number; approved: number }>(`SELECT SUM(status='pending') pending, SUM(status='approved') approved FROM voice_recordings`),
   ]);
+  // 14-day daily series behind the stat-card sparklines.
+  const [tUsers, tContrib, tGaps, tVocab, online] = await Promise.all([
+    all<{ day: string; n: number }>(`SELECT date(created_at) day, COUNT(*) n FROM users WHERE date(created_at) >= ? GROUP BY 1 ORDER BY 1`, since14),
+    all<{ day: string; n: number }>(`SELECT date(timestamp) day, COUNT(*) n FROM user_contributions WHERE date(timestamp) >= ? GROUP BY 1 ORDER BY 1`, since14),
+    all<{ day: string; n: number }>(`SELECT date(timestamp) day, COUNT(*) n FROM knowledge_gaps WHERE date(timestamp) >= ? GROUP BY 1 ORDER BY 1`, since14),
+    all<{ day: string; n: number }>(`SELECT date(verified_at) day, COUNT(*) n FROM vocabulary WHERE date(verified_at) >= ? GROUP BY 1 ORDER BY 1`, since14),
+    one<{ n: number }>(`SELECT COUNT(DISTINCT visitor) n FROM site_events WHERE ts >= datetime('now','-15 minutes')`),
+  ]);
 
   // Distinct symbols each samai dataset adds (datasets/ga-samai*.jsonl; the
   // Okaikoi file repeats 6 of the first 8 and adds 8 more).
@@ -231,6 +239,8 @@ app.get("/overview", async (c) => {
     failed_uploads: failed?.n ?? 0,
     search_index_pending: searchPending?.n ?? 0,
     voices: { pending: voices?.pending ?? 0, approved: voices?.approved ?? 0 },
+    trend: { users: tUsers, contributions: tContrib, gaps: tGaps, vocabulary: tVocab },
+    active_now: online?.n ?? 0,
   });
 });
 

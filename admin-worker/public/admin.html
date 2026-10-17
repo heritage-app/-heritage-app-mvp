@@ -18,6 +18,7 @@
   --ink:#16130F; --ink-2:rgba(22,19,15,.74); --muted:rgba(22,19,15,.6); --faint:rgba(22,19,15,.42);
   --gold:#F2B33D; --gold-ink:#7A5200; --gold-soft:#FBEFD6;
   --ok:#1F7A4A; --ok-soft:#E3F1E4; --warn:#9A5B00; --warn-soft:#FDEFD3; --bad:#A3312A; --bad-soft:#FBE4E3; --info:#1E5AA8; --info-soft:#E1ECFA;
+  --shadow:0 1px 2px rgba(60,40,10,.05),0 8px 24px -12px rgba(60,40,10,.16);
   --display:"Bricolage Grotesque","Plus Jakarta Sans","Inter",ui-sans-serif,system-ui,sans-serif;
   --sans:"Plus Jakarta Sans","Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -26,7 +27,8 @@
   --bg:#121212; --panel:#1B1B1B; --sunk:#232323; --line:rgba(255,255,255,.1);
   --ink:#F5F2EC; --ink-2:rgba(245,242,236,.78); --muted:rgba(245,242,236,.6); --faint:rgba(245,242,236,.42);
   --gold-ink:#F2C766; --gold-soft:#2C2416;
-  --ok:#7FD3A0; --ok-soft:#1C2A21; --warn:#F2C766; --warn-soft:#2C2416; --bad:#F2A79F; --bad-soft:#2F1E1D; --info:#9CC0F0; --info-soft:#1B2433; color-scheme:dark}
+  --ok:#7FD3A0; --ok-soft:#1C2A21; --warn:#F2C766; --warn-soft:#2C2416; --bad:#F2A79F; --bad-soft:#2F1E1D; --info:#9CC0F0; --info-soft:#1B2433;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -14px rgba(0,0,0,.7); color-scheme:dark}
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:500 14.5px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
@@ -106,16 +108,9 @@ a{color:inherit}
 .kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
 @media (max-width:1300px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:560px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
-/* traffic strip: fixed even grid — 4 across, 2 on narrow screens */
-#tKpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
-@media(max-width:920px){#tKpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .dlt{font-style:normal;font:800 11px var(--sans);padding:1px 7px;border-radius:999px;background:var(--sunk);color:var(--muted);white-space:nowrap;margin-left:4px}
 .dlt.up{background:var(--ok-soft);color:var(--ok)}
 .dlt.down{background:var(--bad-soft);color:var(--bad)}
-/* wider value columns where a delta chip rides along */
-#tFunnel .fn{grid-template-columns:170px minmax(0,1fr) 130px}
-#tEngage .bar-row{grid-template-columns:150px minmax(0,1fr) 150px}
-#tFunnel .fn b,#tEngage .bar-row b{white-space:nowrap;text-align:right}
 
 /* voice recorder in the answer form */
 .vrec{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:999px;border:0;background:var(--bad);color:#fff;font:700 12.5px var(--sans);cursor:pointer}
@@ -147,6 +142,139 @@ button.kpi{cursor:pointer}button.kpi:hover{box-shadow:inset 0 0 0 1px var(--fain
 .kpi b{font:800 26px/1.05 var(--display);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
 .kpi span{font-size:12px;color:var(--muted)}
 .kpi.alert{box-shadow:inset 0 0 0 1.5px var(--bad)}.kpi.alert b{color:var(--bad)}
+
+/* ===== Overview + Site traffic: soft, rounded layout ===== */
+.panel.soft{border-radius:24px;box-shadow:var(--shadow);padding:20px}
+.panel.soft>h2{margin-bottom:14px}
+.g2e{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+@media (max-width:1100px){.g2e{grid-template-columns:1fr}}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;background:var(--panel);box-shadow:var(--shadow);font:700 12.5px var(--sans);white-space:nowrap;border:0;cursor:pointer}
+.chip i{width:8px;height:8px;border-radius:50%;flex:none}
+.live{width:8px;height:8px;border-radius:50%;background:var(--ok);animation:live 1.8s infinite;flex:none}
+@keyframes live{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 50%,transparent)}70%,100%{box-shadow:0 0 0 8px transparent}}
+@media (prefers-reduced-motion:reduce){.live{animation:none}}
+.seg{display:inline-flex;gap:3px;padding:4px;border-radius:999px;background:var(--sunk);max-width:100%;overflow-x:auto;scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
+.seg button{border:0;background:none;padding:6px 13px;border-radius:999px;font-weight:700;font-size:12.5px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.seg button[aria-selected="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.hello{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center;padding:24px 26px;border-radius:28px;background:linear-gradient(120deg,var(--gold-soft),var(--panel) 70%);box-shadow:var(--shadow)}
+.hello h1{font-size:clamp(28px,3.4vw,40px)}
+.hello p{color:var(--ink-2);margin-top:6px;max-width:62ch}
+.hello p b{color:var(--ink)}
+.hello .chips{display:flex;gap:10px;flex-wrap:wrap}
+.hello .chip{box-shadow:none}
+@media (max-width:760px){.hello{grid-template-columns:1fr}}
+/* stat cards with sparkline */
+.skpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}
+@media (max-width:1250px){.skpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:620px){.skpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.sk{border:0;text-align:left;cursor:pointer;background:var(--panel);border-radius:22px;box-shadow:var(--shadow);padding:16px;display:grid;gap:8px;min-width:0;font:inherit;color:inherit;transition:transform .15s}
+.sk:hover{transform:translateY(-2px)}
+@media (prefers-reduced-motion:reduce){.sk{transition:none}.sk:hover{transform:none}}
+.sk .tp{display:flex;align-items:center;gap:8px;min-width:0}
+.sk .tp .kic{width:32px;height:32px;border-radius:50%;margin:0}
+.sk small{font:700 12px var(--sans);color:var(--muted)}
+.sk .rw{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
+.sk b{font:800 30px/1 var(--display);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.sk .ft{font-size:12px;color:var(--muted);display:flex;gap:4px 6px;align-items:center;flex-wrap:wrap}
+.sk .ft .dlt{margin:0}
+.sk.alert b{color:var(--bad)}
+.spark{width:72px;height:28px;flex:0 1 72px;min-width:0}
+/* attention list */
+.todo{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.todo li{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px 10px 10px;border-radius:18px;background:var(--bg)}
+.todo .kic{width:40px;height:40px;border-radius:50%;margin:0}
+.todo .kic svg{width:17px;height:17px}
+.todo b{display:block;font-size:14px;overflow-wrap:anywhere}
+.todo .s{display:block;font-size:12.5px;color:var(--muted)}
+.todo .btn{border-radius:999px}
+.todo li.empty{display:block;background:none}
+@media (max-width:560px){.todo li{grid-template-columns:40px minmax(0,1fr)}.todo .btn{grid-column:2;justify-self:start}}
+/* area chart */
+.area text{fill:var(--faint);font:600 10.5px var(--sans)}
+.area .gl{stroke:var(--line);stroke-width:1}
+.area .ln{fill:none;stroke:var(--gold);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+.area .ln2{fill:none;stroke:var(--ink-2);stroke-width:1.5;stroke-dasharray:4 4;opacity:.45}
+.area .dot{fill:var(--panel);stroke:var(--gold);stroke-width:2.5}
+.area .pk{fill:var(--ink);font:800 11px var(--sans)}
+.bignum{display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.bignum b{font:800 34px/1 var(--display);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.legend i.c{border-radius:50%}
+/* archive tiles */
+.atiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:560px){.atiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.atile{padding:14px;border-radius:18px;display:grid;gap:4px;align-content:start;min-width:0}
+.atile small{font:700 12px var(--sans);color:var(--ink-2)}
+.atile b{font:800 24px/1.1 var(--display);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.atile span{font-size:11.5px;color:var(--muted)}
+.atile .mb{height:6px;border-radius:6px;background:color-mix(in srgb,currentColor 14%,transparent);display:flex;overflow:hidden;margin-top:6px}
+.atile .mb i{display:block;height:100%}
+.bib{display:grid;gap:12px}
+.bib .r{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;font-size:13.5px}
+.bib .r b{font-variant-numeric:tabular-nums}
+.bib .tr{grid-column:1/-1;height:10px;border-radius:10px;background:var(--sunk);overflow:hidden}
+.bib .tr i{display:block;height:100%;border-radius:10px;background:var(--info)}
+.bib .tot{display:flex;justify-content:space-between;align-items:baseline;padding:12px 14px;border-radius:16px;background:var(--info-soft);color:var(--info);font-weight:700}
+.bib .tot b{font:800 22px var(--display)}
+/* research tracker */
+.rcell{padding:16px;border-radius:20px;background:var(--bg);display:grid;gap:10px;align-content:start}
+.rcell .h{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.rcell p{font-size:12.5px;color:var(--muted)}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.steps i{height:6px;border-radius:6px;background:var(--line)}
+.steps.ok i.on{background:var(--ok)}.steps.warn i.on{background:var(--gold)}.steps.bad i.on{background:var(--bad)}
+.steplbl{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font:700 10px var(--sans);color:var(--faint);letter-spacing:.04em;text-transform:uppercase}
+/* traffic: metric tabs over the main chart */
+.mtabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:-4px -4px 14px}
+@media (max-width:760px){.mtabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.mt{border:0;text-align:left;background:none;border-radius:18px;padding:12px 14px;cursor:pointer;display:grid;gap:4px;min-width:0;font:inherit;color:inherit}
+.mt:hover{background:var(--bg)}
+.mt[aria-selected="true"]{background:var(--gold-soft)}
+.mt small{font:700 12px var(--sans);color:var(--muted)}
+.mt b{font:800 28px/1 var(--display);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.mt span{font-size:12px;color:var(--muted);display:flex;gap:4px 6px;align-items:center;flex-wrap:wrap}
+.mt .dlt{margin:0}
+.mstats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.mstats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.mstat{padding:12px 14px;border-radius:18px;background:var(--panel);box-shadow:var(--shadow);display:flex;gap:10px;align-items:center;min-width:0}
+.mstat .kic{border-radius:50%;margin:0}
+.mstat b{font:800 18px var(--display);display:block;line-height:1.1;font-variant-numeric:tabular-nums}
+.mstat small{font-size:12px;color:var(--muted);display:block}
+.mstat .mv{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.mstat .mv b{display:inline}
+.mstat .mv .dlt{margin:0;width:auto}
+/* funnel */
+.fun{display:grid;gap:4px}
+.fs{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;position:relative;padding:11px 14px;border-radius:14px;overflow:hidden;font-size:13.5px;font-weight:600}
+.fs>i{position:absolute;inset:0 auto 0 0;background:var(--gold-soft);border-radius:14px}
+.fs>span,.fs>b{position:relative}
+.fs>b{font-variant-numeric:tabular-nums;display:flex;gap:6px;align-items:center;white-space:nowrap}
+.conv{font:700 11.5px var(--sans);color:var(--muted);padding:0 14px;display:flex;align-items:center;gap:8px}
+.conv::before{content:"";width:1.5px;height:12px;background:var(--line)}
+/* engagement rings + hour strip */
+.eng{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:420px){.eng{grid-template-columns:1fr}}
+.ring{display:flex;gap:12px;align-items:center;padding:12px;border-radius:18px;background:var(--bg);min-width:0}
+.ring svg{width:52px;height:52px;flex:none}
+.ring .bg{fill:none;stroke:var(--line);stroke-width:6}
+.ring .fg{fill:none;stroke:var(--gold);stroke-width:6;stroke-linecap:round}
+.ring text{fill:var(--ink);font:800 12px var(--sans)}
+.ring b{display:block;font-size:13px}.ring small{font-size:11.5px;color:var(--muted);display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.heat{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:3px}
+.heat i{aspect-ratio:1/1.6;border-radius:6px;background:var(--gold)}
+.heat i.z{background:var(--sunk);opacity:1!important}
+.heatl{display:grid;grid-template-columns:repeat(4,1fr);font:700 10.5px var(--sans);color:var(--faint);margin-top:6px}
+/* tabbed list cards */
+.panel.soft>h2 .seg{margin-left:auto}
+.tl{display:grid;gap:4px}
+.tl .h{display:flex;justify-content:space-between;font:800 10.5px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding:0 10px 4px}
+.lr{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:8px 10px;border-radius:12px;font-size:13.5px}
+.lr>i{position:absolute;inset:0 auto 0 0;border-radius:12px;background:var(--sunk)}
+.lr>span,.lr>b{position:relative}
+.lr>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lr>b{font-variant-numeric:tabular-nums}
+.split{display:flex;height:14px;border-radius:14px;overflow:hidden;gap:3px;margin:4px 0 12px}
+.split i{display:block;height:100%;border-radius:4px}
 
 /* voices */
 .atts{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-top:10px}
@@ -373,17 +501,20 @@ input.gaip{font:700 16px var(--display)}
 
     <!-- ============ OVERVIEW ============ -->
     <section class="view" data-view="overview">
-      <div class="hd"><h1 id="hello">Welcome back.</h1><p>What needs you today, and how the archive is growing. Live figures.</p></div>
-      <div class="kpis" id="ovKpis"><div class="loading">Loading…</div></div>
+      <div class="hello">
+        <div><h1 id="hello">Welcome back.</h1><p id="ovSummary">Loading today's figures…</p></div>
+        <div class="chips" id="ovChips"></div>
+      </div>
+      <div class="skpis" id="ovKpis"><div class="loading">Loading…</div></div>
       <div class="grid2">
-        <div class="panel"><h2>Needs your attention <small>most people affected first</small></h2><ul class="att" id="ovAttention"><li class="loading">Loading…</li></ul></div>
-        <div class="panel chart"><h2>Questions saved <small>last 14 days</small><button class="link" data-go="usage">Learning →</button></h2><svg viewBox="0 0 420 210" role="img" id="ovChart" aria-label="Questions per day for the last 14 days"></svg><div class="legend" id="ovChartNote"></div></div>
+        <div class="panel soft"><h2>Needs your attention <small>most people affected first</small></h2><ul class="todo" id="ovAttention"><li class="loading">Loading…</li></ul></div>
+        <div class="panel soft chart"><h2>Questions saved <small>last 14 days</small><button class="link" data-go="usage">Learning →</button></h2><div class="bignum" id="ovChartBig"></div><svg class="area" viewBox="0 0 520 220" role="img" id="ovChart" aria-label="Questions per day for the last 14 days"></svg><div class="legend" id="ovChartNote"></div></div>
       </div>
       <div class="grid2">
-        <div class="panel"><h2>What's in the archive <small>live counts</small><button class="link" data-go="archive">Documents →</button></h2><div class="stack" id="ovArchive"></div><div class="legend" id="ovArchiveNote"></div></div>
-        <div class="panel"><h2>Bible archive <small>verses per translation</small></h2><div class="stack" id="ovBible"></div><div class="legend" id="ovBibleNote"></div></div>
+        <div class="panel soft"><h2>What's in the archive <small>live counts</small><button class="link" data-go="archive">Documents →</button></h2><div class="atiles" id="ovArchive"></div></div>
+        <div class="panel soft"><h2>Bible archive <small>verses per translation</small></h2><div class="bib" id="ovBible"></div></div>
       </div>
-      <div class="panel"><h2>Research progress</h2><div class="ov-rgrid" id="ovResearch"></div></div>
+      <div class="panel soft"><h2>Research progress <small>where each research track stands</small></h2><div class="ov-rgrid" id="ovResearch"></div></div>
     </section>
 
     <!-- ============ UNANSWERED ============ -->
@@ -495,35 +626,25 @@ input.gaip{font:700 16px var(--display)}
 
     <!-- ============ TRAFFIC ============ -->
     <section class="view hidden" data-view="traffic">
-      <div class="hd"><h1>Site traffic</h1><div class="sp"><div class="tabs" role="tablist" id="tTabs"><button role="tab" aria-selected="true" data-d="7">7 days</button><button role="tab" aria-selected="false" data-d="30">30 days</button><button role="tab" aria-selected="false" data-d="90">90 days</button></div></div><p>Visitors to speakga.org and app.speakga.org. Counting started on 11 October 2026. No cookies, no names, no IP addresses: a visitor is counted once a day.</p></div>
-      <div class="kpis" id="tKpis" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"></div>
+      <div class="hd"><h1>Site traffic</h1><div class="sp"><span class="chip" style="cursor:default"><span class="live"></span><span class="num" id="tLive">0</span>&nbsp;on the site now</span><div class="seg" role="tablist" id="tTabs" aria-label="Period"><button role="tab" aria-selected="false" data-d="1">Today</button><button role="tab" aria-selected="true" data-d="7">7 days</button><button role="tab" aria-selected="false" data-d="30">30 days</button><button role="tab" aria-selected="false" data-d="90">90 days</button></div></div><p>Visitors to speakga.org and app.speakga.org. Counting started on 11 October 2026. No cookies, no names, no IP addresses: a visitor is counted once a day.</p></div>
+      <div class="panel soft chart">
+        <div class="mtabs" role="tablist" id="tKpis"><div class="loading">Loading…</div></div>
+        <svg class="area" viewBox="0 0 900 240" role="img" id="tChart" aria-label="Daily figures for the chosen metric"></svg>
+        <div class="legend"><span><i class="c" style="background:var(--gold)"></i>This period</span><span id="tPrevKey"><i class="c" style="background:var(--faint)"></i>Previous period (dashed)</span></div>
+      </div>
+      <div class="mstats" id="tMinis"></div>
       <div class="grid2">
-        <div class="panel"><h2>From visit to contribution</h2><div class="funnel" id="tFunnel"></div><p class="muted" style="font-size:12.5px;margin-top:10px">Visitors counted per day. The later steps come from saved questions, new accounts and contributions in the same period.</p></div>
-        <div class="panel chart"><h2>Visitors per day</h2><svg viewBox="0 0 420 210" role="img" id="tChart" aria-label="Visitors per day"></svg></div>
+        <div class="panel soft"><h2>From visit to contribution <small>share that reached the next step</small></h2><div class="fun" id="tFunnel"></div><p class="muted" style="font-size:12.5px;margin-top:12px">Visitors counted per day. The later steps come from saved questions, new accounts and contributions in the same period.</p></div>
+        <div class="panel soft"><h2>Engagement <small>out of the period's visitors</small></h2><div class="eng" id="tEngage"></div>
+          <h2 style="margin:20px 0 10px">When they visit <small>visitors by hour, UTC</small></h2><div class="heat" id="tHours"></div><div class="heatl"><span>00h</span><span>06h</span><span>12h</span><span>18h</span></div></div>
       </div>
-      <div class="grid3">
-        <div class="panel"><h2>Top pages</h2><div class="mini" id="tPages"></div></div>
-        <div class="panel"><h2>Where they come from</h2><div class="mini" id="tRefs"></div></div>
-        <div class="panel"><h2>Countries</h2><div class="mini" id="tGeo"></div></div>
+      <div class="g2e">
+        <div class="panel soft" data-tl="src"><h2>Sources<span class="seg" role="tablist"></span></h2><div class="tl"></div></div>
+        <div class="panel soft" data-tl="pg"><h2>Pages<span class="seg" role="tablist"></span></h2><div class="tl"></div></div>
+        <div class="panel soft" data-tl="loc"><h2>Location<span class="seg" role="tablist"></span></h2><div class="tl"></div></div>
+        <div class="panel soft" data-tl="tech"><h2>Devices<span class="seg" role="tablist"></span></h2><div class="tl"></div></div>
       </div>
-      <div class="grid3">
-        <div class="panel"><h2>Browsers</h2><div class="mini" id="tBrowsers"></div></div>
-        <div class="panel"><h2>Operating systems</h2><div class="mini" id="tOs"></div></div>
-        <div class="panel"><h2>Campaigns <small>UTM tags on the link</small></h2><div class="mini" id="tUtm"></div></div>
-      </div>
-      <div class="grid3">
-        <div class="panel"><h2>How they got here <small>referrer channels</small></h2><div class="mini" id="tChannels"></div></div>
-        <div class="panel"><h2>Landing pages <small>first page of each visit</small></h2><div class="mini" id="tLanding"></div></div>
-        <div class="panel"><h2>Cities &amp; languages</h2><div class="mini" id="tCities"></div><div class="mini" id="tLangs" style="margin-top:10px"></div></div>
-      </div>
-      <div class="grid2">
-        <div class="panel chart"><h2>Visitors by hour <small>UTC</small></h2><svg viewBox="0 0 420 210" role="img" id="tHours" aria-label="Visitors by hour"></svg></div>
-        <div class="panel"><h2>Engagement</h2><div class="stack" id="tEngage"></div><p class="muted" style="font-size:12.5px;margin-top:10px">Shares are out of the period's visitors, each counted once per day.</p></div>
-      </div>
-      <div class="grid2">
-        <div class="panel"><h2>Devices</h2><div class="stack" id="tDevices"></div></div>
-        <div class="panel"><h2>Installs by device <small>install / install taps / uninstalls, per platform</small></h2><div class="mini" id="tInst"></div></div>
-      </div>
+      <div class="panel soft"><h2>Installs by device <small>installs, install taps and uninstalls per platform</small></h2><div class="tbl-wrap"><table><thead><tr><th>Event</th><th>System</th><th>Browser</th><th>Device</th><th style="text-align:right">Count</th></tr></thead><tbody id="tInst"></tbody></table></div></div>
     </section>
 
     <!-- ============ LEARNING ============ -->
@@ -687,6 +808,42 @@ function lastDays(n) {
 }
 const dayLabel = (iso) => String(+iso.slice(8, 10));
 const monthAt = (days) => days.map((d, i) => (i === 0 || d.slice(8, 10) === "01") ? new Date(d + "T00:00:00Z").toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" }) : "");
+const shortDay = (iso) => new Date(iso + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+
+/* area chart: one scale for marks, ticks and labels; optional dashed previous period */
+function niceStep(r) { const p = 10 ** Math.floor(Math.log10(r || 1)), f = r / p; return Math.max(1, (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p); }
+function area(svgId, days, vals, prev) {
+  const svg = $(svgId); if (!svg) return;
+  const [W, H] = svg.getAttribute("viewBox").split(" ").slice(2).map(Number);
+  const L = 38, R = 16, T = 24, B = 28, n = vals.length;
+  const raw = Math.max(4, ...vals, ...(prev || [])), step = niceStep(raw / 4), top = Math.ceil(raw / step) * step;
+  const x = (i) => n === 1 ? (L + W - R) / 2 : L + i / (n - 1) * (W - L - R), y = (v) => T + (1 - v / top) * (H - T - B);
+  const gid = `ag-${svgId}`;
+  let s = `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--gold);stop-opacity:.32"/><stop offset="1" style="stop-color:var(--gold);stop-opacity:0"/></linearGradient></defs>`;
+  for (let v = 0; v <= top; v += step) s += `<line class="gl" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 8}" y="${y(v) + 3.5}" text-anchor="end">${fmt(v)}</text>`;
+  const every = Math.ceil(n / 8);
+  days.forEach((d, i) => { if ((i % every === 0 && n - 1 - i >= every) || i === n - 1) s += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle">${shortDay(d)}</text>`; });
+  const path = (a) => a.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
+  if (prev && n > 1) s += `<path class="ln2" d="${path(prev)}"/>`;
+  if (n > 1) s += `<path d="${path(vals)}L${x(n - 1)},${y(0)}L${x(0)},${y(0)}Z" style="fill:url(#${gid})"/><path class="ln" d="${path(vals)}"/>`;
+  const pk = vals.indexOf(Math.max(...vals));
+  vals.forEach((v, i) => { s += `<circle cx="${x(i)}" cy="${y(v)}" r="${n > 31 ? 4 : 8}" fill="transparent"><title>${shortDay(days[i])}: ${fmt(v)}</title></circle>`; });
+  if (vals[pk] > 0) s += `<circle class="dot" cx="${x(pk)}" cy="${y(vals[pk])}" r="5"/><text class="pk" x="${Math.min(Math.max(x(pk), L + 14), W - R - 14)}" y="${y(vals[pk]) - 11}" text-anchor="middle">${fmt(vals[pk])}</text>`;
+  if (n - 1 !== pk) s += `<circle class="dot" cx="${x(n - 1)}" cy="${y(vals[n - 1])}" r="4"/>`;
+  svg.innerHTML = s;
+}
+/* small trend line for a stat card */
+function spark(vals, color) {
+  if (!vals || vals.length < 2) return "";
+  const w = 72, h = 28, mx = Math.max(...vals), mn = Math.min(...vals);
+  const pts = vals.map((v, i) => [i / (vals.length - 1) * (w - 4) + 2, h - 3 - (v - mn) / ((mx - mn) || 1) * (h - 8)]);
+  const d = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(""), l = pts[pts.length - 1];
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" aria-hidden="true"><path d="${d}L${l[0]},${h}L2,${h}Z" style="fill:${color};opacity:.12"/><path d="${d}" style="fill:none;stroke:${color};stroke-width:2;stroke-linejoin:round;stroke-linecap:round"/><circle cx="${l[0]}" cy="${l[1]}" r="2.6" style="fill:${color}"/></svg>`;
+}
+/* rows [{day, n}] → values for each ISO day in `days` */
+const series = (days, rows, key = "n") => { const m = Object.fromEntries((rows || []).map((r) => [r.day, r[key] || 0])); return days.map((d) => m[d] || 0); };
+/* running total that ends at `total`, walking the daily additions backwards */
+const cumulative = (total, perDay) => { const out = Array(perDay.length); let t = total; for (let i = perDay.length - 1; i >= 0; i--) { out[i] = t; t -= perDay[i]; } return out; };
 
 /* navigation */
 const loaders = {};
@@ -738,18 +895,25 @@ async function refreshCounts() {
 }
 
 /* ================= OVERVIEW ================= */
+const TONE = { bad: ["var(--bad-soft)", "var(--bad)"], warn: ["var(--warn-soft)", "var(--warn)"], info: ["var(--info-soft)", "var(--info)"], gold: ["var(--gold-soft)", "var(--gold-ink)"], ok: ["var(--ok-soft)", "var(--ok)"], mut: ["var(--sunk)", "var(--ink-2)"] };
 loaders.overview = async () => {
   let o, top = [];
   try { [o, top] = await Promise.all([refreshCounts(), api("/admin/console/gaps?sort=most&limit=3").then((d) => d.gaps).catch(() => [])]); } catch {}
   if (!o) { $("ovKpis").innerHTML = '<div class="empty">Couldn\'t load the figures. Refresh to try again.</div>'; return; }
   const bibleTotal = o.bible.reduce((n, b) => n + b.n, 0);
+  const days = lastDays(14), tr = o.trend || {};
+  const qVals = series(days, o.questions.daily);
+  const wordsDay = series(days, tr.vocabulary), usersDay = series(days, tr.users);
+  const sum = (a) => a.reduce((x, y) => x + y, 0);
+  const wk = (a) => sum(a.slice(-7));
+
   $("ovKpis").innerHTML = [
-    { k: "Questions this week", v: o.questions.week, s: `${fmt(o.questions.total)} saved in total`, go: "usage", d: dlt(o.questions.week, o.questions.prev_week || 0), ic: ICON.chart, tone: "gold" },
-    { k: "Unanswered", v: o.gaps.open, s: `asked ${fmt(o.gaps.asks)} times`, go: "questions", alert: o.gaps.open > 0, ic: ICON.q, tone: o.gaps.open > 0 ? "bad" : "warn" },
-    { k: "Waiting for review", v: o.contributions.pending, s: `${fmt(o.contributions.total)} contributions so far`, go: "review", ic: ICON.check, tone: "warn" },
-    { k: "Words and phrases", v: o.archive?.words_and_phrases ?? o.vocabulary.verified, s: `${fmt(o.vocabulary.verified)} in the checked dictionary`, go: "archive", ic: ICON.word, tone: "ok" },
-    { k: "Accounts", v: o.users.total, s: `${fmt(o.conversations.total)} conversations`, go: "users", ic: ICON.person, tone: "info" },
-  ].map((x) => `<button class="kpi${x.alert ? " alert" : ""}" data-go="${x.go}">${kpiInner(esc(x.k), x.v, esc(x.s), x.ic, x.tone, x.d)}</button>`).join("");
+    { k: "Questions this week", v: o.questions.week, s: `${fmt(o.questions.total)} saved in total`, go: "usage", d: dlt(o.questions.week, o.questions.prev_week || 0), ic: ICON.chart, tone: "gold", sp: qVals },
+    { k: "Unanswered", v: o.gaps.open, s: `asked ${fmt(o.gaps.asks)} times`, go: "questions", alert: o.gaps.open > 0, ic: ICON.q, tone: o.gaps.open > 0 ? "bad" : "warn", sp: series(days, tr.gaps) },
+    { k: "Waiting for review", v: o.contributions.pending, s: `${fmt(o.contributions.total)} contributions so far`, go: "review", ic: ICON.check, tone: "warn", sp: series(days, tr.contributions) },
+    { k: "Words and phrases", v: o.archive?.words_and_phrases ?? o.vocabulary.verified, s: `${fmt(o.vocabulary.verified)} checked`, go: "archive", d: dlt(o.vocabulary.verified, o.vocabulary.verified - wk(wordsDay)), ic: ICON.word, tone: "ok", sp: cumulative(o.vocabulary.verified, wordsDay) },
+    { k: "Accounts", v: o.users.total, s: `${fmt(o.conversations.total)} conversations`, go: "users", d: dlt(o.users.total, o.users.total - wk(usersDay)), ic: ICON.person, tone: "info", sp: cumulative(o.users.total, usersDay) },
+  ].map((x) => `<button class="sk${x.alert ? " alert" : ""}" data-go="${x.go}"><span class="tp"><i class="kic ${x.tone}">${x.ic}</i><small>${esc(x.k)}</small></span><span class="rw"><b>${fmt(x.v)}</b>${spark(x.sp, TONE[x.tone][1])}</span><span class="ft">${(x.d || "").trim()}${esc(x.s)}</span></button>`).join("");
 
   const items = [];
   for (const g of top) {
@@ -764,41 +928,54 @@ loaders.overview = async () => {
   if (o.samai.ready) items.push({ c: "gold", i: ICON.up, t: `${o.samai.ready} more samai symbols ready to import`, s: `ga-samai-okaikoi.jsonl is checked and has images. ${o.samai.review} more need a Ga reader first.`, a: '<button class="btn sm" data-go="archive">Upload</button>' });
   if (o.search_index_pending) items.push({ c: "info", i: ICON.q, t: `${fmt(o.search_index_pending)} files need their search index finished`, s: "Their content works for direct lookups, but topic search may miss some of it.", a: '<button class="btn sm" data-go="archive">Finish</button>' });
   if (o.failed_uploads) items.push({ c: "mut", i: ICON.tag, t: `${fmt(o.failed_uploads)} failed uploads to clear`, s: "Uploads that stopped before saving anything. Clearing them tidies the document list; no content is lost.", a: '<button class="btn sm" data-go="archive">Review</button>' });
-  const tone = { bad: ["var(--bad-soft)", "var(--bad)"], warn: ["var(--warn-soft)", "var(--warn)"], info: ["var(--info-soft)", "var(--info)"], gold: ["var(--gold-soft)", "var(--gold-ink)"], mut: ["var(--sunk)", "var(--ink-2)"] };
-  $("ovAttention").innerHTML = items.length ? items.map((x) => `<li><span class="dot" style="background:${tone[x.c][0]};color:${tone[x.c][1]}">${x.i}</span><b class="t">${x.t}</b><span class="act">${x.a}</span><span class="sub">${x.s}</span></li>`).join("")
-    : '<li class="empty" style="display:block">Nothing needs you right now.</li>';
+  $("ovAttention").innerHTML = items.length ? items.map((x) => `<li><i class="kic ${x.c}">${x.i}</i><div><b>${x.t}</b><span class="s">${x.s}</span></div>${x.a}</li>`).join("")
+    : '<li class="empty">Nothing needs you right now.</li>';
 
-  const days = lastDays(14), map = Object.fromEntries(o.questions.daily.map((d) => [d.day, d.n]));
-  const vals = days.map((d) => map[d] || 0), peak = vals.indexOf(Math.max(...vals));
-  bars("ovChart", days.map(dayLabel), vals, { hi: peak, sub: monthAt(days) });
-  const sum = vals.reduce((a, b) => a + b, 0);
-  $("ovChartNote").innerHTML = `<span><i style="background:var(--gold)"></i>Questions per day from accounts</span><span>${sum ? `Busiest: ${vals[peak]} on ${new Date(days[peak] + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}` : "No questions saved in the last 14 days"}</span>`;
+  // Greeting band: one sentence on the day, plus jump-off chips.
+  const qp = o.questions.prev_week ? Math.round((o.questions.week - o.questions.prev_week) / o.questions.prev_week * 100) : null;
+  const added = sum(wordsDay);
+  const parts = [items.length ? `<b>${items.length} thing${items.length > 1 ? "s" : ""}</b> need${items.length > 1 ? "" : "s"} you today.` : "Nothing needs you today."];
+  if (qp !== null && qp !== 0) parts.push(`Questions are ${qp > 0 ? "up" : "down"} <b>${Math.abs(qp)}%</b> on last week.`);
+  if (added) parts.push(`<b>${fmt(added)}</b> word${added > 1 ? "s" : ""} checked in the last 14 days.`);
+  $("ovSummary").innerHTML = parts.join(" ");
+  $("ovChips").innerHTML = [
+    o.gaps.open ? `<button class="chip" data-go="questions"><i style="background:var(--bad)"></i>${fmt(o.gaps.open)} unanswered</button>` : "",
+    o.contributions.pending ? `<button class="chip" data-go="review"><i style="background:var(--gold)"></i>${fmt(o.contributions.pending)} to review</button>` : "",
+    `<button class="chip" data-go="traffic"><span class="live"></span>${fmt(o.active_now || 0)} online now</button>`,
+  ].join("");
+
+  const peak = qVals.indexOf(Math.max(...qVals));
+  area("ovChart", days, qVals);
+  $("ovChartBig").innerHTML = `<b>${fmt(sum(qVals))}</b><span class="muted" style="font-size:12.5px;display:inline-flex;gap:6px;align-items:center">${dlt(o.questions.week, o.questions.prev_week || 0).trim()} this week vs last</span>`;
+  $("ovChartNote").innerHTML = `<span><i class="c" style="background:var(--gold)"></i>Questions per day from accounts</span><span>${sum(qVals) ? `Busiest: ${qVals[peak]} on ${new Date(days[peak] + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}` : "No questions saved in the last 14 days"}</span>`;
 
   const A = o.archive || {};
   const docTotal = o.documents.reduce((n, d) => n + d.n, 0);
-  const maxB = Math.max(...o.bible.map((b) => b.n), 1);
-  const pct = (n, of) => `${Math.max(n ? 1 : 0, Math.round(n / of * 100))}%`;
+  const pct = (n, of) => `${of ? Math.max(n ? 1 : 0, Math.round(n / of * 100)) : 0}%`;
+  const words = A.words_and_phrases || o.vocabulary.verified, stories = (A.stories || 0) + (A.poems_and_songs || 0);
+  const samaiAll = o.samai.live + o.samai.ready + o.samai.review;
+  const tile = (tone, k, v, s, bars) => `<div class="atile" style="background:${TONE[tone][0]};color:${TONE[tone][1]}"><small>${k}</small><b>${v}</b><span>${s}</span><span class="mb">${bars}</span></div>`;
   $("ovArchive").innerHTML = [
-    `<div class="bar-row"><span>Words and phrases</span><span class="track"><i style="width:${pct(o.vocabulary.verified, A.words_and_phrases || 1)};background:var(--ok)"></i><i style="width:${pct((A.words_and_phrases || 0) - o.vocabulary.verified, A.words_and_phrases || 1)};background:color-mix(in srgb, var(--ok) 40%, transparent)"></i></span><b>${fmt(A.words_and_phrases || o.vocabulary.verified)}</b></div>`,
-    `<div class="bar-row"><span>Numbers in Ga words</span><span class="track"><i style="width:100%;background:var(--gold)"></i></span><b>1–${fmt(A.numbers_in_words || 999)}</b></div>`,
-    `<div class="bar-row"><span>Stories, poems, songs</span><span class="track"><i style="width:${pct((A.stories || 0) + (A.poems_and_songs || 0), 20)};background:var(--info)"></i></span><b>${fmt((A.stories || 0) + (A.poems_and_songs || 0))}</b></div>`,
-    `<div class="bar-row"><span>Documents</span><span class="track">${o.documents.map((d) => `<i style="width:${pct(d.n, docTotal)};background:${d.category === "bible" ? "var(--gold)" : d.category === "none" ? "var(--faint)" : "var(--ok)"}"></i>`).join("")}</span><b>${fmt(docTotal)}</b></div>`,
-    `<div class="bar-row"><span>Samai symbols</span><span class="track"><i style="width:${pct(o.samai.live, o.samai.live + o.samai.ready + o.samai.review)};background:var(--ok)"></i><i style="width:${pct(o.samai.ready, o.samai.live + o.samai.ready + o.samai.review)};background:var(--gold)"></i></span><b>${o.samai.live} live</b></div>`,
-    `<div class="bar-row"><span>Recorded speech</span><span class="track"></span><b style="color:var(--bad)">${o.speech_hours} hrs</b></div>`,
+    tile("ok", "Words and phrases", fmt(words), `${fmt(o.vocabulary.verified)} checked`, `<i style="width:${pct(o.vocabulary.verified, words)};background:currentColor"></i>`),
+    tile("gold", "Numbers in Ga", `1–${fmt(A.numbers_in_words || 999)}`, "every number spelled out", '<i style="width:100%;background:currentColor"></i>'),
+    tile("info", "Stories, poems, songs", fmt(stories), `${fmt(A.stories || 0)} stories · ${fmt(A.poems_and_songs || 0)} poems and songs`, `<i style="width:${pct(A.stories || 0, stories)};background:currentColor"></i>`),
+    tile("mut", "Documents", fmt(docTotal), o.documents.map((d) => `${d.category === "none" ? "no category" : esc(d.category)} ${fmt(d.n)}`).join(" · "),
+      o.documents.map((d) => `<i style="width:${pct(d.n, docTotal)};background:${d.category === "bible" ? "var(--gold)" : d.category === "none" ? "var(--faint)" : "var(--ok)"}"></i>`).join("")),
+    tile("warn", "Samai symbols", `${o.samai.live} live`, `${o.samai.ready} ready · ${o.samai.review} need a Ga reader`, `<i style="width:${pct(o.samai.live, samaiAll)};background:var(--ok)"></i><i style="width:${pct(o.samai.ready, samaiAll)};background:currentColor"></i>`),
+    tile("bad", "Recorded speech", `${o.speech_hours} hrs`, o.speech_hours ? "recorded so far" : "needs funding", ""),
   ].join("");
-  $("ovArchiveNote").innerHTML = `<span>Words: ${fmt(o.vocabulary.verified)} in the checked dictionary, the rest from imported guides and phrasebooks</span><span>${fmt(A.stories || 0)} stories, ${fmt(A.poems_and_songs || 0)} poems and songs</span><span>Documents: ${o.documents.map((d) => `${d.category === "none" ? "no category" : esc(d.category)} ${fmt(d.n)}`).join(" · ")}</span><span>Samai: ${o.samai.live} live, ${o.samai.ready} ready to import, ${o.samai.review} need a Ga reader</span>`;
 
-  // The Bible gets its own panel — verses per translation, with the mix.
+  const maxB = Math.max(...o.bible.map((b) => b.n), 1);
   $("ovBible").innerHTML = o.bible.length
-    ? o.bible.map((b) => `<div class="bar-row"><span>${esc(b.source)}</span><span class="track"><i style="width:${pct(b.n, maxB)};background:var(--info)"></i></span><b>${fmt(b.n)}</b></div>`).join("")
-      + `<div class="bar-row" style="border-top:1px solid var(--line);padding-top:8px"><span style="font-weight:700">All translations</span><span class="track"><i style="width:100%;background:var(--gold)"></i></span><b>${fmt(bibleTotal)}</b></div>`
+    ? o.bible.map((b) => `<div class="r"><span>${esc(b.source)}</span><b>${fmt(b.n)}</b><span class="tr"><i style="width:${pct(b.n, maxB)}"></i></span></div>`).join("")
+      + `<div class="tot"><span>All translations</span><b>${fmt(bibleTotal)}</b></div><p class="muted" style="font-size:12.5px">${o.bible.length} translation${o.bible.length === 1 ? "" : "s"}. The app reads the Ga one.</p>`
     : '<p class="muted">No Bible verses indexed yet.</p>';
-  $("ovBibleNote").innerHTML = `<span>${fmt(bibleTotal)} verses across ${o.bible.length} translation${o.bible.length === 1 ? "" : "s"} — the app reads the Ga one</span>`;
+
   $("ovResearch").innerHTML = [
-    ["Verified language data", "ok", "Under way", `${fmt(A.words_and_phrases || 0)} Ga words and phrases (${fmt(o.vocabulary.verified)} in the checked dictionary), ${fmt(bibleTotal)} Bible verses, ${fmt((A.stories || 0) + (A.poems_and_songs || 0))} stories, poems and songs. Grows with every approved contribution.`],
-    ["Recorded speech", "bad", "Not started", "Needs funding and a recording plan. 0 hours so far."],
-    ["Accuracy and evaluation", "warn", "Early", `${fmt(o.feedback.total)} ratings (${fmt(o.feedback.down)} thumbs-down) and ${fmt(o.gaps.total)} logged questions. A fixed test set would turn these into a benchmark.`],
-  ].map(([t, c, p, s]) => `<div class="ov-rcell"><div style="display:flex;gap:10px;align-items:center;justify-content:space-between"><b>${t}</b><span class="pill ${c}">${p}</span></div><p class="muted" style="font-size:12.5px;margin-top:4px">${s}</p></div>`).join("");
+    ["Verified language data", "ok", "Under way", 3, `${fmt(words)} Ga words and phrases (${fmt(o.vocabulary.verified)} in the checked dictionary), ${fmt(bibleTotal)} Bible verses, ${fmt(stories)} stories, poems and songs. Grows with every approved contribution.`],
+    ["Recorded speech", "bad", "Not started", 0, "Needs funding and a recording plan. 0 hours so far."],
+    ["Accuracy and evaluation", "warn", "Early", 2, `${fmt(o.feedback.total)} ratings (${fmt(o.feedback.down)} thumbs-down) and ${fmt(o.gaps.total)} logged questions. A fixed test set would turn these into a benchmark.`],
+  ].map(([t, c, p, n, s]) => `<div class="rcell"><div class="h"><b>${t}</b><span class="pill ${c}">${p}</span></div><div class="steps ${c}">${[0, 1, 2, 3].map((k) => `<i class="${k < n ? "on" : ""}"></i>`).join("")}</div><div class="steplbl"><span>Plan</span><span>Early</span><span>Under way</span><span>Done</span></div><p>${s}</p></div>`).join("");
 };
 
 /* ================= UNANSWERED ================= */
@@ -1623,64 +1800,105 @@ $("ocrCommit").onclick = async () => {
 };
 
 /* ================= TRAFFIC ================= */
-const T = { days: 7 };
+const T = { days: 7, metric: "vis", data: null, tl: {} };
 $("tTabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setTabs($("tTabs"), b); T.days = +b.dataset.d; loadTraffic(); });
+$("tKpis").addEventListener("click", (e) => { const b = e.target.closest(".mt"); if (!b || !T.data) return; T.metric = b.dataset.m; drawTrafficChart(); });
 loaders.traffic = () => loadTraffic();
 const COUNTRY = (cc) => { try { return new Intl.DisplayNames(["en"], { type: "region" }).of(cc) || cc; } catch { return cc; } };
-function mini(el, rows, label) {
-  const max = Math.max(1, ...rows.map((r) => r[1]));
-  el.innerHTML = rows.length ? rows.map((r) => `<div><span title="${esc(r[0])}">${esc(r[0])}</span><b>${fmt(r[1])}</b><span class="m"><i style="width:${r[1] / max * 100}%"></i></span></div>`).join("") : `<p class="muted">${label}</p>`;
+function trafficMetrics(t) {
+  const pv = t.prev || {}, pa = pv.actions || {}, f = t.funnel;
+  const days = lastDays(T.days), prevDays = lastDays(T.days * 2).slice(0, T.days);
+  const ev = (name) => series(days, (t.daily_events || []).filter((r) => r.event === name));
+  return { days, list: {
+    vis: { k: "Visitors", v: fmt(t.visitors), d: dlt(t.visitors, pv.visitors), s: `${fmt(t.first_visit || 0)} brand new`, vals: series(days, t.daily, "visitors"), prev: pv.daily && series(prevDays, pv.daily, "visitors") },
+    pv: { k: "Page views", v: fmt(t.views), d: dlt(t.views, pv.views), s: t.visitors ? `${(t.views / t.visitors).toFixed(1)} per visitor` : "—", vals: series(days, t.daily, "views"), prev: pv.daily && series(prevDays, pv.daily, "views") },
+    app: { k: "Landing to app", v: f.site_visitors ? `${Math.round(t.actions.start / f.site_visitors * 100)}%` : "—", d: dlt(t.actions.start, pa.start), s: `${fmt(t.actions.start)} clicked through`, vals: ev("start") },
+    inst: { k: "App installs", v: fmt(t.actions.install), d: dlt(t.actions.install, pa.install), s: `${fmt(t.actions.install_click || 0)} taps · ${fmt(t.actions.uninstall || 0)} uninstalls`, vals: ev("install") },
+  } };
 }
+function drawTrafficChart() {
+  const { days, list } = trafficMetrics(T.data);
+  $("tKpis").innerHTML = Object.entries(list).map(([id, m]) => `<button class="mt" role="tab" data-m="${id}" aria-selected="${id === T.metric}"><small>${m.k}</small><b>${m.v}</b><span>${m.d.trim()}${m.s}</span></button>`).join("");
+  const m = list[T.metric];
+  area("tChart", days, m.vals, m.prev);
+  $("tChart").setAttribute("aria-label", `${m.k} per day`);
+  $("tPrevKey").hidden = !m.prev || days.length < 2;
+}
+/* list with a soft bar behind each row */
+function listRows(rows, label, pctOfTotal) {
+  if (!rows.length) return `<p class="muted">No ${label.toLowerCase()} data yet.</p>`;
+  const max = Math.max(1, ...rows.map((r) => r[1])), tot = rows.reduce((a, r) => a + r[1], 0) || 1;
+  return `<div class="h"><span>${esc(label)}</span><span>Visitors</span></div>` + rows.map(([k, v]) => `<div class="lr"><i style="width:${v / max * 100}%"></i><span title="${esc(k)}">${esc(k)}</span><b>${fmt(v)}${pctOfTotal ? ` · ${Math.round(v / tot * 100)}%` : ""}</b></div>`).join("");
+}
+function drawTabbedList(card) {
+  const sets = TL_SETS[card.dataset.tl], tabs = Object.keys(sets);
+  const cur = T.tl[card.dataset.tl] && tabs.includes(T.tl[card.dataset.tl]) ? T.tl[card.dataset.tl] : tabs[0];
+  card.querySelector(".seg").innerHTML = tabs.map((k) => `<button role="tab" aria-selected="${k === cur}">${k}</button>`).join("");
+  const rows = sets[cur];
+  let pre = "";
+  if (cur === "Devices" && rows.length) {
+    const tot = rows.reduce((a, r) => a + r[1], 0) || 1, c = ["var(--gold)", "var(--info)", "var(--ok)", "var(--faint)"];
+    pre = `<div class="split">${rows.map((r, i) => `<i title="${esc(r[0])}" style="width:${r[1] / tot * 100}%;background:${c[i % c.length]}"></i>`).join("")}</div>`;
+  }
+  card.querySelector(".tl").innerHTML = pre + listRows(rows, cur, cur === "Devices");
+}
+let TL_SETS = {};
+$$("[data-tl]").forEach((card) => card.querySelector(".seg").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  T.tl[card.dataset.tl] = b.textContent; drawTabbedList(card);
+}));
 async function loadTraffic() {
   try {
     const t = await api(`/analytics/traffic?days=${T.days}`);
+    T.data = t;
     const f = t.funnel, pv = t.prev || {}, pa = pv.actions || {};
-    $("tKpis").innerHTML = [
-      ["Visitors", t.visitors, `${fmt(t.first_visit || 0)} brand new`, pv.visitors],
-      ["Page views", t.views, t.visitors ? `${(t.views / t.visitors).toFixed(1)} per visitor` : "—", pv.views],
-      ["Active now", t.active_now || 0, "last 15 minutes", null],
-      ["Landing to app", f.site_visitors ? `${Math.round(t.actions.start / f.site_visitors * 100)}%` : "—", `${fmt(t.actions.start)} clicked through`, pa.start, t.actions.start],
-      ["App installs", t.actions.install, `${fmt(t.actions.install_click || 0)} taps · ${fmt(t.actions.uninstall || 0)} uninstalls`, pa.install],
-      ["Support clicks", t.actions.support, "in Support the research", pa.support],
-      ["Contribution forms", t.actions.give, "sent from speakga.org", pa.give],
-      ["Via speakga.com", t.com_visitors || 0, "redirected to .org", pv.com_visitors],
-    ].map(([k, v, s, p0, dc]) => {
-      const ics = { "Visitors": [ICON.person, "gold"], "Page views": [ICON.eye, "ok"], "Active now": [ICON.clock, "info"], "Landing to app": [ICON.arrow, "gold"], "App installs": [ICON.dl, "ok"], "Support clicks": [ICON.heart, "warn"], "Contribution forms": [ICON.pen, "mut"], "Via speakga.com": [ICON.globe, "info"] };
-      const [ic, tone] = ics[k] || [null, "mut"];
-      return `<div class="kpi">${kpiInner(k, v, `${s}${p0 === null || p0 === undefined ? "" : ` ${dlt(dc !== undefined ? dc : (typeof v === "number" ? v : 0), p0)}`}`, ic, tone)}</div>`;
-    }).join("");
-    const steps = [["Visited speakga.org & .com", f.site_visitors, pv.site_visitors], ["Opened the app", f.app_visitors, pv.app_visitors], ["Asked a question (accounts)", f.asked, pv.asked], ["Created an account", f.signed_up, pv.signed_up], ["Contributed", f.contributed, pv.contributed]];
+    $("tLive").textContent = fmt(t.active_now || 0);
+    drawTrafficChart();
+
+    $("tMinis").innerHTML = [
+      [ICON.heart, "warn", t.actions.support, "Support clicks", pa.support],
+      [ICON.pen, "mut", t.actions.give, "Contribution forms", pa.give],
+      [ICON.globe, "info", t.com_visitors || 0, "Via speakga.com", pv.com_visitors],
+      [ICON.person, "gold", t.first_visit || 0, "New visitors", pa.first_visit],
+    ].map(([ic, tone, v, k, p0]) => `<div class="mstat"><i class="kic ${tone}">${ic}</i><div style="min-width:0"><span class="mv"><b>${fmt(v)}</b>${dlt(v, p0 || 0)}</span><small>${k}</small></div></div>`).join("");
+
+    const steps = [["Visited speakga.org or .com", f.site_visitors, pv.site_visitors], ["Opened the app", f.app_visitors, pv.app_visitors], ["Asked a question (accounts)", f.asked, pv.asked], ["Created an account", f.signed_up, pv.signed_up], ["Contributed", f.contributed, pv.contributed]];
     const top = Math.max(1, ...steps.map((s) => s[1]));
-    $("tFunnel").innerHTML = steps.map(([k, v, p0]) => `<div class="fn"><span>${k}</span><span class="track"><i style="width:${v / top * 100}%"></i></span><b>${fmt(v)} ${dlt(v, p0 || 0)}</b></div>`).join("");
-    const days = lastDays(Math.min(T.days, 30)), map = Object.fromEntries(t.daily.map((d) => [d.day, d.visitors]));
-    const vals = days.map((d) => map[d] || 0);
-    bars("tChart", days.map(dayLabel), vals, { hi: vals.indexOf(Math.max(...vals)), sub: monthAt(days) });
-    mini($("tPages"), t.pages.map((p) => [`${p.host === "site" ? "speakga.org" : p.host === "com" ? "speakga.com" : "app"} ${p.path}`, p.views]), "No page views yet.");
-    mini($("tRefs"), t.referrers.map((r) => [r.ref, r.visitors]), "No visits yet.");
-    mini($("tGeo"), t.countries.map((c) => [c.country === "??" ? "Unknown" : COUNTRY(c.country), c.visitors]), "No visits yet.");
-    const notOther = (a, b) => (a[0] === "Other / earlier") - (b[0] === "Other / earlier") || b[1] - a[1];
-    mini($("tBrowsers"), (t.browsers || []).map((b) => [b.browser === "Other" ? "Other / earlier" : b.browser, b.visitors]).sort(notOther), "No browser data yet.");
-    mini($("tOs"), (t.oses || []).map((o) => [o.os === "Other" ? "Other / earlier" : o.os, o.visitors]).sort(notOther), "No OS data yet.");
-    mini($("tUtm"), (t.campaigns || []).map((u) => [u.utm, u.visitors]), "No UTM-tagged visits yet.");
-    mini($("tChannels"), (t.channels || []).map((c) => [c.channel, c.visitors]), "No referrer data yet.");
-    mini($("tLanding"), (t.landing_pages || []).map((p) => [p.path, p.visitors]), "No landing data yet.");
-    mini($("tCities"), (t.cities || []).slice(0, 4).map((c) => [c.city, c.visitors]), "No city data yet.");
-    mini($("tLangs"), (t.langs || []).slice(0, 4).map((l) => [l.lang, l.visitors]), "No language data yet.");
-    mini($("tInst"), (t.install_devices || []).map((d) => [`${d.event === "install_click" ? "tap" : d.event}: ${d.os} ${d.browser} (${d.device})`, d.n]), "No install events yet.");
-    const hvals = Array.from({ length: 24 }, (_, h) => (Object.fromEntries((t.hourly || []).map((r) => [+r.hh, r.visitors])) || {})[h] || 0);
-    bars("tHours", Array.from({ length: 24 }, (_, h) => String(h).padStart(2, "0")), hvals, { hi: hvals.indexOf(Math.max(...hvals)), sub: hvals.map((_, h) => (h % 6 === 0 ? `${h}h` : "")) });
-    const eng = [
-      ["New visitors", t.first_visit || 0, "first visit ever, per device", pa.first_visit],
-      ["Saw just one page", t.bounced || 0, "one pageview and out", null],
-      ["Opened the app", t.actions.start, "tapped through from the site", pa.start],
-      ["Installed the app", t.actions.install, "added to a home screen", pa.install],
-    ];
-    $("tEngage").innerHTML = eng.map(([k, v, s, p0]) => {
+    $("tFunnel").innerHTML = steps.map(([k, v, p0], i) => (i ? `<div class="conv">${steps[i - 1][1] ? `${Math.round(v / steps[i - 1][1] * 100)}% went on` : "—"}</div>` : "")
+      + `<div class="fs"><i style="width:${Math.max(v ? 3 : 0, v / top * 100)}%"></i><span>${k}</span><b>${fmt(v)}${dlt(v, p0 || 0)}</b></div>`).join("");
+
+    const ring = (p) => { const r = 22, c = 2 * Math.PI * r; return `<svg viewBox="0 0 52 52" aria-hidden="true"><circle class="bg" cx="26" cy="26" r="${r}"/>${p ? `<circle class="fg" cx="26" cy="26" r="${r}" stroke-dasharray="${(c * p / 100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 26 26)"/>` : ""}<text x="26" y="30" text-anchor="middle">${p}%</text></svg>`; };
+    $("tEngage").innerHTML = [
+      ["New visitors", t.first_visit || 0, "first visit, per device", pa.first_visit],
+      ["Saw one page", t.bounced || 0, "one view and out", null],
+      ["Opened the app", t.actions.start, "from the site", pa.start],
+      ["Installed", t.actions.install, "to a home screen", pa.install],
+    ].map(([k, v, s, p0]) => {
       const p = t.visitors ? Math.min(100, Math.round(v / t.visitors * 100)) : 0;
-      return `<div class="bar-row"><span title="${esc(s)}">${esc(k)}</span><span class="track"><i style="width:${p}%;background:var(--gold)"></i></span><b>${fmt(v)} · ${p}%${p0 === null || p0 === undefined ? "" : ` ${dlt(v, p0)}`}</b></div>`;
+      return `<div class="ring">${ring(p)}<div style="min-width:0"><b>${k}</b><small>${fmt(v)} · ${s}${p0 === null || p0 === undefined ? "" : dlt(v, p0)}</small></div></div>`;
     }).join("");
-    const dt = t.devices.reduce((n, d) => n + d.visitors, 0) || 1;
-    $("tDevices").innerHTML = t.devices.length ? t.devices.map((d) => `<div class="bar-row"><span style="text-transform:capitalize">${esc(d.device)}</span><span class="track"><i style="width:${d.visitors / dt * 100}%;background:var(--gold)"></i></span><b>${Math.round(d.visitors / dt * 100)}%</b></div>`).join("") : '<p class="muted">No visits yet.</p>';
+
+    const hm = Object.fromEntries((t.hourly || []).map((r) => [+r.hh, r.visitors]));
+    const hv = Array.from({ length: 24 }, (_, h) => hm[h] || 0), hmax = Math.max(1, ...hv);
+    $("tHours").innerHTML = hv.map((v, h) => `<i class="${v ? "" : "z"}" title="${String(h).padStart(2, "0")}:00 UTC: ${fmt(v)} visitor${v === 1 ? "" : "s"}" style="opacity:${(0.15 + v / hmax * 0.85).toFixed(2)}"></i>`).join("");
+
+    const other = (a, b) => (a[0] === "Other / earlier") - (b[0] === "Other / earlier") || b[1] - a[1];
+    const host = (h) => h === "site" ? "speakga.org" : h === "com" ? "speakga.com" : "app";
+    TL_SETS = {
+      src: { Referrers: t.referrers.map((r) => [r.ref, r.visitors]), Channels: (t.channels || []).map((c) => [c.channel, c.visitors]), Campaigns: (t.campaigns || []).map((u) => [u.utm, u.visitors]) },
+      pg: { "Top pages": t.pages.map((p) => [`${host(p.host)} ${p.path}`, p.views]), Landing: (t.landing_pages || []).map((p) => [p.path, p.visitors]) },
+      loc: { Countries: t.countries.map((c) => [c.country === "??" ? "Unknown" : COUNTRY(c.country), c.visitors]), Cities: (t.cities || []).map((c) => [c.city, c.visitors]), Languages: (t.langs || []).map((l) => [l.lang, l.visitors]) },
+      tech: { Devices: t.devices.map((d) => [d.device.charAt(0).toUpperCase() + d.device.slice(1), d.visitors]),
+              Browsers: (t.browsers || []).map((b) => [b.browser === "Other" ? "Other / earlier" : b.browser, b.visitors]).sort(other),
+              Systems: (t.oses || []).map((o) => [o.os === "Other" ? "Other / earlier" : o.os, o.visitors]).sort(other) },
+    };
+    $$("[data-tl]").forEach(drawTabbedList);
+
+    const EVT = { install: ["ok", "Install"], install_click: ["warn", "Tap"], uninstall: ["bad", "Uninstall"] };
+    const inst = t.install_devices || [];
+    $("tInst").innerHTML = inst.length
+      ? inst.map((d) => { const [c, l] = EVT[d.event] || ["", d.event]; return `<tr><td><span class="pill ${c}">${esc(l)}</span></td><td>${esc(d.os)}</td><td>${esc(d.browser)}</td><td style="text-transform:capitalize">${esc(d.device)}</td><td class="num" style="text-align:right;font-weight:700">${fmt(d.n)}</td></tr>`; }).join("")
+      : '<tr><td colspan="5" class="muted">No install events yet.</td></tr>';
   } catch (e) { $("tKpis").innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
 
