@@ -447,6 +447,15 @@ input.gaip{font:700 16px var(--display)}
         <div class="panel"><h2>Where they come from</h2><div class="mini" id="tRefs"></div></div>
         <div class="panel"><h2>Countries</h2><div class="mini" id="tGeo"></div></div>
       </div>
+      <div class="grid3">
+        <div class="panel"><h2>Browsers</h2><div class="mini" id="tBrowsers"></div></div>
+        <div class="panel"><h2>Operating systems</h2><div class="mini" id="tOs"></div></div>
+        <div class="panel"><h2>Campaigns <small>UTM tags on the link</small></h2><div class="mini" id="tUtm"></div></div>
+      </div>
+      <div class="grid2">
+        <div class="panel chart"><h2>Visitors by hour <small>UTC</small></h2><svg viewBox="0 0 420 210" role="img" id="tHours" aria-label="Visitors by hour"></svg></div>
+        <div class="panel"><h2>Engagement</h2><div class="stack" id="tEngage"></div><p class="muted" style="font-size:12.5px;margin-top:10px">Shares are out of the period's visitors, each counted once per day.</p></div>
+      </div>
       <div class="panel"><h2>Devices</h2><div class="stack" id="tDevices"></div></div>
     </section>
 
@@ -1410,9 +1419,11 @@ async function loadTraffic() {
     const t = await api(`/analytics/traffic?days=${T.days}`);
     const f = t.funnel;
     $("tKpis").innerHTML = [
-      ["Visitors", t.visitors, "counted once a day"], ["Page views", t.views, t.visitors ? `${(t.views / t.visitors).toFixed(1)} per visitor` : "—"],
+      ["Visitors", t.visitors, `${fmt(t.first_visit || 0)} brand new`], ["Page views", t.views, t.visitors ? `${(t.views / t.visitors).toFixed(1)} per visitor` : "—"],
+      ["Active now", t.active_now || 0, "last 15 minutes"],
       ["Landing to app", f.site_visitors ? `${Math.round(t.actions.start / f.site_visitors * 100)}%` : "—", `${fmt(t.actions.start)} clicked through`],
-      ["App installs", t.actions.install, "added to a home screen"], ["Support clicks", t.actions.support, "in Support the research"], ["Contribution forms", t.actions.give, "sent from speakga.org"],
+      ["App installs", t.actions.install, `${fmt(t.actions.install_click || 0)} taps on install`],
+      ["Support clicks", t.actions.support, "in Support the research"], ["Contribution forms", t.actions.give, "sent from speakga.org"],
     ].map(([k, v, s]) => `<div class="kpi"><small>${k}</small><b>${typeof v === "number" ? fmt(v) : v}</b><span>${s}</span></div>`).join("");
     const steps = [["Visited speakga.org", f.site_visitors], ["Opened the app", f.app_visitors], ["Asked a question (accounts)", f.asked], ["Created an account", f.signed_up], ["Contributed", f.contributed]];
     const top = Math.max(1, ...steps.map((s) => s[1]));
@@ -1423,6 +1434,21 @@ async function loadTraffic() {
     mini($("tPages"), t.pages.map((p) => [`${p.host === "site" ? "speakga.org" : "app"} ${p.path}`, p.views]), "No page views yet.");
     mini($("tRefs"), t.referrers.map((r) => [r.ref, r.visitors]), "No visits yet.");
     mini($("tGeo"), t.countries.map((c) => [c.country === "??" ? "Unknown" : COUNTRY(c.country), c.visitors]), "No visits yet.");
+    mini($("tBrowsers"), (t.browsers || []).map((b) => [b.browser, b.visitors]), "No browser data yet.");
+    mini($("tOs"), (t.oses || []).map((o) => [o.os, o.visitors]), "No OS data yet.");
+    mini($("tUtm"), (t.campaigns || []).map((u) => [u.utm, u.visitors]), "No UTM-tagged visits yet.");
+    const hvals = Array.from({ length: 24 }, (_, h) => (Object.fromEntries((t.hourly || []).map((r) => [+r.hh, r.visitors])) || {})[h] || 0);
+    bars("tHours", Array.from({ length: 24 }, (_, h) => String(h).padStart(2, "0")), hvals, { hi: hvals.indexOf(Math.max(...hvals)), sub: hvals.map((_, h) => (h % 6 === 0 ? `${h}h` : "")) });
+    const eng = [
+      ["New visitors", t.first_visit || 0, "first visit ever, per device"],
+      ["Saw just one page", t.bounced || 0, "one pageview and out"],
+      ["Opened the app", t.actions.start, "tapped through from the site"],
+      ["Installed the app", t.actions.install, "added to a home screen"],
+    ];
+    $("tEngage").innerHTML = eng.map(([k, v, s]) => {
+      const p = t.visitors ? Math.min(100, Math.round(v / t.visitors * 100)) : 0;
+      return `<div class="bar-row"><span title="${esc(s)}">${esc(k)}</span><span class="track"><i style="width:${p}%;background:var(--gold)"></i></span><b>${fmt(v)} · ${p}%</b></div>`;
+    }).join("");
     const dt = t.devices.reduce((n, d) => n + d.visitors, 0) || 1;
     $("tDevices").innerHTML = t.devices.length ? t.devices.map((d) => `<div class="bar-row"><span style="text-transform:capitalize">${esc(d.device)}</span><span class="track"><i style="width:${d.visitors / dt * 100}%;background:var(--gold)"></i></span><b>${Math.round(d.visitors / dt * 100)}%</b></div>`).join("") : '<p class="muted">No visits yet.</p>';
   } catch (e) { $("tKpis").innerHTML = `<div class="empty">${esc(e.message)}</div>`; }

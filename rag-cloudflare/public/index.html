@@ -4094,6 +4094,7 @@ function saveInstallState(st) { try { localStorage.setItem(INSTALL_KEY, JSON.str
 { const st = installState(); st.visits = (st.visits || 0) + 1; saveInstallState(st); }
 
 function openInstall() {
+  window.sgTrack && sgTrack("install_click");
   const ios = !installPrompt && isIOS;
   $("instPrompt").classList.toggle("hidden", ios);
   $("instPromptRow").classList.toggle("hidden", ios);
@@ -6313,7 +6314,7 @@ loadTopics();
 </script>
 <script>
 /* Cookie-free visit counter: page, referring site, device. No names or IP addresses (src/routes/traffic.ts). */
-(function(){function t(e){try{var d=JSON.stringify({e:e,p:location.pathname+(location.hash||""),r:document.referrer});if(!(navigator.sendBeacon&&navigator.sendBeacon("/api/v1/e",d)))fetch("/api/v1/e",{method:"POST",body:d,keepalive:true})}catch(_){}}window.sgTrack=t;t("pageview");})();
+(function(){function t(e){try{var d=JSON.stringify({e:e,p:location.pathname+(location.hash||""),r:document.referrer,u:location.search});if(!(navigator.sendBeacon&&navigator.sendBeacon("/api/v1/e",d)))fetch("/api/v1/e",{method:"POST",body:d,keepalive:true})}catch(_){}}window.sgTrack=t;try{if(!localStorage.getItem("sg_seen")){localStorage.setItem("sg_seen","1");t("first_visit")}}catch(_){}t("pageview");})();
 </script>
 </body>
 </html>
