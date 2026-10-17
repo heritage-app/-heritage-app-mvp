@@ -1471,8 +1471,9 @@ async function loadTraffic() {
     mini($("tPages"), t.pages.map((p) => [`${p.host === "site" ? "speakga.org" : "app"} ${p.path}`, p.views]), "No page views yet.");
     mini($("tRefs"), t.referrers.map((r) => [r.ref, r.visitors]), "No visits yet.");
     mini($("tGeo"), t.countries.map((c) => [c.country === "??" ? "Unknown" : COUNTRY(c.country), c.visitors]), "No visits yet.");
-    mini($("tBrowsers"), (t.browsers || []).map((b) => [b.browser === "Other" ? "Other / earlier" : b.browser, b.visitors]), "No browser data yet.");
-    mini($("tOs"), (t.oses || []).map((o) => [o.os === "Other" ? "Other / earlier" : o.os, o.visitors]), "No OS data yet.");
+    const notOther = (a, b) => (a[0] === "Other / earlier") - (b[0] === "Other / earlier") || b[1] - a[1];
+    mini($("tBrowsers"), (t.browsers || []).map((b) => [b.browser === "Other" ? "Other / earlier" : b.browser, b.visitors]).sort(notOther), "No browser data yet.");
+    mini($("tOs"), (t.oses || []).map((o) => [o.os === "Other" ? "Other / earlier" : o.os, o.visitors]).sort(notOther), "No OS data yet.");
     mini($("tUtm"), (t.campaigns || []).map((u) => [u.utm, u.visitors]), "No UTM-tagged visits yet.");
     mini($("tChannels"), (t.channels || []).map((c) => [c.channel, c.visitors]), "No referrer data yet.");
     mini($("tLanding"), (t.landing_pages || []).map((p) => [p.path, p.visitors]), "No landing data yet.");
