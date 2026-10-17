@@ -244,12 +244,15 @@ function busy(on) {
     }
   } catch {}
   if (new URLSearchParams(location.search).get("denied") && $("msg").hidden) denied("");
+  if (new URLSearchParams(location.search).get("joined") && $("msg").hidden) say("ok", "Account created. Sign in to open the console.");
 })();
-// Admin invites land here: ?invite=<token> turns the sign-in form into a
-// one-step join. Member invites are pointed back at the app.
+// Admin invites land here: ?invite=<token> swaps the whole form for a one-step
+// join (the sign-in stays hidden while the link is checked — invitees only
+// ever see the sign up, everyone else only ever sees the sign-in).
 const invite = new URLSearchParams(location.search).get("invite");
 let inviteInfo = null;
 if (invite) {
+  $("f").hidden = true;
   (async () => {
     try {
       const r = await fetch(`${API}/invites/${encodeURIComponent(invite)}`);
@@ -270,7 +273,8 @@ if (invite) {
       } else {
         say("err", esc(d.detail || "That invite link is used up or expired. Ask for a fresh one."));
       }
-    } catch { say("err", "Couldn't check that invite link — try opening it again."); }
+    } catch { say("err", "Couldn't check that invite link. Try opening it again."); }
+    $("f").hidden = false;
   })();
 }
 $("f").addEventListener("submit", async (e) => {
@@ -292,8 +296,8 @@ $("f").addEventListener("submit", async (e) => {
         if (r.status === 410) { inviteInfo = null; say("err", esc(d.detail || "That invite is gone. You can still sign in if you already have an account.")); return; }
         say("err", esc(d.detail || "Couldn't create the account."), "emailLine"); return;
       }
-      say("ok", "Account created. Opening the console…");
-      location.href = "/admin.html";
+      say("ok", "Account created. Taking you to sign in…");
+      location.href = "/auth?joined=1";
       return;
     }
     const r = await fetch(API + "/auth/login", {

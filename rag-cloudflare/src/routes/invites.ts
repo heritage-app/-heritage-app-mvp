@@ -13,7 +13,7 @@
 import { Hono } from "hono";
 import type { Env, Variables } from "../types";
 import { requireAdmin } from "../auth/middleware";
-import { createAccessToken, buildAuthCookie } from "../auth/jwt";
+import { createAccessToken } from "../auth/jwt";
 import { getUserByEmail, createUser } from "../db/users";
 import { nowIso } from "../utils/time";
 
@@ -39,10 +39,9 @@ type InviteRow = {
 };
 
 function newToken(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(24));
-  let bin = "";
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  // Hex only: no - or _ characters in the link.
+  const bytes = crypto.getRandomValues(new Uint8Array(18));
+  return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function inviteUrl(role: string, token: string): string {
@@ -76,14 +75,14 @@ async function sendInviteEmail(
   url: string,
   inviterName: string
 ): Promise<string | null> {
-  if (!env.RESEND_API_KEY) return "Resend isn't configured yet — share the link yourself.";
+  if (!env.RESEND_API_KEY) return "Resend isn't configured yet. Share the link yourself.";
   const from = env.INVITE_EMAIL_FROM || "SpeakGa <invite@mail.speakga.org>";
   const isAdmin = role === "admin";
   const subject = isAdmin ? "You're invited to the SpeakGa admin team" : "You're invited to SpeakGa";
   const what = isAdmin ? "the SpeakGa admin team" : "SpeakGa";
   const where = isAdmin
-    ? "It takes you to the admin console's sign-in page — set your password there and you're in."
-    : "It takes you to the SpeakGa sign-up page — set your password there and you're in.";
+    ? "It takes you to the admin console's sign up page. Set your password there and you're in."
+    : "It takes you to the SpeakGa sign up page. Set your password there and you're in.";
   const text = `${inviterName} invited you to ${what}. Open this link within 7 days: ${url}`;
   const html = `<!doctype html><html><body style="margin:0;padding:0;background:#FBF7F1;font-family:'Plus Jakarta Sans',Inter,system-ui,sans-serif">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FBF7F1;padding:40px 16px"><tr><td align="center">
@@ -93,7 +92,7 @@ async function sendInviteEmail(
   </td></tr>
   <tr><td style="padding:32px 28px 28px">
     <h1 style="margin:0 0 12px;font:800 26px/1.2 system-ui,sans-serif;color:#16130F;letter-spacing:-.02em">You're invited.</h1>
-    <p style="margin:0 0 6px;font:500 15px/1.6 system-ui,sans-serif;color:#52493D"><b>${inviterName}</b> invited you to <b>${what}</b>${isAdmin ? " — as an <b>admin</b>" : ""}.</p>
+    <p style="margin:0 0 6px;font:500 15px/1.6 system-ui,sans-serif;color:#52493D"><b>${inviterName}</b> invited you to <b>${what}</b>${isAdmin ? ", as an <b>admin</b>" : ""}.</p>
     <p style="margin:0 0 26px;font:500 15px/1.6 system-ui,sans-serif;color:#52493D">${where}</p>
     <p style="margin:0 0 26px;text-align:center">
       <a href="${url}" style="display:inline-block;background:#16130F;color:#FBF7F1;text-decoration:none;font:700 15px system-ui,sans-serif;padding:14px 34px;border-radius:999px">Accept the invite</a>
@@ -131,7 +130,7 @@ invitesAdmin.post("/", async (c) => {
   if (email) {
     if (!/^\S+@\S+\.\S+$/.test(email)) return c.json({ detail: "That email isn't valid." }, 400);
     const existing = await getUserByEmail(c.env, email);
-    if (existing) return c.json({ detail: `${email} already has an account — change their role on the Users list instead.` }, 400);
+    if (existing) return c.json({ detail: `${email} already has an account. Change their role on the Users list instead.` }, 400);
   }
 
   const token = newToken();
@@ -215,11 +214,11 @@ invitesPublic.post("/:token/accept", async (c) => {
   const password = String(body.password ?? "");
   if (!/^\S+@\S+\.\S+$/.test(email)) return c.json({ detail: "Enter a valid email address." }, 400);
   if (inv.email && email !== inv.email)
-    return c.json({ detail: `This invite is for ${inv.email} — sign up with that address.` }, 400);
+    return c.json({ detail: `This invite is for ${inv.email}. Sign up with that address.` }, 400);
   if (password.length < 8) return c.json({ detail: "Choose a password of at least 8 characters." }, 400);
 
   const existing = await getUserByEmail(c.env, email);
-  if (existing) return c.json({ detail: "That email already has an account — sign in instead." }, 400);
+  if (existing) return c.json({ detail: "That email already has an account. Sign in instead." }, 400);
 
   // Claim the link before the account row goes in, so a double-click or a
   // shared tab can't create two accounts off one invite.
@@ -239,8 +238,9 @@ invitesPublic.post("/:token/accept", async (c) => {
   }
   await c.env.DB.prepare("UPDATE invites SET used_by = ? WHERE token = ?").bind(user.id, inv.token).run().catch(() => {});
 
+  // No session cookie on purpose: the sign-in page is what they see and sign
+  // into after signing up. The token is returned for API clients using Bearer.
   const token = await createAccessToken(c.env, user.id, user.role);
-  c.header("Set-Cookie", buildAuthCookie(c.env, token));
   return c.json({
     access_token: token,
     token_type: "bearer",

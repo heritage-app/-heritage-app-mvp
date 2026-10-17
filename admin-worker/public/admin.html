@@ -456,7 +456,7 @@ input.gaip{font:700 16px var(--display)}
       <div class="panel"><h2>Invite someone</h2>
         <div class="bulkbar">
           <select class="in" id="invRole" style="height:38px" aria-label="Role for the invite"><option value="admin">Admin</option><option value="member">Member</option><option value="moderator">Moderator</option><option value="user">User</option></select>
-          <input class="in" id="invEmail" type="email" placeholder="Email — optional; blank means anyone with the link" style="flex:1;min-width:220px" />
+          <input class="in" id="invEmail" type="email" placeholder="Email (optional; blank means anyone with the link)" style="flex:1;min-width:220px" />
           <button class="btn ink" id="invMake">Create invite link</button>
           <span class="status" id="invSt"></span>
         </div>
@@ -1445,7 +1445,7 @@ $("invMake").addEventListener("click", async () => {
     $("invLink").value = d.url;
     $("invNew").classList.remove("hidden");
     $("invSt").textContent = "";
-    toast(d.emailed ? `Invite emailed to ${d.email}` : d.email ? `Email didn't send (${d.email_error || "not configured"}) — share the link yourself` : "Invite link made — send it to them");
+    toast(d.emailed ? `Invite emailed to ${d.email}` : d.email ? `Email didn't send (${d.email_error || "not configured"}), share the link yourself` : "Invite link made, send it to them");
     loadInvites();
   } catch (e) { $("invSt").textContent = e.message; }
 });
